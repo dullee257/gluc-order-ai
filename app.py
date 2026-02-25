@@ -21,7 +21,7 @@ texts = {
     "KO": {
         "title": "🥗 NutriSort AI",
         "sidebar_title": "💡 NutriSort 관리 시스템",
-        "description": "📈 혈당 스파이크 방지: 섭취 순서의 마법", # 전문적이고 친근한 제목으로 변경 
+        "description": "📈|혈당 스파이크 방지|섭취 순서의 마법", # | 기호로 행 구분점을 만듭니다. 
         "uploader_label": "음식 스캔하기",
         "analyze_btn": "혈당관리 솔루션 및 섭취순서 분석",
         "save_btn": "💾 이 식단 기록 저장하기",
@@ -128,8 +128,15 @@ st.markdown(f"""
 
 # 5. 메인 화면 - 식단 스캐너
 if menu == t["scanner_menu"]:
-    # 상단 여백 확보를 위해 margin-top 조정
-    st.markdown(f"<h1 style='text-align:center; margin-top: 20px; margin-bottom: 40px;'>{t['description']}</h1>", unsafe_allow_html=True)
+    # 1️⃣ 전문적인 3행 타이틀 디자인 (이미지 - 제목 - 부제목)
+    title_parts = t["description"].split("|")
+    st.markdown(f"""
+        <div style="text-align: center; margin-top: -20px; margin-bottom: 30px;">
+            <div style="font-size: 50px; margin-bottom: 10px;">{title_parts[0]}</div>
+            <div style="font-size: 26px; font-weight: 800; color: #333333; line-height: 1.2;">{title_parts[1]}</div>
+            <div style="font-size: 18px; font-weight: 500; color: #86cc85; margin-top: 5px;">{title_parts[2]}</div>
+        </div>
+    """, unsafe_allow_html=True)
     
     API_KEY = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=API_KEY)
@@ -236,5 +243,6 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
