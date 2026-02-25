@@ -1,16 +1,25 @@
 import streamlit as st
-# 카카오톡 인앱 브라우저 탈출 스크립트
-import streamlit as st
-
-# 1. 카톡 인앱 브라우저 탈출 및 '양식 다시 제출' 방지 스크립트
+# 1. 카톡 및 네이버 인앱 브라우저 탈출 스크립트 (화면 깨짐 및 양식 중복 제출 방지)
 st.components.v1.html(
     """
     <script>
     var agent = navigator.userAgent.toLowerCase();
+    var currentUrl = window.location.href;
+    
     if (agent.indexOf('kakao') > -1) {
-        // 현재 주소를 외부 브라우저로 열되, 양식 중복 제출을 막기 위해 새 창으로 연결
-        var currentUrl = window.location.href;
+        // 카카오톡 탈출
         location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(currentUrl);
+    } else if (agent.indexOf('naver') > -1) {
+        // 네이버 앱 탈출
+        if (agent.indexOf('android') > -1) {
+            // 안드로이드: 크롬 브라우저로 강제 이동
+            location.href = 'intent://' + currentUrl.replace(/https?:\/\//i, '') + '#Intent;scheme=https;package=com.android.chrome;end';
+        } else {
+            // 아이폰(iOS): 캐시(과거 기록)를 무시하고 최신 화면을 불러오도록 주소에 난수 추가
+            if (currentUrl.indexOf('?') === -1) {
+                window.location.replace(currentUrl + '?reload=' + new Date().getTime());
+            }
+        }
     }
     </script>
     """,
@@ -276,6 +285,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
