@@ -131,7 +131,7 @@ if menu == t["scanner_menu"]:
                 
                 if items:
                     sorted_items = sorted(items, key=lambda x: x[2])
-                    advice_response = client.models.generate_content(model="gemini-1.5-flash", contents=[t["advice_prompt"], img])
+                    advice_response = client.models.generate_content(model="gemini-flash-latest", contents=[t["advice_prompt"], img])
                     
                     st.session_state['current_analysis'] = {
                         "sorted_items": sorted_items,
@@ -193,3 +193,4 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
