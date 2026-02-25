@@ -119,7 +119,7 @@ if menu == t["scanner_menu"]:
         if st.button(t["analyze_btn"], use_container_width=True):
             with st.spinner("AI 분석 중..."):
                 prompt = f"Analyze food for blood sugar management. Criteria: 1.Green(Fiber), 2.Yellow(Protein), 3.Red(Carbs). Format: FoodName|TrafficColor|Order. Lang: {lang}"
-                response = client.models.generate_content(model="gemini-1.5-flash", contents=[prompt, img])
+                response = client.models.generate_content(model="gemini-flash-latest", contents=[prompt, img])
                 
                 raw_lines = response.text.strip().split('\n')
                 items = []
@@ -193,4 +193,5 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
