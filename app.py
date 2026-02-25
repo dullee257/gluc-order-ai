@@ -125,28 +125,28 @@ if menu == t["scanner_menu"]:
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        # 1️⃣ 파일 업로드
-        uploaded_file = st.file_uploader(
-            t["uploader_label"],
-            type=["jpg", "png", "jpeg"]
-        )
-    
-        # 2️⃣ 카메라 촬영 추가
-        camera_photo = st.camera_input(
-            "📸 사진 촬영" if lang == "KO" else "📸 Take Photo"
-        )
-    
-        # 3️⃣ 실제 사용할 이미지 결정
+        # 탭을 사용하여 촬영과 선택 기능을 앱 UI처럼 분리
+        input_tab1, input_tab2 = st.tabs(["📸 직접 촬영", "📁 갤러리 선택"])
+        
+        with input_tab1:
+            camera_photo = st.camera_input("오늘의 식단을 촬영해 주세요")
+            
+        with input_tab2:
+            uploaded_file = st.file_uploader(
+                t["uploader_label"], # "음식 스캔하기"
+                type=["jpg", "png", "jpeg"]
+            )
+
+        # 이미지 로직 통합
         img = None
-        if camera_photo is not None:
+        current_file = None # 저장 시 사용할 원본 파일 보관용
+        
+        if camera_photo:
             img = PIL.Image.open(camera_photo)
-        elif uploaded_file is not None:
+            current_file = camera_photo
+        elif uploaded_file:
             img = PIL.Image.open(uploaded_file)
-    
-        # 4️⃣ 이미지 미리보기
-        if img is not None:
-            caption_text = "📷 촬영된 식단" if lang == "KO" else "📷 Captured Photo"
-            st.image(img, caption=caption_text, use_container_width=True)
+            current_file = uploaded_file
     
     
     with col2:
@@ -251,5 +251,6 @@ elif menu == t["history_menu"]:
                 st.info(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
