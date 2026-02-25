@@ -185,12 +185,13 @@ if menu == t["scanner_menu"]:
             st.markdown(f"### {t['advice_title']}")
             st.info(res['advice'])
             
-            # 저장 버튼 (피그마 스타일 적용됨)
+            # 저장 버튼 부분
             if st.button(t["save_btn"], use_container_width=True):
                 st.session_state['history'].append({
                     "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "menu": res['menu_str'],
-                    "advice": res['advice']
+                    "image": uploaded_file, # 원본 이미지 데이터 저장
+                    "sorted_items": res['sorted_items'], # 분석된 순서 리스트 저장
+                    "advice": res['advice'] # AI 소견 저장
                 })
                 st.balloons()
                 st.success(t["save_msg"])
