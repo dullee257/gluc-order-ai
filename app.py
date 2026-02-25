@@ -103,26 +103,41 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# 5. 메인 화면 - 식단 스캐너
+# 5. 메인 화면 - 식단 스캐너 (촬영/선택 분리형)
 if menu == t["scanner_menu"]:
-    st.title(t["description"]) # "오늘의 혈당 상황도" 상단 고정
+    st.title(t["description"]) # "오늘의 혈당 상황도"
     
     API_KEY = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=API_KEY)
 
-    # 모바일은 한 화면에 다 보여야 하므로 세로로 배치
-    uploaded_file = st.file_uploader(
-        t["uploader_label"], 
-        type=["jpg", "png", "jpeg"],
-        accept_multiple_files=False
-    )
+    # 두 가지 입력 방식을 탭(Tab)으로 나누어 깔끔하게 배치합니다.
+    tab1, tab2 = st.tabs(["📸 직접 촬영", "📁 사진 선택"])
     
+    uploaded_file = None
+
+    with tab1:
+        # 탭을 누르면 바로 카메라가 활성화됩니다.
+        cam_file = st.camera_input("음식을 촬영해 주세요")
+        if cam_file:
+            uploaded_file = cam_file
+
+    with tab2:
+        # 기존처럼 갤러리에서 파일을 선택합니다.
+        gallery_file = st.file_uploader(
+            "갤러리에서 사진을 골라주세요", 
+            type=["jpg", "png", "jpeg"]
+        )
+        if gallery_file:
+            uploaded_file = gallery_file
+
+    # 사진이 입력되었을 때 분석 로직 실행
     if uploaded_file:
         img = PIL.Image.open(uploaded_file)
-        st.image(img, caption="📷 분석 대기 중인 식단", use_container_width=True)
+        # 선택된 사진 미리보기 (모바일 너비 최적화)
+        st.image(img, caption="📷 스캔된 식단", use_container_width=True)
         
         if st.button(t["analyze_btn"], use_container_width=True):
-            with st.spinner("AI가 분석 중입니다..."):
+            with st.spinner("AI 분석 가이드 생성 중..."):
                 prompt = f"""
                 Analyze the food in the photo for blood sugar management.
                 Criteria: 1.Green(Fiber), 2.Yellow(Protein), 3.Red(Carbs)
@@ -147,7 +162,7 @@ if menu == t["scanner_menu"]:
                         "sorted_items": sorted_items,
                         "advice": advice_response.text,
                         "menu_str": ", ".join([item[0] for item in items]),
-                        "raw_img": uploaded_file # 원본 이미지 객체 저장
+                        "raw_img": uploaded_file
                     }
 
     # 분석 결과 출력부 (피그마 카드 디자인)
@@ -204,3 +219,4 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("저장된 기록이 없습니다.")
+
