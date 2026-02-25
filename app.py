@@ -59,30 +59,26 @@ with st.sidebar:
     st.title(t["sidebar_title"])
     menu = st.radio("Menu", [t["scanner_menu"], t["history_menu"]])
 
-# 4. 피그마 디자인(민트 테마) 완벽 이식 CSS
-# 4. CSS 주입 (중앙 정렬 및 불필요 요소 완전 제거)
+# 4. 피그마 디자인 완벽 이식 및 광채 효과 CSS
 st.markdown(f"""
-    <style>
-    /* 전체 배경색 */
+<style>
     .stApp {{ background-color: #f8f9fa; }}
 
-    /* 1. 업로드 섹션: 중앙 정렬 및 크기 최적화 */
-    [data-testid="stFileUploader"] {
+    [data-testid="stFileUploader"] {{
         display: flex;
         justify-content: center;
         margin: 0 auto;
         width: 100% !important;
-    }
+    }}
 
-    /* 2. 원형 디자인: 다중 그림자로 입체적인 광채 구현 */
-    [data-testid="stFileUploader"] section {
+    /* 굵은 민트 테두리와 입체적 광채 */
+    [data-testid="stFileUploader"] section {{
         background-color: #ffffff !important;
         border: 18px solid #86cc85 !important;
-        /* 여러 겹의 그림자로 바깥으로 퍼지는 빛을 표현 */
         box-shadow: 
-            0 0 10px rgba(134, 204, 133, 0.5), 
-            0 0 25px rgba(134, 204, 133, 0.3),
-            0 0 45px rgba(134, 204, 133, 0.1) !important;
+            0 0 15px rgba(134, 204, 133, 0.5), 
+            0 0 35px rgba(134, 204, 133, 0.3),
+            0 0 55px rgba(134, 204, 133, 0.1) !important;
         border-radius: 50% !important;
         width: 250px !important;
         height: 250px !important;
@@ -93,55 +89,41 @@ st.markdown(f"""
         align-items: center;
         position: relative;
         transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-    }
+    }}
 
-    /* 3. 클릭 제스처: 누를 때 버튼이 쏙 들어가며 빛이 확 살아남 */
-    [data-testid="stFileUploader"] section:active {
+    /* 클릭 시 쫀득하게 눌리는 반응 */
+    [data-testid="stFileUploader"] section:active {{
         transform: scale(0.92);
-        box-shadow: 0 0 60px rgba(134, 204, 133, 0.7) !important;
-        border-color: #70b86f !important;
-    }
+        box-shadow: 0 0 65px rgba(134, 204, 133, 0.7) !important;
+    }}
 
-    /* 4. 내부 요소 완전 박멸 및 커스텀 아이콘/텍스트 */
-    [data-testid="stFileUploader"] section > div { display: none !important; }
-    [data-testid="stFileUploader"] section small { display: none !important; }
-    [data-testid="stFileUploader"] section span { display: none !important; }
+    [data-testid="stFileUploader"] section > div {{ display: none !important; }}
+    [data-testid="stFileUploader"] section small {{ display: none !important; }}
+    [data-testid="stFileUploader"] section span {{ display: none !important; }}
 
-    [data-testid="stFileUploader"] section::before {
+    [data-testid="stFileUploader"] section::before {{
         content: "📷"; 
-        font-size: 65px;
-        margin-bottom: 2px;
+        font-size: 70px;
         z-index: 2;
-        filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.1));
-    }
+    }}
 
-    [data-testid="stFileUploader"] section::after {
+    [data-testid="stFileUploader"] section::after {{
         content: "음식 스캔하기"; 
-        font-size: 18px;
+        font-size: 20px;
         font-weight: 700;
-        color: #444444;
+        color: #333333;
         z-index: 2;
-    }
+    }}
 
-    /* 5. 투명 버튼 (원 전체 클릭 가능) */
-    [data-testid="stFileUploader"] section button {
+    [data-testid="stFileUploader"] section button {{
         opacity: 0 !important;
         position: absolute !important;
-        top: 0; left: 0;
         width: 100% !important;
         height: 100% !important;
         z-index: 10;
         cursor: pointer;
-    }
-
-    /* 결과 카드 디자인 */
-    .result-card {{
-        background-color: #ffffff; padding: 20px; border-radius: 15px;
-        margin-bottom: 12px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.05);
-        display: flex; justify-content: space-between; align-items: center;
-        border-left: 10px solid #86cc85;
     }}
-    </style>
+</style>
 """, unsafe_allow_html=True)
 
 # 5. 메인 화면 - 식단 스캐너
@@ -254,3 +236,4 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
