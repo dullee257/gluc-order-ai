@@ -95,51 +95,54 @@ if menu == t["scanner_menu"]:
     API_KEY = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=API_KEY)
 
-    # 모바일은 한 줄로 쭉 배치하는 것이 가장 깔끔합니다.
-    input_tab1, input_tab2 = st.tabs(["📸 직접 촬영", "📁 갤러리 선택"])
-    
-    img = None
-    current_file = None
+    # 탭을 없애고 피그마 디자인처럼 하나의 통합 버튼으로 구성합니다.
+    # 모바일에서 이 버튼을 누르면 [카메라 / 미디어 보관함] 메뉴가 즉시 뜹니다.
+    uploaded_file = st.file_uploader(
+        t["uploader_label"], # "음식 스캔하기"
+        type=["jpg", "png", "jpeg"]
+    )
 
-    with input_tab1:
-        camera_photo = st.camera_input("오늘의 식단을 촬영해 주세요")
-        if camera_photo:
-            img = PIL.Image.open(camera_photo)
-            current_file = camera_photo
-
-    with input_tab2:
-        uploaded_file = st.file_uploader(t["uploader_label"], type=["jpg", "png", "jpeg"])
-        if uploaded_file:
-            img = PIL.Image.open(uploaded_file)
-            current_file = uploaded_file
-
-    if img:
+    if uploaded_file:
+        img = PIL.Image.open(uploaded_file)
         st.image(img, caption="📷 스캔된 식단", use_container_width=True)
         
+        # 분석 버튼 (피그마 스타일)
         if st.button(t["analyze_btn"], use_container_width=True):
             with st.spinner("AI 분석 중..."):
-                prompt = f"Analyze food for blood sugar management. Criteria: 1.Green(Fiber), 2.Yellow(Protein), 3.Red(Carbs). Format: FoodName|TrafficColor|Order. Lang: {lang}"
-                response = client.models.generate_content(model="gemini-flash-latest", contents=[prompt, img])
-                
-                raw_lines = response.text.strip().split('\n')
-                items = []
-                for line in raw_lines:
-                    if '|' in line and not any(x in line for x in ['---', 'Food', '음식']):
-                        parts = line.split('|')
-                        if len(parts) >= 3:
-                            items.append([p.strip() for p in parts])
-                
-                if items:
-                    sorted_items = sorted(items, key=lambda x: x[2])
-                    advice_response = client.models.generate_content(model="gemini-flash-latest", contents=[t["advice_prompt"], img])
+                try:
+                    # 에러 방지: 모델명을 'gemini-1.5-flash'로 고정
+                    prompt = f"Analyze food for glucose management. Format: FoodName|TrafficColor|Order. Lang: {lang}"
+                    response = client.models.generate_content(
+                        model="gemini-1.5-flash", 
+                        contents=[prompt, img]
+                    )
                     
-                    st.session_state['current_analysis'] = {
-                        "sorted_items": sorted_items,
-                        "advice": advice_response.text,
-                        "menu_str": ", ".join([item[0] for item in items]),
-                        "saved_file": current_file # 실제 분석에 쓰인 파일 저장
-                    }
+                    # 결과 파싱
+                    raw_lines = response.text.strip().split('\n')
+                    items = []
+                    for line in raw_lines:
+                        if '|' in line and not any(x in line for x in ['---', 'Food', '음식']):
+                            parts = line.split('|')
+                            if len(parts) >= 3:
+                                items.append([p.strip() for p in parts])
+                    
+                    if items:
+                        sorted_items = sorted(items, key=lambda x: x[2])
+                        # 소견 분석도 동일 모델로 수행
+                        advice_res = client.models.generate_content(
+                            model="gemini-1.5-flash", 
+                            contents=[t["advice_prompt"], img]
+                        )
+                        
+                        st.session_state['current_analysis'] = {
+                            "sorted_items": sorted_items,
+                            "advice": advice_res.text,
+                            "raw_img": uploaded_file
+                        }
+                except Exception as e:
+                    st.error(f"분석 엔진 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({str(e)})")
 
+    # 결과 출력 (피그마 카드 디자인)
     if st.session_state['current_analysis']:
         res = st.session_state['current_analysis']
         st.divider()
@@ -161,7 +164,7 @@ if menu == t["scanner_menu"]:
         if st.button(t["save_btn"], use_container_width=True):
             st.session_state['history'].append({
                 "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "image": res['saved_file'],
+                "image": res['raw_img'],
                 "sorted_items": res['sorted_items'],
                 "advice": res['advice']
             })
@@ -193,5 +196,6 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
