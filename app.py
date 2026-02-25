@@ -125,14 +125,33 @@ if menu == t["scanner_menu"]:
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        uploaded_file = st.file_uploader(t["uploader_label"], type=["jpg", "png", "jpeg"])
-        if uploaded_file:
+        # 1️⃣ 파일 업로드
+        uploaded_file = st.file_uploader(
+            t["uploader_label"],
+            type=["jpg", "png", "jpeg"]
+        )
+    
+        # 2️⃣ 카메라 촬영 추가
+        camera_photo = st.camera_input(
+            "📸 사진 촬영" if lang == "KO" else "📸 Take Photo"
+        )
+    
+        # 3️⃣ 실제 사용할 이미지 결정
+        img = None
+        if camera_photo is not None:
+            img = PIL.Image.open(camera_photo)
+        elif uploaded_file is not None:
             img = PIL.Image.open(uploaded_file)
-            caption_text = "📷 촬영된 식단" if lang == "KO" else "📷 Photo"
+    
+        # 4️⃣ 이미지 미리보기
+        if img is not None:
+            caption_text = "📷 촬영된 식단" if lang == "KO" else "📷 Captured Photo"
             st.image(img, caption=caption_text, use_container_width=True)
-
+    
+    
     with col2:
-        if uploaded_file and st.button(t["analyze_btn"], use_container_width=True):
+        # 🔥 uploaded_file → img 로 변경 (중요)
+        if img is not None and st.button(t["analyze_btn"], use_container_width=True):
             with st.spinner("Processing..."):
                 prompt = f"""
                 Analyze the food in the photo for blood sugar management.
@@ -140,8 +159,12 @@ if menu == t["scanner_menu"]:
                 Output Format: FoodName|TrafficColor|Order
                 Language: {lang}
                 """
-                response = client.models.generate_content(model="gemini-flash-latest", contents=[prompt, img])
-                
+    
+                response = client.models.generate_content(
+                    model="gemini-flash-latest",
+                    contents=[prompt, img]
+                )
+    
                 raw_lines = response.text.strip().split('\n')
                 items = []
                 for line in raw_lines:
@@ -149,11 +172,15 @@ if menu == t["scanner_menu"]:
                         parts = line.split('|')
                         if len(parts) >= 3:
                             items.append([p.strip() for p in parts])
-                
+    
                 if items:
                     sorted_items = sorted(items, key=lambda x: x[2])
-                    advice_response = client.models.generate_content(model="gemini-flash-latest", contents=[t["advice_prompt"], img])
-                    
+    
+                    advice_response = client.models.generate_content(
+                        model="gemini-flash-latest",
+                        contents=[t["advice_prompt"], img]
+                    )
+    
                     st.session_state['current_analysis'] = {
                         "sorted_items": sorted_items,
                         "advice": advice_response.text,
@@ -224,3 +251,4 @@ elif menu == t["history_menu"]:
                 st.info(rec['advice'])
     else:
         st.info("No records found.")
+
