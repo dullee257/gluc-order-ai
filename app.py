@@ -62,62 +62,57 @@ with st.sidebar:
 # 4. 피그마 디자인(민트 테마) 완벽 이식 CSS
 st.markdown(f"""
     <style>
-    /* 1. 배경색: 피그마의 연한 그레이/민트 톤 배경 */
-    .stApp {{
-        background-color: #f1f5f4; /* 피그마 배경색 느낌 반영 */
-    }}
-
-    /* 2. 메인 타이틀 (오늘의 혈당 상황도) 스타일 */
-    h1 {{
-        color: #333333;
-        font-size: 24px !important;
-        font-weight: 700 !important;
-        text-align: center;
-        padding-bottom: 20px;
-    }}
-
-    /* 3. 업로드 영역 (민트 테두리 86cc85, 배경 fefefe) */
-    [data-testid="stFileUploader"] section {{
-        background-color: #fefefe !important;
-        border: 3px solid #86cc85 !important; /* 선명한 민트 테두리 */
-        border-radius: 50% !important; /* 피그마의 원형 디자인 구현 */
-        width: 250px !important;
-        height: 250px !important;
-        margin: 0 auto !important;
+    /* 1. 업로드 섹션 전체 컨테이너 */
+    [data-testid="stFileUploader"] {{
+        width: 100%;
         display: flex;
         justify-content: center;
-        align-items: center;
     }}
 
-    /* 4. 분석 실행 버튼 (민트 테두리, 흰색 배경) */
-    div.stButton > button {{
-        background-color: #fefefe !important;
-        color: #333333 !important;
-        border: 2px solid #86cc85 !important;
-        border-radius: 12px !important;
-        height: 65px !important;
-        font-weight: 600 !important;
-        font-size: 18px !important;
-        margin-top: 20px !important;
-    }}
-    
-    /* 5. 결과 카드 (흰색 박스, 좌측 민트 포인트) */
-    .result-card {{
-        background-color: #ffffff;
-        padding: 15px 20px;
-        border-radius: 15px;
-        margin-bottom: 10px;
+    /* 2. 원형 테두리 및 내부 텍스트 제거 */
+    [data-testid="stFileUploader"] section {{
+        background-color: #ffffff !important;
+        border: 8px solid #86cc85 !important; /* 테두리 아주 굵게 설정 */
+        border-radius: 50% !important; /* 완전한 원형 */
+        width: 280px !important;
+        height: 280px !important;
+        min-width: 280px !important;
+        padding: 0 !important;
         display: flex;
-        justify-content: space-between;
+        flex-direction: column;
+        justify-content: center;
         align-items: center;
-        box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.05);
+        cursor: pointer;
     }}
 
-    /* 6. 신호등 아이콘 스타일 */
-    .traffic-light {{
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
+    /* 3. 원 내부 기본 아이콘 및 텍스트(Drag and drop 등) 완전히 숨기기 */
+    [data-testid="stFileUploader"] section > div:first-child {{
+        display: none !important;
+    }}
+    [data-testid="stFileUploader"] section small {{
+        display: none !important;
+    }}
+
+    /* 4. 원 중앙에 커스텀 카메라 아이콘 및 텍스트 주입 */
+    [data-testid="stFileUploader"] section::before {{
+        content: "📷"; /* 카메라 이모지 혹은 이미지로 대체 가능 */
+        font-size: 80px;
+        margin-bottom: 10px;
+    }}
+
+    [data-testid="stFileUploader"] section::after {{
+        content: "{t['uploader_label']}"; /* "음식 스캔하기" */
+        font-size: 18px;
+        font-weight: 600;
+        color: #333333;
+    }}
+
+    /* 5. 'Browse files' 기본 버튼 숨기기 (원 전체가 버튼이 됨) */
+    [data-testid="stFileUploader"] section button {{
+        opacity: 0 !important;
+        position: absolute !important;
+        width: 100% !important;
+        height: 100% !important;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -230,6 +225,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
