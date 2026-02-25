@@ -244,8 +244,11 @@ if menu == t["scanner_menu"]:
         st.divider()
         st.subheader(f"✅ {t['analysis_title']}")
         
-        # 🚀 수정: 프리미엄 섭취 순서 카드 UI
+        # 🚀 수정: 프리미엄 섭취 순서 카드 UI (별표 제거 버전)
         for idx, (name, color, score) in enumerate(res['sorted_items'], 1):
+            # 1️⃣ 이름에서 마크다운 별표(**)를 제거하고 양옆 공백을 다듬습니다.
+            clean_name = name.replace('*', '').strip()
+            
             # 신호등 색상에 따른 테마 컬러 지정
             if any(x in color for x in ["초록", "Green"]):
                 theme_color = "#4CAF50" # 메인 초록
@@ -266,7 +269,7 @@ if menu == t["scanner_menu"]:
                         {idx}
                     </div>
                     <div style="flex-grow: 1; font-size: 18px; font-weight: 700; color: #333333;">
-                        {name}
+                        {clean_name}
                     </div>
                     <div style="width: 16px; height: 16px; border-radius: 50%; background-color: {theme_color}; box-shadow: 0 0 8px {theme_color}; flex-shrink: 0;"></div>
                 </div>
@@ -311,6 +314,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
