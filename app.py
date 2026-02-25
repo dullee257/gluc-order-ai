@@ -66,64 +66,43 @@ st.markdown(f"""
     /* 전체 배경색 */
     .stApp {{ background-color: #f8f9fa; }}
 
-    /* 업로드 위젯 중앙 정렬 컨테이너 */
-    [data-testid="stFileUploader"] {{
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin: 0 auto;
-        width: 100% !important;
-    }}
-
-    /* 원형 디자인 및 기존 요소 강제 숨기기 */
-    [data-testid="stFileUploader"] section {{
+    /* 1. 업로드 섹션: 크기를 줄이고 입체감 부여 */
+    [data-testid="stFileUploader"] section {
         background-color: #ffffff !important;
-        border: 15px solid #86cc85 !important; /* 테두리 더 굵게 */
+        /* 민트 테두리 + 바깥으로 퍼지는 다중 글로우 효과 */
+        border: 10px solid #86cc85 !important; 
+        box-shadow: 
+            0 0 15px rgba(134, 204, 133, 0.4), 
+            0 0 30px rgba(134, 204, 133, 0.2) !important;
         border-radius: 50% !important;
-        width: 300px !important;
-        height: 300px !important;
-        min-width: 300px !important;
-        padding: 0 !important;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        overflow: hidden;
-        position: relative;
-    }}
+        width: 240px !important;  /* 버튼 크기 약간 축소 */
+        height: 240px !important;
+        min-width: 240px !important;
+        transition: all 0.2s ease-in-out !important; /* 애니메이션 속도 */
+    }
 
-    /* 원 내부의 모든 기본 텍스트와 아이콘을 완전히 제거 */
-    [data-testid="stFileUploader"] section > div {{ display: none !important; }}
-    [data-testid="stFileUploader"] section small {{ display: none !important; }}
-    [data-testid="stFileUploader"] section span {{ display: none !important; }}
+    /* 2. 클릭 제스처: 누를 때 살짝 작아지며 빛이 강해짐 */
+    [data-testid="stFileUploader"] section:active {
+        transform: scale(0.95); /* 5% 작아짐 */
+        box-shadow: 0 0 40px rgba(134, 204, 133, 0.6) !important;
+        border-color: #75b874 !important;
+    }
 
-    /* 중앙 카메라 아이콘 (📷 대신 실제 이미지 URL을 넣을 수도 있습니다) */
-    [data-testid="stFileUploader"] section::before {{
+    /* 3. 원 내부 아이콘 스타일 보정 */
+    [data-testid="stFileUploader"] section::before {
         content: "📷"; 
-        font-size: 80px;
-        margin-bottom: 5px;
-        z-index: 2;
-    }}
+        font-size: 60px; /* 아이콘 크기 조절 */
+        margin-bottom: 2px;
+        filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.1));
+    }
 
-    /* 원 내부 하단 텍스트 */
-    [data-testid="stFileUploader"] section::after {{
+    /* 4. 원 내부 텍스트 스타일 보정 */
+    [data-testid="stFileUploader"] section::after {
         content: "음식 스캔하기"; 
-        font-size: 20px;
-        font-weight: 700;
-        color: #333333;
-        z-index: 2;
-    }}
-
-    /* 'Browse files' 버튼을 투명하게 만들어 원 전체를 버튼으로 사용 */
-    [data-testid="stFileUploader"] section button {{
-        opacity: 0 !important;
-        position: absolute !important;
-        top: 0; left: 0;
-        width: 100% !important;
-        height: 100% !important;
-        z-index: 10;
-        cursor: pointer;
-    }}
+        font-size: 18px;
+        color: #555555;
+        letter-spacing: -0.5px;
+    }
 
     /* 결과 카드 디자인 */
     .result-card {{
@@ -137,8 +116,8 @@ st.markdown(f"""
 
 # 5. 메인 화면 - 식단 스캐너
 if menu == t["scanner_menu"]:
-    # 1️⃣ 메인 타이틀만 깔끔하게 중앙 배치
-    st.markdown(f"<h1 style='text-align:center; margin-top: -50px;'>{t['description']}</h1>", unsafe_allow_html=True)
+    # 상단 여백 확보를 위해 margin-top 조정
+    st.markdown(f"<h1 style='text-align:center; margin-top: 20px; margin-bottom: 40px;'>{t['description']}</h1>", unsafe_allow_html=True)
     
     API_KEY = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=API_KEY)
@@ -245,6 +224,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
