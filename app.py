@@ -60,77 +60,97 @@ with st.sidebar:
     menu = st.radio("Menu", [t["scanner_menu"], t["history_menu"]])
 
 # 4. 피그마 디자인(민트 테마) 완벽 이식 CSS
+# 4. CSS 주입 (중앙 정렬 및 불필요 요소 완전 제거)
 st.markdown(f"""
     <style>
-    /* 1. 업로드 섹션 전체 컨테이너 */
+    /* 전체 배경색 */
+    .stApp {{ background-color: #f8f9fa; }}
+
+    /* 업로드 위젯 중앙 정렬 컨테이너 */
     [data-testid="stFileUploader"] {{
-        width: 100%;
         display: flex;
         justify-content: center;
+        align-items: center;
+        margin: 0 auto;
+        width: 100% !important;
     }}
 
-    /* 2. 원형 테두리 및 내부 텍스트 제거 */
+    /* 원형 디자인 및 기존 요소 강제 숨기기 */
     [data-testid="stFileUploader"] section {{
         background-color: #ffffff !important;
-        border: 8px solid #86cc85 !important; /* 테두리 아주 굵게 설정 */
-        border-radius: 50% !important; /* 완전한 원형 */
-        width: 280px !important;
-        height: 280px !important;
-        min-width: 280px !important;
+        border: 12px solid #86cc85 !important; /* 테두리 더 굵게 */
+        border-radius: 50% !important;
+        width: 300px !important;
+        height: 300px !important;
+        min-width: 300px !important;
         padding: 0 !important;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        cursor: pointer;
+        overflow: hidden;
+        position: relative;
     }}
 
-    /* 3. 원 내부 기본 아이콘 및 텍스트(Drag and drop 등) 완전히 숨기기 */
-    [data-testid="stFileUploader"] section > div:first-child {{
-        display: none !important;
-    }}
-    [data-testid="stFileUploader"] section small {{
-        display: none !important;
-    }}
+    /* 원 내부의 모든 기본 텍스트와 아이콘을 완전히 제거 */
+    [data-testid="stFileUploader"] section > div {{ display: none !important; }}
+    [data-testid="stFileUploader"] section small {{ display: none !important; }}
+    [data-testid="stFileUploader"] section span {{ display: none !important; }}
 
-    /* 4. 원 중앙에 커스텀 카메라 아이콘 및 텍스트 주입 */
+    /* 중앙 카메라 아이콘 (📷 대신 실제 이미지 URL을 넣을 수도 있습니다) */
     [data-testid="stFileUploader"] section::before {{
-        content: "📷"; /* 카메라 이모지 혹은 이미지로 대체 가능 */
+        content: "📷"; 
         font-size: 80px;
-        margin-bottom: 10px;
+        margin-bottom: 5px;
+        z-index: 2;
     }}
 
+    /* 원 내부 하단 텍스트 */
     [data-testid="stFileUploader"] section::after {{
-        content: "{t['uploader_label']}"; /* "음식 스캔하기" */
-        font-size: 18px;
-        font-weight: 600;
+        content: "음식 스캔하기"; 
+        font-size: 20px;
+        font-weight: 700;
         color: #333333;
+        z-index: 2;
     }}
 
-    /* 5. 'Browse files' 기본 버튼 숨기기 (원 전체가 버튼이 됨) */
+    /* 'Browse files' 버튼을 투명하게 만들어 원 전체를 버튼으로 사용 */
     [data-testid="stFileUploader"] section button {{
         opacity: 0 !important;
         position: absolute !important;
+        top: 0; left: 0;
         width: 100% !important;
         height: 100% !important;
+        z-index: 10;
+        cursor: pointer;
+    }}
+
+    /* 결과 카드 디자인 */
+    .result-card {{
+        background-color: #ffffff; padding: 20px; border-radius: 15px;
+        margin-bottom: 12px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.05);
+        display: flex; justify-content: space-between; align-items: center;
+        border-left: 10px solid #86cc85;
     }}
     </style>
 """, unsafe_allow_html=True)
 
 # 5. 메인 화면 - 식단 스캐너
 if menu == t["scanner_menu"]:
-    st.title(t["description"]) # "오늘의 혈당 상황도"
+    # 1️⃣ 메인 타이틀만 깔끔하게 중앙 배치
+    st.markdown(f"<h1 style='text-align:center; margin-top: -50px;'>{t['description']}</h1>", unsafe_allow_html=True)
     
     API_KEY = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=API_KEY)
 
-    # 탭을 없애고 피그마 디자인처럼 하나의 통합 버튼으로 구성합니다.
-    # 모바일에서 이 버튼을 누르면 [카메라 / 미디어 보관함] 메뉴가 즉시 뜹니다.
+    # 2️⃣ 업로드 위젯 (외부 라벨을 완전히 숨김)
     uploaded_file = st.file_uploader(
-        t["uploader_label"], # "음식 스캔하기"
-        type=["jpg", "png", "jpeg"]
+        "label_hidden", 
+        type=["jpg", "png", "jpeg"],
+        label_visibility="collapsed" 
     )
-
+    
+    # 3️⃣ 사진 분석 및 결과 출력 로직 (기존과 동일하지만 들여쓰기 주의)
     if uploaded_file:
         img = PIL.Image.open(uploaded_file)
         st.image(img, caption="📷 스캔된 식단", use_container_width=True)
@@ -225,6 +245,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
