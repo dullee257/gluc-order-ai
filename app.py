@@ -199,10 +199,10 @@ if menu == t["scanner_menu"]:
         if st.button(t["analyze_btn"], use_container_width=True):
             with st.spinner("AI 분석 중..."):
                 try:
-                    # 에러 방지: 모델명을 'gemini-1.5-flash'로 고정
+                    # 에러 방지: 모델명을 'gemini-flash-latest'로 고정
                     prompt = f"Analyze food for glucose management. Format: FoodName|TrafficColor|Order. Lang: {lang}"
                     response = client.models.generate_content(
-                        model="gemini-1.5-flash", 
+                        model="gemini-flash-latest", 
                         contents=[prompt, img]
                     )
                     
@@ -219,7 +219,7 @@ if menu == t["scanner_menu"]:
                         sorted_items = sorted(items, key=lambda x: x[2])
                         # 소견 분석도 동일 모델로 수행
                         advice_res = client.models.generate_content(
-                            model="gemini-1.5-flash", 
+                            model="gemini-flash-latest", 
                             contents=[t["advice_prompt"], img]
                         )
                         
@@ -285,6 +285,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
