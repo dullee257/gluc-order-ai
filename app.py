@@ -59,35 +59,65 @@ with st.sidebar:
     st.title(t["sidebar_title"])
     menu = st.radio("Menu", [t["scanner_menu"], t["history_menu"]])
 
-# 4. CSS 주입 (모바일 터치 및 피그마 디자인 반영)
+# 4. 피그마 디자인(민트 테마) 완벽 이식 CSS
 st.markdown(f"""
     <style>
-    .stApp {{ background-color: #f8f9fa; }}
-    div.stButton > button {{
-        background-color: #fefefe !important;
-        color: #000000 !important;
-        border: 2px solid #86cc85 !important;
-        border-radius: 15px !important;
-        height: 70px !important; /* 터치하기 쉽게 높이 조절 */
-        font-weight: bold !important;
-        font-size: 18px !important;
-        width: 100% !important;
+    /* 1. 배경색: 피그마의 연한 그레이/민트 톤 배경 */
+    .stApp {{
+        background-color: #f1f5f4; /* 피그마 배경색 느낌 반영 */
     }}
+
+    /* 2. 메인 타이틀 (오늘의 혈당 상황도) 스타일 */
+    h1 {{
+        color: #333333;
+        font-size: 24px !important;
+        font-weight: 700 !important;
+        text-align: center;
+        padding-bottom: 20px;
+    }}
+
+    /* 3. 업로드 영역 (민트 테두리 86cc85, 배경 fefefe) */
     [data-testid="stFileUploader"] section {{
         background-color: #fefefe !important;
-        border: 2px dashed #86cc85 !important;
-        border-radius: 20px !important;
+        border: 3px solid #86cc85 !important; /* 선명한 민트 테두리 */
+        border-radius: 50% !important; /* 피그마의 원형 디자인 구현 */
+        width: 250px !important;
+        height: 250px !important;
+        margin: 0 auto !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }}
+
+    /* 4. 분석 실행 버튼 (민트 테두리, 흰색 배경) */
+    div.stButton > button {{
+        background-color: #fefefe !important;
+        color: #333333 !important;
+        border: 2px solid #86cc85 !important;
+        border-radius: 12px !important;
+        height: 65px !important;
+        font-weight: 600 !important;
+        font-size: 18px !important;
+        margin-top: 20px !important;
+    }}
+    
+    /* 5. 결과 카드 (흰색 박스, 좌측 민트 포인트) */
     .result-card {{
         background-color: #ffffff;
-        padding: 20px;
+        padding: 15px 20px;
         border-radius: 15px;
-        margin-bottom: 12px;
-        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.05);
+        margin-bottom: 10px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-left: 10px solid #86cc85;
+        box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.05);
+    }}
+
+    /* 6. 신호등 아이콘 스타일 */
+    .traffic-light {{
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -200,6 +230,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
