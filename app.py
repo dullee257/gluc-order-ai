@@ -1,6 +1,6 @@
 import streamlit as st
 from google import genai
-import PIL.Image
+from PIL import Image
 from datetime import datetime
 
 # 1. 페이지 설정 (모바일 최적화를 위해 centered 레이아웃 권장)
@@ -74,32 +74,32 @@ st.markdown(f"""
         width: 100% !important;
     }
 
-    /* 2. 원형 디자인: 더 굵은 테두리와 다중 글로우 광채 효과 */
+    /* 2. 원형 디자인: 다중 그림자로 입체적인 광채 구현 */
     [data-testid="stFileUploader"] section {
         background-color: #ffffff !important;
-        border: 20px solid #86cc85 !important; /* 테두리를 더 확실하게 두껍게 설정 */
-        /* 안쪽과 바깥쪽으로 퍼지는 입체적 그림자 */
+        border: 18px solid #86cc85 !important;
+        /* 여러 겹의 그림자로 바깥으로 퍼지는 빛을 표현 */
         box-shadow: 
-            0 0 15px rgba(134, 204, 133, 0.4), 
-            0 0 30px rgba(134, 204, 133, 0.2),
-            inset 0 0 10px rgba(0,0,0,0.05) !important;
+            0 0 10px rgba(134, 204, 133, 0.5), 
+            0 0 25px rgba(134, 204, 133, 0.3),
+            0 0 45px rgba(134, 204, 133, 0.1) !important;
         border-radius: 50% !important;
-        width: 240px !important;  /* 버튼 크기를 약간 줄여 더 컴팩트하게 */
-        height: 240px !important;
-        min-width: 240px !important;
+        width: 250px !important;
+        height: 250px !important;
+        min-width: 250px !important;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         position: relative;
-        transition: all 0.2s ease-in-out !important; /* 애니메이션 속도 */
+        transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
     }
 
-    /* 3. 클릭 제스처: 누를 때 살짝 작아지며 빛이 강해지는 효과 */
+    /* 3. 클릭 제스처: 누를 때 버튼이 쏙 들어가며 빛이 확 살아남 */
     [data-testid="stFileUploader"] section:active {
-        transform: scale(0.94); /* 6% 정도 작아지며 눌리는 느낌 */
-        box-shadow: 0 0 45px rgba(134, 204, 133, 0.6) !important;
-        border-color: #75b874 !important;
+        transform: scale(0.92);
+        box-shadow: 0 0 60px rgba(134, 204, 133, 0.7) !important;
+        border-color: #70b86f !important;
     }
 
     /* 4. 내부 요소 완전 박멸 및 커스텀 아이콘/텍스트 */
@@ -161,7 +161,7 @@ if menu == t["scanner_menu"]:
     
     # 3️⃣ 사진 분석 및 결과 출력 로직 (기존과 동일하지만 들여쓰기 주의)
     if uploaded_file:
-        img = PIL.Image.open(uploaded_file)
+        img = Image.open(uploaded_file) # PIL을 떼고 Image로 바로 호출합니다.
         st.image(img, caption="📷 스캔된 식단", use_container_width=True)
         
         # 분석 버튼 (피그마 스타일)
@@ -254,14 +254,3 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
-
-
-
-
-
-
-
-
-
-
-
