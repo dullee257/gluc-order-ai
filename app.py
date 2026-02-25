@@ -119,7 +119,7 @@ if menu == t["scanner_menu"]:
     st.title(t["title"])
     st.markdown(t["description"])
     
-    API_KEY = "AIzaSyDeTT5LkMz00B3UfmVu3s2CqeTJmaiVm8I"
+    API_KEY = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=API_KEY)
 
     col1, col2 = st.columns([1, 1])
