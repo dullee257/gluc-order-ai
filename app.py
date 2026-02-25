@@ -127,15 +127,18 @@ st.markdown(f"""
     [data-testid="stFileUploader"] section small {{ display: none !important; }}
     [data-testid="stFileUploader"] section span {{ display: none !important; }}
 
+    /* 내부 아이콘: 화면이 작아지면 같이 작아짐 (최소 40px ~ 최대 70px) */
     [data-testid="stFileUploader"] section::before {{
         content: "📷"; 
-        font-size: 70px;
+        font-size: clamp(40px, 12vw, 70px); 
+        margin-bottom: 2vw; /* 간격도 비율로 띄움 */
         z-index: 2;
     }}
 
+    /* 내부 텍스트: 화면이 작아지면 같이 작아짐 (최소 14px ~ 최대 20px) */
     [data-testid="stFileUploader"] section::after {{
         content: "식단 스캔시작"; 
-        font-size: 20px;
+        font-size: clamp(14px, 4vw, 20px); 
         font-weight: 700;
         color: #333333;
         z-index: 2;
@@ -158,13 +161,13 @@ st.markdown(f"""
 
 # 5. 메인 화면 - 식단 스캐너
 if menu == t["scanner_menu"]:
-    # 1️⃣ 전문적인 3행 타이틀 디자인 (이미지 - 제목 - 부제목)
+    # 1️⃣ 전문적인 3행 타이틀 디자인 (반응형 폰트 및 여백 적용)
     title_parts = t["description"].split("|")
     st.markdown(f"""
-        <div style="text-align: center; margin-top: -20px; margin-bottom: 30px;">
-            <div style="font-size: 50px; margin-bottom: 10px;">{title_parts[0]}</div>
-            <div style="font-size: 26px; font-weight: 800; color: #333333; line-height: 1.2;">{title_parts[1]}</div>
-            <div style="font-size: 18px; font-weight: 500; color: #86cc85; margin-top: 5px;">{title_parts[2]}</div>
+        <div style="text-align: center; margin-top: 10px; margin-bottom: 6vh;">
+            <div style="font-size: clamp(35px, 10vw, 50px); margin-bottom: 1vh;">{title_parts[0]}</div>
+            <div style="font-size: clamp(20px, 6vw, 26px); font-weight: 800; color: #333333; line-height: 1.2;">{title_parts[1]}</div>
+            <div style="font-size: clamp(14px, 4vw, 18px); font-weight: 500; color: #86cc85; margin-top: 1vh;">{title_parts[2]}</div>
         </div>
     """, unsafe_allow_html=True)
     
@@ -273,6 +276,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
