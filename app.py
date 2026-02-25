@@ -125,12 +125,23 @@ if menu == t["scanner_menu"]:
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        # 'label_visibility'와 'accept_multiple_files' 옵션 등을 활용해 더 앱답게 구성할 수 있습니다.
+        # 피그마 디자인의 '오늘의 혈당 상황도' 타이틀 (모바일 가독성 고려)
+        st.markdown(f"### {t['description']}") 
+        
+        # 1. 파일 업로더 (모바일에서는 누르는 즉시 촬영/선택 메뉴가 뜹니다)
         uploaded_file = st.file_uploader(
             t["uploader_label"], # "음식 스캔하기"
-            type=["jpg", "png", "jpeg"]
+            type=["jpg", "png", "jpeg"],
+            accept_multiple_files=False,
+            label_visibility="visible"
         )
-
+        
+        # 2. 사진이 올라오면 미리보기 출력
+        if uploaded_file:
+            img = PIL.Image.open(uploaded_file)
+            # 모바일 화면 너비에 꽉 차게 표시
+            st.image(img, caption="📷 스캔된 식단", use_container_width=True)
+    
     with col2:
         if uploaded_file and st.button(t["analyze_btn"], use_container_width=True):
             with st.spinner("Processing..."):
@@ -224,6 +235,7 @@ elif menu == t["history_menu"]:
                 st.info(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
