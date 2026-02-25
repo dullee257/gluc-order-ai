@@ -12,35 +12,35 @@ if 'history' not in st.session_state:
 if 'current_analysis' not in st.session_state:
     st.session_state['current_analysis'] = None
 
-# 다국어 텍스트 사전 정의
+# 다국어 텍스트 사전 정의 (피그마 디자인 반영 버전)
 texts = {
     "KO": {
         "title": "🥗 NutriSort AI",
         "sidebar_title": "💡 NutriSort 관리 시스템",
-        "description": "#### **\"무엇을 먼저 먹을까요?\"** AI가 식사 순서를 정렬합니다.",
-        "uploader_label": "오늘의 식단 사진을 올려주세요",
-        "analyze_btn": "🔍 AI 분석 및 순서 정렬",
+        "description": "#### **\"오늘의 혈당 상황도\"**", # 피그마 상단 타이틀
+        "uploader_label": "음식 스캔하기", # 카메라 원형 영역 라벨
+        "analyze_btn": "먹을 순서 정렬하기", # 피그마 메인 버튼 문구
         "save_btn": "💾 이 식단 기록 저장하기",
         "scanner_menu": "식단 스캐너",
         "history_menu": "나의 식단 기록",
-        "analysis_title": "✅ 추천 섭취 순서",
-        "advice_title": "💡 식단 분석 소견",
+        "analysis_title": "섭취순서", # 피그마 중간 타이틀
+        "advice_title": "식단분석", # 피그마 하단 타이틀
         "advice_prompt": "사진 속 음식을 분석해서 혈당 관리에 따른 식사 순서를 정해줘. 잡곡밥 칭찬, 식사 순서 원리(식이섬유 그물망), 나트륨 주의 조언 포함.",
         "save_msg": "대표님, '나의 기록' 탭에 저장되었습니다!",
         "browse_text": "파일 찾기",
-        "drag_text": "여기에 사진을 드래그하세요 (JPG, PNG)"
+        "drag_text": "여기에 사진을 드래그하세요"
     },
     "EN": {
         "title": "🥗 NutriSort AI",
         "sidebar_title": "💡 NutriSort Admin",
-        "description": "#### **\"What to eat first?\"** AI sorts your eating order for better health.",
-        "uploader_label": "Upload your meal photo",
-        "analyze_btn": "🔍 AI Analysis & Sorting",
+        "description": "#### **\"Daily Glucose Status\"**",
+        "uploader_label": "Scan Food",
+        "analyze_btn": "Sort Eating Order",
         "save_btn": "💾 Save this record",
         "scanner_menu": "Meal Scanner",
         "history_menu": "My History",
-        "analysis_title": "✅ Recommended Eating Order",
-        "advice_title": "💡 AI Nutrition Advice",
+        "analysis_title": "Eating Order",
+        "advice_title": "Nutritional Analysis",
         "advice_prompt": "Analyze the food in the photo and set the eating order for blood sugar management. Explain the 'fiber mesh' principle and give expert advice on sodium intake.",
         "save_msg": "Successfully saved to 'My History'!",
         "browse_text": "Browse files",
@@ -60,40 +60,56 @@ with st.sidebar:
     st.divider()
     st.info("NutriSort: Smart Eating, Healthy Living")
 
-# 4. 언어 설정 후 CSS 주입 (더 광범위한 타겟팅 적용)
+# 4. 언어 설정 및 피그마 디자인(민트 테마) CSS 주입
 st.markdown(f"""
     <style>
-    /* 1. 업로드 버튼 내 'Browse files' 글자 숨기기 및 대체 */
-    [data-testid="stFileUploader"] section button div::before {{
-        content: "{t['browse_text']}";
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: #ffffff; /* 버튼 배경색과 일치시켜 글자를 덮음 */
-        width: 80%;
-        text-align: center;
-        z-index: 10;
+    /* 전체 배경색 조정 (피그마 느낌의 연한 그레이/화이트) */
+    .stApp {{
+        background-color: #f8f9fa;
     }}
 
-    /* 2. 'Drag and drop file here' 텍스트 강제 변환 */
-    [data-testid="stFileUploader"] section > div:first-child {{
-        font-size: 0 !important;
-    }}
-    [data-testid="stFileUploader"] section > div:first-child::before {{
-        content: "{t['drag_text']}";
-        font-size: 16px !important;
-        display: block;
-        margin-bottom: 10px;
-    }}
-
-    /* 3. 하단 파일 제한 문구(Limit 200MB 등) 숨기기 */
-    [data-testid="stFileUploader"] section > div:last-child {{
-        display: none !important;
+    /* 버튼 공통 스타일 (배경 흰색 #fefefe, 테두리 민트 #86cc85) */
+    div.stButton > button {{
+        background-color: #fefefe !important;
+        color: #000000 !important;
+        border: 2px solid #86cc85 !important;
+        border-radius: 15px !important; /* 피그마의 둥근 모서리 */
+        height: 60px !important;
+        font-weight: bold !important;
+        font-size: 18px !important;
+        transition: all 0.3s ease;
     }}
     
-    /* 4. 기존 텍스트들이 겹치지 않게 투명도 조절 */
-    [data-testid="stFileUploader"] section button span {{
-        opacity: 0;
+    /* 버튼 호버 효과 */
+    div.stButton > button:hover {{
+        background-color: #86cc85 !important;
+        color: #ffffff !important;
+    }}
+
+    /* 업로드 칸 디자인 커스텀 (카메라 아이콘 색상 반영) */
+    [data-testid="stFileUploader"] section {{
+        background-color: #fefefe !important;
+        border: 2px dashed #86cc85 !important;
+        border-radius: 20px !important;
+    }}
+
+    /* 업로드 칸 내부 텍스트 및 버튼 */
+    [data-testid="stFileUploader"] section button div::before {{
+        content: "{t['browse_text']}";
+        color: #000000;
+    }}
+    
+    /* 분석 결과 카드 디자인 (피그마 리스트 형태) */
+    .result-card {{
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 12px;
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-left: 10px solid #86cc85;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -146,16 +162,30 @@ if menu == t["scanner_menu"]:
 
         if st.session_state['current_analysis']:
             res = st.session_state['current_analysis']
-            st.subheader(t["analysis_title"])
+            
+            # 피그마 디자인 타이틀 적용 (섭취순서)
+            st.markdown(f"### {t['analysis_title']}")
+            
             for name, color, score in res['sorted_items']:
-                icon = "🟢" if any(x in color for x in ["초록", "Green"]) else "🟡" if any(x in color for x in ["노랑", "Yellow"]) else "🔴"
-                b_color = "green" if icon=="🟢" else "orange" if icon=="🟡" else "red"
-                st.markdown(f'<div style="background-color: #f8f9fa; padding: 15px; border-radius: 12px; margin-bottom: 10px; border-left: 8px solid {b_color};">{icon} <b>{name}</b> <span style="float: right;">{score}</span></div>', unsafe_allow_html=True)
+                # 피그마 디자인처럼 우측에 동그란 신호등 배치
+                # 피그마 신호등 색상 적용 (초록: #00FF00, 노랑: #FFFF00, 빨강: #FF0000)
+                icon_color = "#00FF00" if any(x in color for x in ["초록", "Green"]) else "#FFFF00" if any(x in color for x in ["노랑", "Yellow"]) else "#FF0000"
+                
+                # HTML/CSS를 이용해 피그마 카드 스타일 구현
+                st.markdown(f"""
+                    <div class="result-card">
+                        <span style="font-size: 18px; font-weight: 600; color: #333;">{name}</span>
+                        <div style="width: 22px; height: 22px; background-color: {icon_color}; border-radius: 50%; box-shadow: inset 0 0 5px rgba(0,0,0,0.1);"></div>
+                    </div>
+                """, unsafe_allow_html=True)
             
             st.divider()
-            st.subheader(t["advice_title"])
-            st.success(res['advice'])
             
+            # 피그마 디자인 타이틀 적용 (식단분석)
+            st.markdown(f"### {t['advice_title']}")
+            st.info(res['advice'])
+            
+            # 저장 버튼 (피그마 스타일 적용됨)
             if st.button(t["save_btn"], use_container_width=True):
                 st.session_state['history'].append({
                     "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
