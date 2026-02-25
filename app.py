@@ -78,7 +78,7 @@ st.markdown(f"""
     /* 원형 디자인 및 기존 요소 강제 숨기기 */
     [data-testid="stFileUploader"] section {{
         background-color: #ffffff !important;
-        border: 12px solid #86cc85 !important; /* 테두리 더 굵게 */
+        border: 15px solid #86cc85 !important; /* 테두리 더 굵게 */
         border-radius: 50% !important;
         width: 300px !important;
         height: 300px !important;
@@ -245,6 +245,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
