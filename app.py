@@ -197,12 +197,30 @@ if menu == t["scanner_menu"]:
                 st.success(t["save_msg"])
                 st.session_state['current_analysis'] = None
 
+# 5. 나의 기록 탭
 elif menu == t["history_menu"]:
     st.title(f"📅 {t['history_menu']}")
     if st.session_state['history']:
         for rec in reversed(st.session_state['history']):
-            with st.expander(f"🍴 {rec['date']}"):
-                st.write(f"**Menu:** {rec['menu']}")
-                st.write(f"**Advice:** {rec['advice']}")
+            with st.expander(f"🍴 {rec['date']} 식단 기록"):
+                # 1. 저장된 사진 표시
+                if rec['image']:
+                    st.image(rec['image'], use_container_width=True)
+                
+                # 2. 저장된 섭취 순서 카드 표시
+                st.markdown(f"**{t['analysis_title']}**")
+                for name, color, score in rec['sorted_items']:
+                    icon_color = "#00FF00" if any(x in color for x in ["초록", "Green"]) else "#FFFF00" if any(x in color for x in ["노랑", "Yellow"]) else "#FF0000"
+                    st.markdown(f"""
+                        <div class="result-card">
+                            <span style="font-size: 16px; font-weight: 500;">{name}</span>
+                            <div style="width: 18px; height: 18px; background-color: {icon_color}; border-radius: 50%;"></div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                
+                # 3. 저장된 소견 표시
+                st.divider()
+                st.markdown(f"**{t['advice_title']}**")
+                st.info(rec['advice'])
     else:
         st.info("No records found.")
