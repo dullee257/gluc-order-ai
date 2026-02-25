@@ -66,42 +66,66 @@ st.markdown(f"""
     /* 전체 배경색 */
     .stApp {{ background-color: #f8f9fa; }}
 
-    /* 1. 업로드 섹션: 크기를 줄이고 입체감 부여 */
+    /* 1. 업로드 섹션: 중앙 정렬 및 크기 최적화 */
+    [data-testid="stFileUploader"] {
+        display: flex;
+        justify-content: center;
+        margin: 0 auto;
+        width: 100% !important;
+    }
+
+    /* 2. 원형 디자인: 굵은 테두리와 입체적 글로우 효과 */
     [data-testid="stFileUploader"] section {
         background-color: #ffffff !important;
-        /* 민트 테두리 + 바깥으로 퍼지는 다중 글로우 효과 */
-        border: 10px solid #86cc85 !important; 
+        border: 15px solid #86cc85 !important; /* 굵은 민트 테두리 */
         box-shadow: 
-            0 0 15px rgba(134, 204, 133, 0.4), 
-            0 0 30px rgba(134, 204, 133, 0.2) !important;
+            0 0 20px rgba(134, 204, 133, 0.4), 
+            0 0 40px rgba(134, 204, 133, 0.2) !important; /* 바깥으로 퍼지는 빛 */
         border-radius: 50% !important;
-        width: 240px !important;  /* 버튼 크기 약간 축소 */
-        height: 240px !important;
-        min-width: 240px !important;
-        transition: all 0.2s ease-in-out !important; /* 애니메이션 속도 */
+        width: 260px !important;
+        height: 260px !important;
+        min-width: 260px !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        transition: all 0.2s ease-in-out !important; /* 애니메이션 효과 */
     }
 
-    /* 2. 클릭 제스처: 누를 때 살짝 작아지며 빛이 강해짐 */
+    /* 3. 클릭 제스처: 누를 때 살짝 작아지며 빛이 강해짐 */
     [data-testid="stFileUploader"] section:active {
-        transform: scale(0.95); /* 5% 작아짐 */
-        box-shadow: 0 0 40px rgba(134, 204, 133, 0.6) !important;
-        border-color: #75b874 !important;
+        transform: scale(0.92); /* 클릭 시 쏙 들어가는 느낌 */
+        box-shadow: 0 0 50px rgba(134, 204, 133, 0.6) !important;
     }
 
-    /* 3. 원 내부 아이콘 스타일 보정 */
+    /* 4. 내부 요소 완전 박멸 및 커스텀 아이콘 주입 */
+    [data-testid="stFileUploader"] section > div { display: none !important; }
+    [data-testid="stFileUploader"] section small { display: none !important; }
+
     [data-testid="stFileUploader"] section::before {
         content: "📷"; 
-        font-size: 60px; /* 아이콘 크기 조절 */
-        margin-bottom: 2px;
-        filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.1));
+        font-size: 70px;
+        margin-bottom: 5px;
+        z-index: 2;
     }
 
-    /* 4. 원 내부 텍스트 스타일 보정 */
     [data-testid="stFileUploader"] section::after {
         content: "음식 스캔하기"; 
         font-size: 18px;
-        color: #555555;
-        letter-spacing: -0.5px;
+        font-weight: 700;
+        color: #333333;
+        z-index: 2;
+    }
+
+    /* 5. 투명 버튼 (원 전체 클릭 가능) */
+    [data-testid="stFileUploader"] section button {
+        opacity: 0 !important;
+        position: absolute !important;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 10;
+        cursor: pointer;
     }
 
     /* 결과 카드 디자인 */
@@ -224,6 +248,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
