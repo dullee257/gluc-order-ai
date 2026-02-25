@@ -125,11 +125,11 @@ if menu == t["scanner_menu"]:
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        uploaded_file = st.file_uploader(t["uploader_label"], type=["jpg", "png", "jpeg"])
-        if uploaded_file:
-            img = PIL.Image.open(uploaded_file)
-            caption_text = "📷 촬영된 식단" if lang == "KO" else "📷 Photo"
-            st.image(img, caption=caption_text, use_container_width=True)
+        # 'label_visibility'와 'accept_multiple_files' 옵션 등을 활용해 더 앱답게 구성할 수 있습니다.
+        uploaded_file = st.file_uploader(
+            t["uploader_label"], # "음식 스캔하기"
+            type=["jpg", "png", "jpeg"]
+        )
 
     with col2:
         if uploaded_file and st.button(t["analyze_btn"], use_container_width=True):
@@ -224,6 +224,7 @@ elif menu == t["history_menu"]:
                 st.info(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
