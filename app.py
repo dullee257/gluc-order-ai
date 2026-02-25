@@ -74,47 +74,52 @@ st.markdown(f"""
         width: 100% !important;
     }
 
-    /* 2. 원형 디자인: 굵은 테두리와 입체적 글로우 효과 */
+    /* 2. 원형 디자인: 더 굵은 테두리와 다중 글로우 광채 효과 */
     [data-testid="stFileUploader"] section {
         background-color: #ffffff !important;
-        border: 15px solid #86cc85 !important; /* 굵은 민트 테두리 */
+        border: 20px solid #86cc85 !important; /* 테두리를 더 확실하게 두껍게 설정 */
+        /* 안쪽과 바깥쪽으로 퍼지는 입체적 그림자 */
         box-shadow: 
-            0 0 20px rgba(134, 204, 133, 0.4), 
-            0 0 40px rgba(134, 204, 133, 0.2) !important; /* 바깥으로 퍼지는 빛 */
+            0 0 15px rgba(134, 204, 133, 0.4), 
+            0 0 30px rgba(134, 204, 133, 0.2),
+            inset 0 0 10px rgba(0,0,0,0.05) !important;
         border-radius: 50% !important;
-        width: 260px !important;
-        height: 260px !important;
-        min-width: 260px !important;
+        width: 240px !important;  /* 버튼 크기를 약간 줄여 더 컴팩트하게 */
+        height: 240px !important;
+        min-width: 240px !important;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         position: relative;
-        transition: all 0.2s ease-in-out !important; /* 애니메이션 효과 */
+        transition: all 0.2s ease-in-out !important; /* 애니메이션 속도 */
     }
 
-    /* 3. 클릭 제스처: 누를 때 살짝 작아지며 빛이 강해짐 */
+    /* 3. 클릭 제스처: 누를 때 살짝 작아지며 빛이 강해지는 효과 */
     [data-testid="stFileUploader"] section:active {
-        transform: scale(0.92); /* 클릭 시 쏙 들어가는 느낌 */
-        box-shadow: 0 0 50px rgba(134, 204, 133, 0.6) !important;
+        transform: scale(0.94); /* 6% 정도 작아지며 눌리는 느낌 */
+        box-shadow: 0 0 45px rgba(134, 204, 133, 0.6) !important;
+        border-color: #75b874 !important;
     }
 
-    /* 4. 내부 요소 완전 박멸 및 커스텀 아이콘 주입 */
+    /* 4. 내부 요소 완전 박멸 및 커스텀 아이콘/텍스트 */
     [data-testid="stFileUploader"] section > div { display: none !important; }
     [data-testid="stFileUploader"] section small { display: none !important; }
+    [data-testid="stFileUploader"] section span { display: none !important; }
 
     [data-testid="stFileUploader"] section::before {
         content: "📷"; 
-        font-size: 70px;
-        margin-bottom: 5px;
+        font-size: 65px;
+        margin-bottom: 2px;
         z-index: 2;
+        filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.1));
     }
 
     [data-testid="stFileUploader"] section::after {
         content: "음식 스캔하기"; 
         font-size: 18px;
         font-weight: 700;
-        color: #333333;
+        color: #444444;
         z-index: 2;
     }
 
@@ -122,6 +127,7 @@ st.markdown(f"""
     [data-testid="stFileUploader"] section button {
         opacity: 0 !important;
         position: absolute !important;
+        top: 0; left: 0;
         width: 100% !important;
         height: 100% !important;
         z-index: 10;
@@ -248,6 +254,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
