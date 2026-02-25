@@ -144,9 +144,9 @@ st.markdown(f"""
         cursor: pointer;
     }}
     /* 우측 상단 메뉴 버튼 및 스트림릿 워터마크 숨기기 */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    #MainMenu {{visibility: hidden;}}
+    footer {{visibility: hidden;}}
+    header {{visibility: hidden;}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -267,6 +267,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
