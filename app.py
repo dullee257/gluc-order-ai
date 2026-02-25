@@ -4,7 +4,11 @@ import PIL.Image
 from datetime import datetime
 
 # 1. 페이지 설정 (모바일 최적화를 위해 centered 레이아웃 권장)
-st.set_page_config(page_title="NutriSort AI", page_icon="🥗", layout="centered")
+st.set_page_config(
+    page_title="NutriSort AI", # 앱 이름
+    page_icon="🥗",            # 앱 아이콘 (이모지 대신 나중에 로고 파일로 교체 가능)
+    layout="centered"          # 모바일 앱처럼 가운데 정렬
+)
 
 # 2. 세션 상태 초기화
 if 'history' not in st.session_state:
@@ -196,6 +200,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
