@@ -21,7 +21,7 @@ texts = {
     "KO": {
         "title": "🥗 NutriSort AI",
         "sidebar_title": "💡 NutriSort 관리 시스템",
-        "description": "오늘의 혈당 상황도", 
+        "description": "📈 혈당 스파이크 방지: 섭취 순서의 마법", # 전문적이고 친근한 제목으로 변경 
         "uploader_label": "음식 스캔하기",
         "analyze_btn": "혈당관리 솔루션 및 섭취순서 분석",
         "save_btn": "💾 이 식단 기록 저장하기",
@@ -108,7 +108,7 @@ st.markdown(f"""
     }}
 
     [data-testid="stFileUploader"] section::after {{
-        content: "음식 스캔하기"; 
+        content: "식단 스캔시작"; 
         font-size: 20px;
         font-weight: 700;
         color: #333333;
@@ -236,4 +236,5 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
