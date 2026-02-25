@@ -104,9 +104,11 @@ st.markdown(f"""
             0 0 35px rgba(134, 204, 133, 0.3),
             0 0 55px rgba(134, 204, 133, 0.1) !important;
         border-radius: 50% !important;
-        width: 250px !important;
-        height: 250px !important;
-        min-width: 250px !important;
+        width: 65vw !important;  /* 화면 가로 너비의 65% */
+        height: 65vw !important; /* 높이도 가로와 똑같이 맞춰서 항상 원형 유지 */
+        max-width: 280px !important; /* 너무 커지는 것 방지 */
+        max-height: 280px !important;
+        margin: 0 auto !important;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -271,6 +273,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
