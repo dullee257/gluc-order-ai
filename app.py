@@ -17,10 +17,17 @@ from PIL import Image
 from datetime import datetime
 
 # 1. 페이지 설정 (모바일 최적화를 위해 centered 레이아웃 권장)
+# 1. 페이지 설정 및 보안 옵션 적용
 st.set_page_config(
-    page_title="NutriSort AI", # 앱 이름
-    page_icon="🥗",            # 앱 아이콘 (이모지 대신 나중에 로고 파일로 교체 가능)
-    layout="centered"          # 모바일 앱처럼 가운데 정렬
+    page_title="NutriSort AI",
+    page_icon="🥗",
+    layout="centered",
+    initial_sidebar_state="collapsed",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None  # 'About'을 None으로 설정하거나 소스 링크를 제거합니다.
+    }
 )
 
 # 2. 세션 상태 초기화
@@ -136,6 +143,10 @@ st.markdown(f"""
         z-index: 10;
         cursor: pointer;
     }}
+    /* 우측 상단 메뉴 버튼 및 스트림릿 워터마크 숨기기 */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -256,6 +267,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
