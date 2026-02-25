@@ -164,6 +164,13 @@ st.markdown(f"""
     /* 우측 상단 메뉴 버튼 및 스트림릿 워터마크 숨기기 */
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
+    /* 🚀 추가: 파일 업로드 후 생기는 파일명 박스 강제 숨기기 & 찌그러짐 방지 */
+    [data-testid="stFileUploader"] > div {{ 
+        display: none !important; 
+    }}
+    [data-testid="stUploadedFile"] {{
+        display: none !important;
+    }}
     header {{visibility: hidden;}}
 </style>
 """, unsafe_allow_html=True)
@@ -237,12 +244,31 @@ if menu == t["scanner_menu"]:
         st.divider()
         st.subheader(f"✅ {t['analysis_title']}")
         
-        for name, color, score in res['sorted_items']:
-            icon_color = "#00FF00" if any(x in color for x in ["초록", "Green"]) else "#FFFF00" if any(x in color for x in ["노랑", "Yellow"]) else "#FF0000"
+        # 🚀 수정: 프리미엄 섭취 순서 카드 UI
+        for idx, (name, color, score) in enumerate(res['sorted_items'], 1):
+            # 신호등 색상에 따른 테마 컬러 지정
+            if any(x in color for x in ["초록", "Green"]):
+                theme_color = "#4CAF50" # 메인 초록
+                bg_color = "#F1F8E9"    # 아주 연한 초록 배경
+                border_color = "#C5E1A5"
+            elif any(x in color for x in ["노랑", "Yellow"]):
+                theme_color = "#FFB300" # 메인 진노랑
+                bg_color = "#FFFDE7"    # 아주 연한 노랑 배경
+                border_color = "#FFF59D"
+            else:
+                theme_color = "#F44336" # 메인 빨강
+                bg_color = "#FFEBEE"    # 아주 연한 빨강 배경
+                border_color = "#EF9A9A"
+                
             st.markdown(f"""
-                <div class="result-card">
-                    <span style="font-size: 18px; font-weight: 600;">{name}</span>
-                    <div style="width: 22px; height: 22px; background-color: {icon_color}; border-radius: 50%;"></div>
+                <div style="display: flex; align-items: center; padding: 16px; margin-bottom: 12px; border-radius: 12px; background-color: {bg_color}; border: 1px solid {border_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background-color: {theme_color}; color: white; display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 16px; margin-right: 15px; flex-shrink: 0;">
+                        {idx}
+                    </div>
+                    <div style="flex-grow: 1; font-size: 18px; font-weight: 700; color: #333333;">
+                        {name}
+                    </div>
+                    <div style="width: 16px; height: 16px; border-radius: 50%; background-color: {theme_color}; box-shadow: 0 0 8px {theme_color}; flex-shrink: 0;"></div>
                 </div>
             """, unsafe_allow_html=True)
         
@@ -285,6 +311,7 @@ elif menu == t["history_menu"]:
                 st.success(rec['advice'])
     else:
         st.info("No records found.")
+
 
 
 
