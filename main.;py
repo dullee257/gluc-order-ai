@@ -1,0 +1,33 @@
+from google import genai
+import PIL.Image
+
+# 1. 최신 Gemini 3 API 설정
+client = genai.Client(api_key="AIzaSyDeTT5LkMz00B3UfmVu3s2CqeTJmaiVm8I")
+
+# 2. 사진 파일 이름
+사진_이름 = '4.jpg' 
+
+try:
+    img = PIL.Image.open(사진_이름)
+
+    print("📸 [Gluc-Order-AI] 최신 엔진으로 분석 중...")
+    
+    # 3. 제미나이 3 모델에게 분석 요청
+    response = client.models.generate_content(
+        model="gemini-flash-latest",
+        contents=[
+            "사진 속 모든 한국 음식과 혈당 신호등(초록/노랑/빨강)을 판정해줘.",
+            img
+        ]
+    )
+
+    print("\n" + "="*40)
+    print("📱 Gluc-Order-AI 분석 리포트 (Ver 3.0)")
+    print("="*40)
+    print(f"🔍 인식 결과:\n{response.text}")
+    print("-" * 40)
+    print("💡 가이드: 초록 -> 노랑 -> 빨강 순서로 드세요!")
+    print("="*40)
+
+except Exception as e:
+    print(f"❌ 오류 발생: {e}")
