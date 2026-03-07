@@ -3,38 +3,46 @@ import streamlit as st
 st.components.v1.html(
     """
     <script>
-    // 1. 부모 창(Streamlit 메인 창)의 document 객체 참조
-    const parentDoc = window.parent.document;
-    const parentWindow = window.parent;
-    
+    // 1. 문서 객체 참조 (Streamlit Cloud의 CORS 에러 우회하기 위해 try-catch 적용)
+    let doc = window.document;
+    let win = window;
+    try {
+        if (window.parent.document) {
+            doc = window.parent.document;
+            win = window.parent;
+        }
+    } catch (e) {
+        console.log("CORS blocked accessing parent window. Using current window.");
+    }
+
     var agent = navigator.userAgent.toLowerCase();
-    var currentUrl = parentWindow.location.href;
+    var currentUrl = win.location.href;
     
     // 카카오톡 및 네이버 앱 탈출 스크립트
     if (agent.indexOf('kakao') > -1) {
-        parentWindow.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(currentUrl);
+        win.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(currentUrl);
     } else if (agent.indexOf('naver') > -1) {
         if (agent.indexOf('android') > -1) {
-            parentWindow.location.href = 'intent://' + currentUrl.replace(/https?:\\/\\//i, '') + '#Intent;scheme=https;package=com.android.chrome;end';
+            win.location.href = 'intent://' + currentUrl.replace(/https?:\\/\\//i, '') + '#Intent;scheme=https;package=com.android.chrome;end';
         } else {
             if (currentUrl.indexOf('?') === -1) {
-                parentWindow.location.replace(currentUrl + '?reload=' + new Date().getTime());
+                win.location.replace(currentUrl + '?reload=' + new Date().getTime());
             }
         }
     }
     
-    // 2. [PWA 지원] 백그라운드 매니페스트를 정확히 부모 윈도우(메인)에 동적 주입
-    if (!parentDoc.querySelector('link[rel="manifest"]')) {
-        const manifest = parentDoc.createElement('link');
+    // 2. [PWA 지원] 백그라운드 매니페스트를 정확히 문서(메인 또는 iframe)에 동적 주입
+    if (!doc.querySelector('link[rel="manifest"]')) {
+        const manifest = doc.createElement('link');
         manifest.rel = 'manifest';
         manifest.href = '/app/static/manifest.json';
-        parentDoc.head.appendChild(manifest);
+        doc.head.appendChild(manifest);
     }
     
     // 3. [PWA 지원] 서비스 워커 등록
-    if ('serviceWorker' in parentWindow.navigator) {
-        parentWindow.addEventListener('load', function() {
-            parentWindow.navigator.serviceWorker.register('/app/static/sw.js')
+    if ('serviceWorker' in win.navigator) {
+        win.addEventListener('load', function() {
+            win.navigator.serviceWorker.register('/app/static/sw.js')
             .then(function(registration) {
                 console.log('ServiceWorker registered with scope: ', registration.scope);
             }, function(err) {
@@ -44,7 +52,7 @@ st.components.v1.html(
     }
 
     // 4. [성능 최적화] 서버 전송 전 브라우저 단에서 이미지 500KB 이하 압축 로직
-    parentDoc.addEventListener('change', async function(e) {
+    doc.addEventListener('change', async function(e) {
         // 스트림릿의 st.file_uploader 내부 input[type="file"] 감지
         if (e.target && e.target.type === 'file') {
             if (e.target.dataset.doingCompression) return; // 무한 루프 방지
@@ -65,9 +73,8 @@ st.components.v1.html(
             
             const img = new Image();
             img.onload = function() {
-                const canvas = parentDoc.createElement('canvas');
+                const canvas = doc.createElement('canvas'); // 주의: doc.createElement
                 let scale = Math.sqrt(MAX_SIZE / file.size); 
-                // 크기를 비례적으로 줄여서 용량 최적화 (여유를 두기 위해 0.9 곱함)
                 scale = scale * 0.9;
                 
                 canvas.width = img.width * scale;
@@ -76,7 +83,6 @@ st.components.v1.html(
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 
-                // 브라우저 캔버스를 이용해 Blob으로 변환
                 canvas.toBlob((blob) => {
                     const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + "_compressed.jpg", { 
                         type: 'image/jpeg',
@@ -85,17 +91,15 @@ st.components.v1.html(
                     
                     console.log("Compressed file size:", newFile.size);
                     
-                    // Input file을 압축된 파일로 교체
                     const dataTransfer = new DataTransfer();
                     dataTransfer.items.add(newFile);
                     e.target.files = dataTransfer.files;
                     
-                    // 다시 change 이벤트 수동 발생 -> Streamlit 렌더러로 전달됨
                     const event = new Event('change', { bubbles: true });
                     e.target.dispatchEvent(event);
                     
                     delete e.target.dataset.doingCompression;
-                }, 'image/jpeg', 0.85); // 0.85 품질로 JPEG 압축
+                }, 'image/jpeg', 0.85); 
             };
             img.src = URL.createObjectURL(file);
         }
