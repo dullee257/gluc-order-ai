@@ -16,17 +16,21 @@ st.components.v1.html(
     }
 
     var agent = navigator.userAgent.toLowerCase();
-    var currentUrl = win.location.href;
+    var targetUrl = 'https://nutrisort.streamlit.app';
     
-    // 카카오톡 및 네이버 앱 탈출 스크립트
+    // 카카오톡 및 네이버 앱 탈출 스크립트 (안드로이드에서는 반드시 풀버전 크롬 브라우저로 열리게 강제)
     if (agent.indexOf('kakao') > -1) {
-        win.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(currentUrl);
+        if (agent.indexOf('android') > -1) {
+            win.top.location.href = 'intent://nutrisort.streamlit.app#Intent;scheme=https;package=com.android.chrome;end';
+        } else {
+            win.top.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(targetUrl);
+        }
     } else if (agent.indexOf('naver') > -1) {
         if (agent.indexOf('android') > -1) {
-            win.location.href = 'intent://' + currentUrl.replace(/https?:\\/\\//i, '') + '#Intent;scheme=https;package=com.android.chrome;end';
+            win.top.location.href = 'intent://nutrisort.streamlit.app#Intent;scheme=https;package=com.android.chrome;end';
         } else {
-            if (currentUrl.indexOf('?') === -1) {
-                win.location.replace(currentUrl + '?reload=' + new Date().getTime());
+            if (win.location.href.indexOf('?') === -1) {
+                win.top.location.replace(targetUrl + '?reload=' + new Date().getTime());
             }
         }
     }
@@ -375,12 +379,24 @@ if menu == t["scanner_menu"]:
     # 1️⃣ 전문적인 3행 타이틀 디자인 (반응형 폰트 및 여백 적용)
     title_parts = t["description"].split("|")
     st.markdown(f"""
-        <div style="text-align: center; margin-top: 10px; margin-bottom: 6vh;">
+        <div style="text-align: center; margin-top: 10px; margin-bottom: 3vh;">
             <div style="font-size: clamp(35px, 10vw, 50px); margin-bottom: 1vh;">{title_parts[0]}</div>
             <div style="font-size: clamp(20px, 6vw, 26px); font-weight: 800; color: #333333; line-height: 1.2;">{title_parts[1]}</div>
             <div style="font-size: clamp(14px, 4vw, 18px); font-weight: 500; color: #86cc85; margin-top: 1vh;">{title_parts[2]}</div>
         </div>
     """, unsafe_allow_html=True)
+    
+    # 1.5 메인 화면 앱 설치 가이드 토글
+    with st.expander("📲 **매번 접속하기 번거로우시다면? (앱 설치 방법)**"):
+        st.info(
+            "**[안드로이드 폰 (크롬 / 네이버 등)]**\n\n"
+            "인터넷 화면 우측 상단(**⋮**) 또는 하단(**≡**) 메뉴를 찾아 **'홈 화면에 추가'**를 누르세요.\n\n"
+            "*(❗만약 삼선이나 점 메뉴 자체가 안 보인다면 화면을 위/아래로 살짝 스크롤 해보세요! 메뉴바가 나타납니다.)*\n\n"
+            "---\n"
+            "**[아이폰 (Safari)]**\n\n"
+            "화면 하단 정중앙의 공유 버튼(**⍐**) 클릭 후 **'홈 화면에 추가'**를 누르세요."
+        )
+    st.markdown("<div style='margin-bottom: 3vh;'></div>", unsafe_allow_html=True)
     
     API_KEY = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=API_KEY)
