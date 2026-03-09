@@ -432,22 +432,27 @@ st.markdown(f"""
         z-index: 10;
         cursor: pointer;
     }}
-    /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴(Manage app) 강제 숨김 */
+    /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴 및 여백 강제 숨김 */
     .viewerBadge_container {{ display: none !important; }}
     .viewerBadge_link {{ display: none !important; }}
     [data-testid="viewerBadge"] {{ display: none !important; }}
     [data-testid="stDecoration"] {{ display: none !important; }}
     [data-testid="stAppDeployButton"] {{ display: none !important; }}
     [data-testid="stToolbar"] {{ display: none !important; }}
+    [data-testid="stBottom"] {{ display: none !important; }}
+    [data-testid="stBottomBlockContainer"] {{ display: none !important; }}
     a[href^="https://streamlit.io/cloud"] {{ display: none !important; }}
-    div.st-emotion-cache-1v0mbdj {{ display: none !important; }}
-    div.st-emotion-cache-18ni7ap {{ display: none !important; }}
     iframe[src*="manage.streamlit.app"] {{ display: none !important; }}
+
+    /* embed=true 켰을 때 나오는 최하단 Built with Streamlit 회색 바 (다양한 클래스 대응) */
+    div[class*="st-"] > div[style*="bottom: 0"] {{ display: none !important; }}
+    div[style*="position: fixed"][style*="bottom: 0px"] {{ display: none !important; opacity: 0 !important; pointer-events: none !important; }}
+    div[data-testid="stAppViewContainer"] > div:last-child {{ display: none !important; }}
 
     /* 우측 상단 메뉴 버튼 및 스트림릿 워터마크 숨기기 */
     #MainMenu {{visibility: hidden;}}
-    footer {{display: none !important; visibility: hidden !important;}}
-    header {{display: none !important; visibility: hidden !important; height: 0 !important;}}
+    footer {{display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important;}}
+    header {{display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important;}}
     
     /* embed 모드 해제로 인한 기본 상하 여백 최소화 */
     .block-container {{
@@ -455,6 +460,7 @@ st.markdown(f"""
         padding-bottom: 1rem !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
+        padding-bottom: 0px !important;
     }}
 
     /* 🚀 추가: 파일 업로드 후 생기는 파일명 박스 강제 숨기기 & 찌그러짐 방지 */
