@@ -413,8 +413,17 @@ st.markdown(f"""
 
     /* 우측 상단 메뉴 버튼 및 스트림릿 워터마크 숨기기 */
     #MainMenu {{visibility: hidden;}}
-    footer {{visibility: hidden;}}
-    header {{visibility: hidden !important; height: 0 !important;}}
+    footer {{display: none !important; visibility: hidden !important;}}
+    header {{display: none !important; visibility: hidden !important; height: 0 !important;}}
+    
+    /* embed 모드 해제로 인한 기본 상하 여백 최소화 */
+    .block-container {{
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }}
+
     /* 🚀 추가: 파일 업로드 후 생기는 파일명 박스 강제 숨기기 & 찌그러짐 방지 */
     [data-testid="stFileUploader"] > div {{ 
         display: none !important; 
