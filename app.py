@@ -386,20 +386,6 @@ if menu == t["scanner_menu"]:
         </div>
     """, unsafe_allow_html=True)
     
-    # 1.5 메인 화면 앱 설치 가이드 토글
-    with st.expander("📲 **매번 접속하기 번거로우시다면? (앱 설치 방법)**"):
-        st.warning(
-            "⚠️ **캐시워크/만보기 앱 등에서 접속하셨나요?**\n\n"
-            "이 화면에서 메뉴(삼선/점)가 보이지 않는다면, 앱 설치 기능이 막혀있는 상태입니다. "
-            "스마트폰 바탕화면에서 직접 **크롬(Chrome)이나 삼성인터넷, 사파리 앱을 켜신 후, 주소창에 `nutrisort.streamlit.app`을 직접 검색**해서 들어오셔야 설치가 가능합니다!"
-        )
-        st.info(
-            "**[일반 인터넷 (크롬/삼성인터넷 등)으로 들어왔을 때]**\n\n"
-            "► 안드로이드: 화면 우측 상단(**⋮**) 또는 하단(**≡**) 메뉴를 찾아 **'홈 화면에 추가'**를 누르세요.\n\n"
-            "► 아이폰(Safari): 화면 하단 정중앙의 공유 버튼(**⍐**) 클릭 후 **'홈 화면에 추가'**를 누르세요."
-        )
-    st.markdown("<div style='margin-bottom: 3vh;'></div>", unsafe_allow_html=True)
-    
     API_KEY = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=API_KEY)
 
