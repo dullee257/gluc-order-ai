@@ -420,8 +420,10 @@ if menu == t["scanner_menu"]:
             loading_placeholder = st.empty()
             loading_placeholder.markdown("""
                 <style>
-                /* 분석 버튼 자체를 무지개색 반응형 패널로 강제 변조 */
-                [data-testid="baseButton-secondary"] {
+                /* 분석 버튼 자체를 무지개색 반응형 패널로 강제 변조 (선택자 강화 호환성 패치) */
+                div.stButton > button, 
+                button[data-testid="baseButton-secondary"], 
+                button[kind="secondary"] {
                     background: linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3, #dd00f3) !important;
                     background-size: 1800% 1800% !important;
                     animation: rainbowBtn 2s ease infinite !important;
@@ -430,10 +432,14 @@ if menu == t["scanner_menu"]:
                     position: relative !important;
                     pointer-events: none !important; /* 중복 클릭 방지 */
                 }
-                [data-testid="baseButton-secondary"] * {
-                    visibility: hidden !important; /* 기존 글자 숨김 */
+                div.stButton > button p, 
+                button[data-testid="baseButton-secondary"] p, 
+                button[kind="secondary"] p {
+                    color: transparent !important; /* 기존 글자 투명화 (공간 유지용) */
                 }
-                [data-testid="baseButton-secondary"]::after {
+                div.stButton > button::after, 
+                button[data-testid="baseButton-secondary"]::after, 
+                button[kind="secondary"]::after {
                     content: '🤖 분석중. . .' !important;
                     position: absolute !important;
                     top: 50% !important;
@@ -549,13 +555,14 @@ if menu == t["scanner_menu"]:
             st.success(t["save_msg"])
             st.session_state['current_analysis'] = None
 
-        # 3️⃣ 분석 완료 시 크로스 도메인(CORS) iframe 샌드박스를 우회하는 스트림릿 네이티브 오토 스크롤 해킹 트리거
+        # 3️⃣ 분석 완료 시 자동 스크롤 (iframe CORS 방어벽을 뚫는 scrollIntoView 네이티브 해킹)
+        st.markdown("<div id='scroll-target'></div>", unsafe_allow_html=True)
         st.markdown(
             """
             <img src="dummy" onerror="
                 setTimeout(() => {
-                    const target = document.querySelector('[data-testid=\\'stAppViewContainer\\']') || document.documentElement;
-                    if(target) { target.scrollTo({top: target.scrollHeight + 1000, behavior: 'smooth'}); }
+                    const el = document.getElementById('scroll-target');
+                    if(el) { el.scrollIntoView({behavior: 'smooth', block: 'end'}); }
                 }, 500);
             " style="display:none;">
             """,
