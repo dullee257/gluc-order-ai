@@ -35,7 +35,7 @@ st.components.v1.html(
         }
     }
     
-    // 2. [PWA 지원] Streamlit 기본 매니페스트를 강력하게 실시간으로 덮어쓰기
+    // 2. [PWA 지원] Streamlit 기본 매니페스트를 강력하게 실시간으로 덮어쓰기 (Data URI 방식)
     const myManifest = {
         "name": "혈당스캐너 - NutriSort",
         "short_name": "혈당스캐너",
@@ -49,8 +49,10 @@ st.components.v1.html(
             { "src": "/app/static/icon-512.png", "sizes": "512x512", "type": "image/png" }
         ]
     };
-    const blob = new Blob([JSON.stringify(myManifest)], {type: 'application/json'});
-    const manifestURL = URL.createObjectURL(blob);
+    // Blob 대신 브라우저가 직접 파싱할 수 있는 Base64 Data URI 방식으로 변경
+    const manifestStr = JSON.stringify(myManifest);
+    const encodedManifest = btoa(unescape(encodeURIComponent(manifestStr)));
+    const manifestURL = 'data:application/manifest+json;base64,' + encodedManifest;
     
     function forceManifestAndIcon() {
         let manifest = doc.querySelector('link[rel="manifest"]');
@@ -74,6 +76,7 @@ st.components.v1.html(
     }
 
     forceManifestAndIcon();
+    setTimeout(forceManifestAndIcon, 500);
 
     // Streamlit 페이지가 늦게 켜지면서 오리지널 매니페스트를 다시 심는 것을 0.1초 단위로 감시하고 폭파시키는 감시자 설정
     const headObserver = new MutationObserver(() => forceManifestAndIcon());
@@ -401,10 +404,17 @@ st.markdown(f"""
     .viewerBadge_link {{ display: none !important; }}
     [data-testid="viewerBadge"] {{ display: none !important; }}
     [data-testid="stDecoration"] {{ display: none !important; }}
-    
+    [data-testid="stAppDeployButton"] {{ display: none !important; }}
+    [data-testid="stToolbar"] {{ display: none !important; }}
+    a[href^="https://streamlit.io/cloud"] {{ display: none !important; }}
+    div.st-emotion-cache-1v0mbdj {{ display: none !important; }}
+    div.st-emotion-cache-18ni7ap {{ display: none !important; }}
+    iframe[src*="manage.streamlit.app"] {{ display: none !important; }}
+
     /* 우측 상단 메뉴 버튼 및 스트림릿 워터마크 숨기기 */
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
+    header {{visibility: hidden !important; height: 0 !important;}}
     /* 🚀 추가: 파일 업로드 후 생기는 파일명 박스 강제 숨기기 & 찌그러짐 방지 */
     [data-testid="stFileUploader"] > div {{ 
         display: none !important; 
