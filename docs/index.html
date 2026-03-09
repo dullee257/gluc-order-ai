@@ -48,8 +48,8 @@
 <body>
     <div id="loader">앱을 불러오는 중입니다...</div>
     
-    <!-- embed=true 파라미터를 제거하여 강제 생성되는 하단 워터마크(Built with Streamlit 및 Fullscreen)를 차단하고 우리의 자체 디자인만 표시되도록 합니다. -->
-    <iframe src="https://nutrisort.streamlit.app/" onload="document.getElementById('loader').style.display='none';"></iframe>
+    <!-- embed=true 파라미터를 다시 추가하여 Streamlit 클라우드의 iframe 거부(보안/CORS)로 인한 무한 튕김 에러(sherr.streamlit.io)를 해결합니다. -->
+    <iframe src="https://nutrisort.streamlit.app/?embed=true" onload="document.getElementById('loader').style.display='none';"></iframe>
     
     <!-- PWA 서비스 워커 등록 스크립트 -->
     <script>

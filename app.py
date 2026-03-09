@@ -75,12 +75,45 @@ st.components.v1.html(
         if (doc.title !== '혈당스캐너 - NutriSort') doc.title = '혈당스캐너 - NutriSort';
     }
 
+    // 🚀 [핵심] embed=true 상황에서 DOM을 뒤져서 강제로 추가된 'Built with Streamlit' 배너를 자바스크립트로 직접 삭제!
+    function killWatermarks() {
+        doc.querySelectorAll('div, footer, span, a').forEach(el => {
+            // 자식이 없거나(텍스트만 있거나) 제일 텍스트에 가까운 요소 중 'Built with Streamlit' 텍스트를 포함하는 것을 찾기
+            if (el.textContent && el.textContent.includes('Built with Streamlit')) {
+                // 부모를 거슬러 올라가며 높이가 앱 전체가 아닌, 하단 바(bar) 높이 정도인 래퍼(Wrapper)를 찾아 삭제
+                let parent = el;
+                let foundBar = false;
+                while (parent && parent.tagName !== 'BODY' && parent.tagName !== 'HTML') {
+                    if (parent.clientHeight > 0 && parent.clientHeight < 100) {
+                        parent.style.setProperty('display', 'none', 'important');
+                        parent.style.setProperty('visibility', 'hidden', 'important');
+                        parent.style.setProperty('opacity', '0', 'important');
+                        foundBar = true;
+                    }
+                    parent = parent.parentElement;
+                }
+                if (foundBar) {
+                    el.style.display = 'none'; // 자기 자신도 확실히 숨김
+                }
+            }
+        });
+    }
+
     forceManifestAndIcon();
     setTimeout(forceManifestAndIcon, 500);
+    setTimeout(killWatermarks, 500);
+    setTimeout(killWatermarks, 1500);
+    setTimeout(killWatermarks, 3000);
 
     // Streamlit 페이지가 늦게 켜지면서 오리지널 매니페스트를 다시 심는 것을 0.1초 단위로 감시하고 폭파시키는 감시자 설정
     const headObserver = new MutationObserver(() => forceManifestAndIcon());
     headObserver.observe(doc.head, { childList: true, attributes: true, subtree: true });
+
+    // 바디 감시자로 워터마크가 튀어나오면 즉시 제거
+    const bodyObserver = new MutationObserver(() => killWatermarks());
+    if (doc.body) {
+        bodyObserver.observe(doc.body, { childList: true, subtree: true });
+    }
     
     // 3. [PWA 지원] 서비스 워커 등록
     if ('serviceWorker' in win.navigator) {
