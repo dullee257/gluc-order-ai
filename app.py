@@ -105,76 +105,82 @@ st.components.v1.html(
         }
     }, true); // Capture phase에서 가장 먼저 차단
 
-    // 5. [UX 보완] PWA 앱 설치 배너 (조건 확인 후 항상 노출)
-    // 이미 앱(standalone)으로 접속한 경우에는 배너를 숨깁니다.
-    const isStandalone = win.matchMedia('(display-mode: standalone)').matches || win.navigator.standalone || doc.referrer.includes('android-app://');
-    
-    if (!isStandalone) {
-        const installWrapper = doc.createElement('div');
-        installWrapper.id = 'pwa-install-wrapper';
-        installWrapper.innerHTML = `
-            <div id="pwa-install-banner" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333333; color: #ffffff; padding: 12px 20px; border-radius: 30px; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; white-space: nowrap;">
-                <span style="font-size: 20px;">📲</span> 
-                <span>앱으로 설치해서 쓰기</span>
-                <div id="pwa-close-btn" style="margin-left: 10px; width: 24px; height: 24px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px;">✖</div>
-            </div>
-            <div id="pwa-manual-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center;">
-                <div style="background: white; padding: 25px; border-radius: 20px; text-align: center; width: 80%; max-width: 320px;">
-                    <h3 style="margin-top:0; color:#333;">앱 설치 가이드</h3>
-                    <p style="text-align:left; color:#555; font-size:14px; line-height:1.6;">
-                        <strong>[아이폰 (Safari)]</strong><br>
-                        하단 공유(⍐) 버튼 ➔ '홈 화면에 추가'<br><br>
-                        <strong>[안드로이드/기타]</strong><br>
-                        메뉴(⋮) ➔ '홈 화면에 추가'
-                    </p>
-                    <button id="pwa-modal-close" style="margin-top: 15px; background: #86cc85; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">확인했어요</button>
+    // 5. [UX 보완] PWA 앱 설치 배너 (안정성 강화 버전)
+    setTimeout(function() {
+        try {
+            let isStandalone = false;
+            if (win.matchMedia && win.matchMedia('(display-mode: standalone)').matches) isStandalone = true;
+            if (win.navigator.standalone) isStandalone = true;
+            if (doc.referrer.includes('android-app://')) isStandalone = true;
+            
+            if (isStandalone) return; // 이미 앱이면 출력 안함
+
+            // 이미 배너가 있다면 중복 생성 금지
+            if (doc.getElementById('pwa-install-wrapper')) return;
+
+            const installWrapper = doc.createElement('div');
+            installWrapper.id = 'pwa-install-wrapper';
+            installWrapper.innerHTML = `
+                <div id="pwa-install-banner" style="position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); background: #222222; color: #ffffff; padding: 12px 20px; border-radius: 30px; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 10px; z-index: 99999; box-shadow: 0 5px 20px rgba(0,0,0,0.4); cursor: pointer; white-space: nowrap; border: 1px solid #444;">
+                    <span style="font-size: 20px;">📲</span> 
+                    <span>앱처럼 홈 화면에 설치</span>
+                    <div id="pwa-close-btn" style="margin-left: 8px; width: 22px; height: 22px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 10px; font-weight: bold;">✕</div>
                 </div>
-            </div>
-        `;
-        
-        // 중복 방지
-        if (!doc.getElementById('pwa-install-wrapper')) {
+                <div id="pwa-manual-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 100000; justify-content: center; align-items: center;">
+                    <div style="background: white; padding: 30px; border-radius: 20px; text-align: center; width: 85%; max-width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                        <h3 style="margin-top:0; color:#333; font-size:18px;">📱 앱 설치 가이드</h3>
+                        <p style="text-align:left; color:#555; font-size:14px; line-height:1.7; margin-bottom:0;">
+                            <strong>[아이폰 (Safari)]</strong><br>
+                            하단 공유(⍐) 버튼 ➔ <b>'홈 화면에 추가'</b><br><br>
+                            <strong>[안드로이드 폰]</strong><br>
+                            메뉴(⋮ 또는 ≡) ➔ <b>'홈 화면에 추가'</b>
+                        </p>
+                        <button id="pwa-modal-close" style="margin-top: 20px; width: 100%; background: #86cc85; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer;">확인</button>
+                    </div>
+                </div>
+            `;
+            
             doc.body.appendChild(installWrapper);
-        }
 
-        const banner = doc.getElementById('pwa-install-banner');
-        const closeBtn = doc.getElementById('pwa-close-btn');
-        const manualModal = doc.getElementById('pwa-manual-modal');
-        const modalClose = doc.getElementById('pwa-modal-close');
+            const banner = doc.getElementById('pwa-install-banner');
+            const closeBtn = doc.getElementById('pwa-close-btn');
+            const manualModal = doc.getElementById('pwa-manual-modal');
+            const modalClose = doc.getElementById('pwa-modal-close');
 
-        let deferredPrompt;
-        win.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-        });
+            let deferredPrompt;
+            win.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+            });
 
-        banner.addEventListener('click', async (e) => {
-            if(e.target === closeBtn || closeBtn.contains(e.target)) {
+            banner.addEventListener('click', async (e) => {
+                if(e.target === closeBtn || closeBtn.contains(e.target)) {
+                    banner.style.display = 'none';
+                    return;
+                }
+
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    deferredPrompt = null;
+                    banner.style.display = 'none';
+                } else {
+                    manualModal.style.display = 'flex';
+                }
+            });
+
+            modalClose.addEventListener('click', () => {
+                manualModal.style.display = 'none';
+            });
+
+            win.addEventListener('appinstalled', () => {
                 banner.style.display = 'none';
-                return; // 닫기 버튼을 누르면 배너만 숨김
-            }
-
-            if (deferredPrompt) {
-                // 네이티브 설치 프롬프트 지원 시 호출
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                deferredPrompt = null;
-                banner.style.display = 'none'; // 한 번 사용하면 숨김
-            } else {
-                // 조건 불만족 또는 iOS의 경우 수동 설치 안내 모달 띄우기
-                manualModal.style.display = 'flex';
-            }
-        });
-
-        modalClose.addEventListener('click', () => {
-            manualModal.style.display = 'none';
-        });
-
-        win.addEventListener('appinstalled', () => {
-            banner.style.display = 'none';
-            manualModal.style.display = 'none';
-        });
-    }
+                manualModal.style.display = 'none';
+            });
+        } catch (error) {
+            console.error("Install Banner Error:", error);
+        }
+    }, 1000); // 페이지 주요 요소 렌더링 후 1초 뒤 노출 (모바일 렉 방지)
 
 
     </script>
