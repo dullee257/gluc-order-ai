@@ -23,10 +23,11 @@
             background-color: #f8f9fa; /* 앱 켜질 때 깜빡거리는 배경색 */
         }
         
-        /* Streamlit 앱을 감싸는 투명한 프레임 설정 */
+        /* Streamlit 앱을 감싸는 프레임 설정 */
         iframe {
             width: 100%;
-            height: 100%;
+            /* 🚀 [최종 병기] iframe 자체의 길이를 화면보다 길게 늘려서 맨 아랫부분(스트림릿 배너)을 화면 밖으로 밀어내버림 */
+            height: calc(100% + 55px);
             border: none;
             display: block;
         }

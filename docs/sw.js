@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nutrisort-wrapper-v3';
+const CACHE_NAME = 'nutrisort-wrapper-v4';
 const urlsToCache = [
   './',
   './index.html',
