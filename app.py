@@ -35,13 +35,22 @@ st.components.v1.html(
         }
     }
     
-    // 2. [PWA 지원] 백그라운드 매니페스트를 정확히 문서(메인 또는 iframe)에 동적 주입
-    if (!doc.querySelector('link[rel="manifest"]')) {
-        const manifest = doc.createElement('link');
-        manifest.rel = 'manifest';
-        manifest.href = '/app/static/manifest.json';
-        doc.head.appendChild(manifest);
-    }
+    // 2. [PWA 지원] 백그라운드 매니페스트 동적 주입 및 기본 설정(영문/기본 아이콘) 덮어쓰기
+    // Streamlit이 기본으로 심어놓은 아이콘과 매니페스트를 지워버림으로써 우리가 만든 설정이 적용되도록 강제
+    doc.querySelectorAll('link[rel="manifest"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]').forEach(el => el.remove());
+    
+    // 강제로 설치될 때의 제목 변경 (필수)
+    doc.title = '혈당스캐너 - NutriSort';
+
+    const manifest = doc.createElement('link');
+    manifest.rel = 'manifest';
+    manifest.href = '/app/static/manifest.json';
+    doc.head.appendChild(manifest);
+
+    const appleIcon = doc.createElement('link');
+    appleIcon.rel = 'apple-touch-icon';
+    appleIcon.href = '/app/static/icon-192.png';
+    doc.head.appendChild(appleIcon);
     
     // 3. [PWA 지원] 서비스 워커 등록
     if ('serviceWorker' in win.navigator) {
@@ -220,8 +229,8 @@ def compress_image(img, max_size_kb=500):
 # 1. 페이지 설정 (모바일 최적화를 위해 centered 레이아웃 권장)
 # 1. 페이지 설정 및 보안 옵션 적용
 st.set_page_config(
-    page_title="NutriSort AI",
-    page_icon="🥗",
+    page_title="혈당스캐너 - NutriSort",
+    page_icon="🩸",
     layout="centered",
     initial_sidebar_state="collapsed",
     menu_items={

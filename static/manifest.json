@@ -1,6 +1,6 @@
 {
-  "name": "NutriSort AI",
-  "short_name": "NutriSort",
+  "name": "혈당스캐너 - NutriSort",
+  "short_name": "혈당스캐너",
   "description": "혈당 관리 섭취 순서 스캐너",
   "start_url": "/",
   "display": "standalone",
