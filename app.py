@@ -417,39 +417,75 @@ if menu == t["scanner_menu"]:
         
         # 분석 버튼 (피그마 스타일)
         if st.button(t["analyze_btn"], use_container_width=True):
-            with st.spinner("AI 분석 중..."):
-                try:
-                    # 에러 방지: 모델명을 'gemini-flash-latest'로 고정
-                    prompt = f"Analyze food for glucose management. Format: FoodName|TrafficColor|Order. Lang: {lang}"
-                    response = client.models.generate_content(
+            loading_placeholder = st.empty()
+            loading_placeholder.markdown("""
+                <style>
+                @keyframes loadingDots {
+                    0% { opacity: .2; transform: scale(1); }
+                    20% { opacity: 1; transform: scale(1.5); }
+                    100% { opacity: .2; transform: scale(1); }
+                }
+                .dot { display: inline-block; animation: loadingDots 1.4s infinite both; color: #86cc85; font-size: 30px; font-weight: 900; }
+                .dot:nth-child(1) { animation-delay: 0.0s; }
+                .dot:nth-child(2) { animation-delay: 0.2s; }
+                .dot:nth-child(3) { animation-delay: 0.4s; }
+                .dot:nth-child(4) { animation-delay: 0.6s; }
+                .dot:nth-child(5) { animation-delay: 0.8s; }
+                .dot:nth-child(6) { animation-delay: 1.0s; }
+                .dot:nth-child(7) { animation-delay: 1.2s; }
+                
+                @keyframes pulseText {
+                    0% { opacity: 0.6; }
+                    50% { opacity: 1; }
+                    100% { opacity: 0.6; }
+                }
+                .pulse-text { animation: pulseText 1.5s infinite; }
+                </style>
+                <div style="text-align:center; padding: 40px 10px; background-color: #f8f9fa; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin: 20px 0;">
+                    <span style="font-size: 24px; font-weight: 800; color: #333;">분석중</span>
+                    <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+                    <div style="margin-top: 15px; font-size: 16px; color: #86cc85; font-weight: 700;" class="pulse-text">
+                        (현재 분석진행중)
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            try:
+                # 에러 방지: 모델명을 'gemini-flash-latest'로 고정
+                prompt = f"Analyze food for glucose management. Format: FoodName|TrafficColor|Order. Lang: {lang}"
+                response = client.models.generate_content(
+                    model="gemini-flash-latest", 
+                    contents=[prompt, img]
+                )
+                
+                # 결과 파싱
+                raw_lines = response.text.strip().split('\n')
+                items = []
+                for line in raw_lines:
+                    if '|' in line and not any(x in line for x in ['---', 'Food', '음식']):
+                        parts = line.split('|')
+                        if len(parts) >= 3:
+                            items.append([p.strip() for p in parts])
+                
+                if items:
+                    sorted_items = sorted(items, key=lambda x: x[2])
+                    # 소견 분석도 동일 모델로 수행
+                    advice_res = client.models.generate_content(
                         model="gemini-flash-latest", 
-                        contents=[prompt, img]
+                        contents=[t["advice_prompt"], img]
                     )
                     
-                    # 결과 파싱
-                    raw_lines = response.text.strip().split('\n')
-                    items = []
-                    for line in raw_lines:
-                        if '|' in line and not any(x in line for x in ['---', 'Food', '음식']):
-                            parts = line.split('|')
-                            if len(parts) >= 3:
-                                items.append([p.strip() for p in parts])
-                    
-                    if items:
-                        sorted_items = sorted(items, key=lambda x: x[2])
-                        # 소견 분석도 동일 모델로 수행
-                        advice_res = client.models.generate_content(
-                            model="gemini-flash-latest", 
-                            contents=[t["advice_prompt"], img]
-                        )
-                        
-                        st.session_state['current_analysis'] = {
-                            "sorted_items": sorted_items,
-                            "advice": advice_res.text,
-                            "raw_img": img  # 파일 객체 대신 최적화된(압축된) PIL 이미지 객체 자체를 저장
-                        }
-                except Exception as e:
-                    st.error(f"분석 엔진 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({str(e)})")
+                    st.session_state['current_analysis'] = {
+                        "sorted_items": sorted_items,
+                        "advice": advice_res.text,
+                        "raw_img": img  # 파일 객체 대신 최적화된(압축된) PIL 이미지 객체 자체를 저장
+                    }
+                    loading_placeholder.empty()
+                else:
+                    loading_placeholder.empty()
+                    st.warning("분석에 실패했습니다. 올바른 음식 사진인지 확인해 주세요.")
+            except Exception as e:
+                loading_placeholder.empty()
+                st.error(f"분석 엔진 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({str(e)})")
 
     # 결과 출력 (피그마 카드 디자인)
     if st.session_state['current_analysis']:
@@ -502,6 +538,21 @@ if menu == t["scanner_menu"]:
             st.balloons()
             st.success(t["save_msg"])
             st.session_state['current_analysis'] = None
+
+        # 3️⃣ 분석이 완료되어 결과가 렌더링된 후 최하단으로 부드럽게 스크롤해버리는 보이지 않는 스크립트 실행
+        st.components.v1.html(
+            """
+            <script>
+            setTimeout(() => {
+                const target = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
+                if (target) {
+                    target.scrollTo({ top: target.scrollHeight, behavior: 'smooth' });
+                }
+            }, 300);
+            </script>
+            """,
+            height=0
+        )
 
 # (나의 기록 탭은 기존 로직 유지하되 디자인 가이드 적용)
 elif menu == t["history_menu"]:
