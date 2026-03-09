@@ -386,36 +386,50 @@ st.markdown(f"""
 
 # 5. 메인 화면 - 식단 스캐너
 if menu == t["scanner_menu"]:
-    # 1️⃣ 전문적인 3행 타이틀 디자인 (반응형 폰트 및 여백 적용)
-    title_parts = t["description"].split("|")
-    st.markdown(f"""
-        <div style="text-align: center; margin-top: 10px; margin-bottom: 3vh;">
-            <div style="font-size: clamp(35px, 10vw, 50px); margin-bottom: 1vh;">{title_parts[0]}</div>
-            <div style="font-size: clamp(20px, 6vw, 26px); font-weight: 800; color: #333333; line-height: 1.2;">{title_parts[1]}</div>
-            <div style="font-size: clamp(14px, 4vw, 18px); font-weight: 500; color: #86cc85; margin-top: 1vh;">{title_parts[2]}</div>
-        </div>
-    """, unsafe_allow_html=True)
-    
+    if 'app_stage' not in st.session_state:
+        st.session_state['app_stage'] = 'main'
+        
     API_KEY = st.secrets["GEMINI_API_KEY"]
     client = genai.Client(api_key=API_KEY)
 
-    # 2️⃣ 업로드 위젯 (외부 라벨을 완전히 숨김)
-    uploaded_file = st.file_uploader(
-        "label_hidden", 
-        type=["jpg", "png", "jpeg"],
-        label_visibility="collapsed" 
-    )
-    
-    # 3️⃣ 사진 분석 및 결과 출력 로직 (기존과 동일하지만 들여쓰기 주의)
-    if uploaded_file:
-        img = Image.open(uploaded_file) # PIL을 떼고 Image로 바로 호출합니다.
+    if st.session_state['app_stage'] == 'main':
+        # 1️⃣ 전문적인 3행 타이틀 디자인 (반응형 폰트 및 여백 적용)
+        title_parts = t["description"].split("|")
+        st.markdown(f"""
+            <div style="text-align: center; margin-top: 10px; margin-bottom: 3vh;">
+                <div style="font-size: clamp(35px, 10vw, 50px); margin-bottom: 1vh;">{title_parts[0]}</div>
+                <div style="font-size: clamp(20px, 6vw, 26px); font-weight: 800; color: #333333; line-height: 1.2;">{title_parts[1]}</div>
+                <div style="font-size: clamp(14px, 4vw, 18px); font-weight: 500; color: #86cc85; margin-top: 1vh;">{title_parts[2]}</div>
+            </div>
+        """, unsafe_allow_html=True)
         
-        # [최적화] 이미지가 서버 메모리에 로드된 직후 브라우저 표시 및 전송 전에 500KB 이하로 압축
-        img = compress_image(img, max_size_kb=500)
+        # 2️⃣ 업로드 위젯 (외부 라벨을 완전히 숨김)
+        uploaded_file = st.file_uploader(
+            "label_hidden", 
+            type=["jpg", "png", "jpeg"],
+            label_visibility="collapsed" 
+        )
         
-        st.image(img, caption="📷 스캔된 식단 (압축 최적화 완료)", use_container_width=True)
+        if uploaded_file:
+            img = Image.open(uploaded_file) # PIL을 떼고 Image로 바로 호출합니다.
+            
+            # [최적화] 이미지가 서버 메모리에 로드된 직후 브라우저 표시 및 전송 전에 500KB 이하로 압축
+            img = compress_image(img, max_size_kb=500)
+            
+            st.session_state['current_img'] = img
+            st.session_state['app_stage'] = 'analyze'
+            st.rerun()
+
+    elif st.session_state['app_stage'] == 'analyze':
+        # 2페이지: 업로드 완료 & 분석 대기 페이지
+        if st.button("⬅️ 메인으로 가기", key="btn_back_main_1", use_container_width=True):
+            st.session_state['app_stage'] = 'main'
+            st.session_state['current_img'] = None
+            st.rerun()
+            
+        st.image(st.session_state['current_img'], caption="📷 스캔 대기 중인 식단", use_container_width=True)
         
-        # 분석 버튼 (피그마 스타일)
+        # 분석 버튼 (피그마 스타일 & 무지개 애니메이션)
         if st.button(t["analyze_btn"], use_container_width=True):
             loading_placeholder = st.empty()
             loading_placeholder.markdown("""
@@ -470,7 +484,7 @@ if menu == t["scanner_menu"]:
                 prompt = f"Analyze food for glucose management. Format: FoodName|TrafficColor|Order. Lang: {lang}"
                 response = client.models.generate_content(
                     model="gemini-flash-latest", 
-                    contents=[prompt, img]
+                    contents=[prompt, st.session_state['current_img']]
                 )
                 
                 # 결과 파싱
@@ -484,18 +498,22 @@ if menu == t["scanner_menu"]:
                 
                 if items:
                     sorted_items = sorted(items, key=lambda x: x[2])
-                    # 소견 분석도 동일 모델로 수행
+                    # 소견 분석
                     advice_res = client.models.generate_content(
                         model="gemini-flash-latest", 
-                        contents=[t["advice_prompt"], img]
+                        contents=[t["advice_prompt"], st.session_state['current_img']]
                     )
                     
                     st.session_state['current_analysis'] = {
                         "sorted_items": sorted_items,
                         "advice": advice_res.text,
-                        "raw_img": img  # 파일 객체 대신 최적화된(압축된) PIL 이미지 객체 자체를 저장
+                        "raw_img": st.session_state['current_img'] 
                     }
                     loading_placeholder.empty()
+                    
+                    # 분석이 끝나면 3페이지(결과 페이지)로 이동
+                    st.session_state['app_stage'] = 'result'
+                    st.rerun()
                 else:
                     loading_placeholder.empty()
                     st.warning("분석에 실패했습니다. 올바른 음식 사진인지 확인해 주세요.")
@@ -503,29 +521,35 @@ if menu == t["scanner_menu"]:
                 loading_placeholder.empty()
                 st.error(f"분석 엔진 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({str(e)})")
 
-    # 결과 출력 (피그마 카드 디자인)
-    if st.session_state['current_analysis']:
+    elif st.session_state['app_stage'] == 'result':
+        # 3페이지: 분석 완료 및 결과 확인 페이지
+        if st.button("⬅️ 메인으로 돌아가기 (다시하기)", key="btn_back_main_2", use_container_width=True):
+            st.session_state['app_stage'] = 'main'
+            st.session_state['current_img'] = None
+            st.session_state['current_analysis'] = None
+            st.rerun()
+            
+        st.image(st.session_state['current_img'], caption="📷 분석 완료된 식단", use_container_width=True)
+        
         res = st.session_state['current_analysis']
         st.divider()
         st.subheader(f"✅ {t['analysis_title']}")
         
-        # 🚀 수정: 프리미엄 섭취 순서 카드 UI (별표 제거 버전)
+        # 🚀 프리미엄 섭취 순서 카드 UI
         for idx, (name, color, score) in enumerate(res['sorted_items'], 1):
-            # 1️⃣ 이름에서 마크다운 별표(**)를 제거하고 양옆 공백을 다듬습니다.
             clean_name = name.replace('*', '').strip()
             
-            # 신호등 색상에 따른 테마 컬러 지정
             if any(x in color for x in ["초록", "Green"]):
-                theme_color = "#4CAF50" # 메인 초록
-                bg_color = "#F1F8E9"    # 아주 연한 초록 배경
+                theme_color = "#4CAF50" 
+                bg_color = "#F1F8E9"    
                 border_color = "#C5E1A5"
             elif any(x in color for x in ["노랑", "Yellow"]):
-                theme_color = "#FFB300" # 메인 진노랑
-                bg_color = "#FFFDE7"    # 아주 연한 노랑 배경
+                theme_color = "#FFB300" 
+                bg_color = "#FFFDE7"    
                 border_color = "#FFF59D"
             else:
-                theme_color = "#F44336" # 메인 빨강
-                bg_color = "#FFEBEE"    # 아주 연한 빨강 배경
+                theme_color = "#F44336" 
+                bg_color = "#FFEBEE"    
                 border_color = "#EF9A9A"
                 
             st.markdown(f"""
@@ -553,9 +577,8 @@ if menu == t["scanner_menu"]:
             })
             st.balloons()
             st.success(t["save_msg"])
-            st.session_state['current_analysis'] = None
-
-        # 3️⃣ 분석 완료 시 자동 스크롤 (iframe CORS 방어벽을 뚫는 scrollIntoView 네이티브 해킹)
+            
+        # 결과 페이지 렌더링 시 최상단부터 부드럽게 결과(스피너가 있던 자리)로 내려오도록 추가 조치
         st.markdown("<div id='scroll-target'></div>", unsafe_allow_html=True)
         st.markdown(
             """
@@ -563,7 +586,7 @@ if menu == t["scanner_menu"]:
                 setTimeout(() => {
                     const el = document.getElementById('scroll-target');
                     if(el) { el.scrollIntoView({behavior: 'smooth', block: 'end'}); }
-                }, 500);
+                }, 400);
             " style="display:none;">
             """,
             unsafe_allow_html=True
