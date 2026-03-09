@@ -104,18 +104,6 @@ st.components.v1.html(
             img.src = URL.createObjectURL(file);
         }
     }, true); // Capture phase에서 가장 먼저 차단
-
-    // 5. [UX 보완] 모바일에서 카메라와 갤러리 선택 메뉴가 모두 뜨도록 강제 처리
-    const observer = new MutationObserver(function(mutations) {
-        const fileInputs = doc.querySelectorAll('input[type="file"]');
-        fileInputs.forEach(input => {
-            // Streamlit이 설정한 특정 확장자를 image/* 로 덮어씌워 안드로이드/iOS 모두 카메라 옵션이 활성화되도록 유도
-            if (!input.accept || input.accept.indexOf('image/*') === -1) {
-                input.accept = 'image/*';
-            }
-        });
-    });
-    observer.observe(doc.body, { childList: true, subtree: true });
     </script>
     """,
     height=0,
