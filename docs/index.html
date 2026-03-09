@@ -129,7 +129,7 @@
                     // --- 추가: 카카오톡, 네이버 등 인앱 브라우저 감지 시 솔직하고 명확한 안내 모달 출력 ---
                     if (ua.indexOf('KAKAOTALK') > -1 || ua.indexOf('NAVER') > -1 || ua.indexOf('Line') > -1 || ua.indexOf('Instagram') > -1 || ua.indexOf('FB') > -1) {
                         modalTitle.innerHTML = "🚨 현재 화면에서는 설치할 수 없습니다!";
-                        modalDesc.innerHTML = "카카오톡이나 네이버 같은 <b>앱 내부 화면(인앱 브라우저)</b>에서는 해당 회사의 정책상 홈 화면 바로가기 설치가 원천 차단되어 있습니다.<br><br>화면 우측 하단이나 상단의 <b>메뉴(점 3개 •••)</b>를 누르신 후, 반드시 <b>'다른 브라우저로 열기'(또는 Safari/Chrome으로 접속)</b>를 선택하신 뒤 다시 시도해 주세요.";
+                        modalDesc.innerHTML = "카톡 링크 등은 정책상 앱 설치가 진행되지 않습니다.<br><br><b>정상적인 설치를 원하시면 해당 주소를 복사하여 '문자 메시지(SMS)'로 전송받은 후, 문자 앱에서 링크를 클릭해 다시 접속해 주세요!</b>";
                         manualModal.style.display = 'flex';
                         return;
                     }
