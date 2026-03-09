@@ -104,6 +104,65 @@ st.components.v1.html(
             img.src = URL.createObjectURL(file);
         }
     }, true); // Capture phase에서 가장 먼저 차단
+
+    // 5. [UX 보완] PWA 앱 설치 버튼 및 로직 추가 (화면 하단 플로팅 버튼)
+    let deferredPrompt;
+    
+    // 버튼 UI를 동적으로 생성하여 화면에 추가
+    const installBtn = doc.createElement('button');
+    installBtn.innerHTML = '📲 NutriSort 앱으로 설치하기';
+    installBtn.style.cssText = `
+        display: none; /* 처음엔 숨김 */
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #333333;
+        color: #ffffff;
+        border: none;
+        border-radius: 25px;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: 700;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        z-index: 9999;
+        cursor: pointer;
+    `;
+    doc.body.appendChild(installBtn);
+
+    win.addEventListener('beforeinstallprompt', (e) => {
+        // 기본 설치 이벤트(미니 인포바 등) 방지
+        e.preventDefault();
+        // 이벤트 객체를 저장해 두어 나중에 사용
+        deferredPrompt = e;
+        // 설치 가능한 환경일 때만 버튼 표시
+        installBtn.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            // 브라우저가 제공하는 네이티브 설치 화면 띄우기
+            deferredPrompt.prompt();
+            // 사용자의 응답 기다리기
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                console.log('User accepted the install prompt');
+            } else {
+                console.log('User dismissed the install prompt');
+            }
+            // 한 번 띄운 후 사용할 수 없으므로 초기화
+            deferredPrompt = null;
+            // 버튼 다시 숨김
+            installBtn.style.display = 'none';
+        }
+    });
+
+    // 이미 설치된 환경에서 실행될 경우 버튼을 띄우지 않음
+    win.addEventListener('appinstalled', () => {
+        installBtn.style.display = 'none';
+        console.log('PWA is already installed!');
+    });
+
     </script>
     """,
     height=0,
