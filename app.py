@@ -35,8 +35,7 @@ st.components.v1.html(
         }
     }
     
-    // 2. [PWA 지원] Streamlit 기본 매니페스트를 강력하게 덮어쓰기 (이름 & 아이콘)
-    // Streamlit Cloud 특성상 기본 'Streamlit' 이름으로 고정되는 현상을 막기 위해, 즉석에서 한국어 매니페스트 파일을 메모리에 생성해 강제로 주입합니다.
+    // 2. [PWA 지원] Streamlit 기본 매니페스트를 강력하게 실시간으로 덮어쓰기
     const myManifest = {
         "name": "혈당스캐너 - NutriSort",
         "short_name": "혈당스캐너",
@@ -53,25 +52,32 @@ st.components.v1.html(
     const blob = new Blob([JSON.stringify(myManifest)], {type: 'application/json'});
     const manifestURL = URL.createObjectURL(blob);
     
-    let existingManifest = doc.querySelector('link[rel="manifest"]');
-    if (existingManifest) {
-        existingManifest.setAttribute('href', manifestURL);
-    } else {
-        const manifest = doc.createElement('link');
-        manifest.rel = 'manifest';
-        manifest.href = manifestURL;
-        doc.head.appendChild(manifest);
+    function forceManifestAndIcon() {
+        let manifest = doc.querySelector('link[rel="manifest"]');
+        if (manifest) {
+            if (manifest.getAttribute('href') !== manifestURL) {
+                manifest.setAttribute('href', manifestURL);
+            }
+        } else {
+            manifest = doc.createElement('link');
+            manifest.rel = 'manifest';
+            manifest.href = manifestURL;
+            doc.head.appendChild(manifest);
+        }
+
+        doc.querySelectorAll('link[rel="shortcut icon"], link[rel="apple-touch-icon"], link[rel="icon"]').forEach(el => {
+            if (el.getAttribute('href') !== '/app/static/icon-192.png') {
+                el.href = '/app/static/icon-192.png';
+            }
+        });
+        if (doc.title !== '혈당스캐너 - NutriSort') doc.title = '혈당스캐너 - NutriSort';
     }
 
-    // 아이콘도 확실하게 변경
-    doc.querySelectorAll('link[rel="shortcut icon"], link[rel="apple-touch-icon"]').forEach(el => el.remove());
-    const appleIcon = doc.createElement('link');
-    appleIcon.rel = 'apple-touch-icon';
-    appleIcon.href = '/app/static/icon-192.png';
-    doc.head.appendChild(appleIcon);
-    
-    // 타이틀 변경
-    doc.title = '혈당스캐너 - NutriSort';
+    forceManifestAndIcon();
+
+    // Streamlit 페이지가 늦게 켜지면서 오리지널 매니페스트를 다시 심는 것을 0.1초 단위로 감시하고 폭파시키는 감시자 설정
+    const headObserver = new MutationObserver(() => forceManifestAndIcon());
+    headObserver.observe(doc.head, { childList: true, attributes: true, subtree: true });
     
     // 3. [PWA 지원] 서비스 워커 등록
     if ('serviceWorker' in win.navigator) {
@@ -390,6 +396,12 @@ st.markdown(f"""
         z-index: 10;
         cursor: pointer;
     }}
+    /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴(Manage app) 강제 숨김 */
+    .viewerBadge_container {{ display: none !important; }}
+    .viewerBadge_link {{ display: none !important; }}
+    [data-testid="viewerBadge"] {{ display: none !important; }}
+    [data-testid="stDecoration"] {{ display: none !important; }}
+    
     /* 우측 상단 메뉴 버튼 및 스트림릿 워터마크 숨기기 */
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
