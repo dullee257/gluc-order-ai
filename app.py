@@ -552,33 +552,33 @@ if menu == t["scanner_menu"]:
                 border_color = "#EF9A9A"
                 
             html_cards += f"""
-                <div style="display: flex; align-items: center; padding: 16px; margin-bottom: 12px; border-radius: 12px; background-color: {bg_color}; border: 1px solid {border_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
-                    <div style="width: 32px; height: 32px; border-radius: 50%; background-color: {theme_color}; color: white; display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 16px; margin-right: 15px; flex-shrink: 0;">
-                        {idx}
-                    </div>
-                    <div style="flex-grow: 1; font-size: 18px; font-weight: 700; color: #333333;">
-                        {clean_name}
-                    </div>
-                    <div style="width: 16px; height: 16px; border-radius: 50%; background-color: {theme_color}; box-shadow: 0 0 8px {theme_color}; flex-shrink: 0;"></div>
-                </div>
-            """
+<div style="display: flex; align-items: center; padding: 16px; margin-bottom: 12px; border-radius: 12px; background-color: {bg_color}; border: 1px solid {border_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
+    <div style="width: 32px; height: 32px; border-radius: 50%; background-color: {theme_color}; color: white; display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 16px; margin-right: 15px; flex-shrink: 0;">
+        {idx}
+    </div>
+    <div style="flex-grow: 1; font-size: 18px; font-weight: 700; color: #333333;">
+        {clean_name}
+    </div>
+    <div style="width: 16px; height: 16px; border-radius: 50%; background-color: {theme_color}; box-shadow: 0 0 8px {theme_color}; flex-shrink: 0;"></div>
+</div>
+"""
             
         # 하나로 묶인 그룹 UI 출력 & 대안 타이틀 출력
         st.markdown(f"""
-            <div style="margin-top: 15px; margin-bottom: 35px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #f0f0f0; background: white;">
-                <div style="background: linear-gradient(135deg, #1e293b, #334155); color: white; padding: 18px 22px; font-size: 18px; font-weight: 800; letter-spacing: -0.5px;">
-                    🥗 현재 음식 종류와 혈당신호등
-                </div>
-                <div style="padding: 20px; background-color: #fafbfc;">
-                    {html_cards}
-                </div>
-            </div>
-            
-            <div style="display: flex; align-items: center; margin-bottom: 15px; margin-top: 10px;">
-                <div style="width: 6px; height: 24px; background: linear-gradient(to bottom, #86cc85, #359f33); border-radius: 4px; margin-right: 10px;"></div>
-                <h3 style="margin: 0; font-size: 20px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;">혈당 스파이크 예방 최적의 대안</h3>
-            </div>
-        """, unsafe_allow_html=True)
+<div style="margin-top: 15px; margin-bottom: 35px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #f0f0f0; background: white;">
+    <div style="background: linear-gradient(135deg, #1e293b, #334155); color: white; padding: 18px 22px; font-size: 18px; font-weight: 800; letter-spacing: -0.5px;">
+        🥗 현재 음식 종류와 혈당신호등
+    </div>
+    <div style="padding: 20px; background-color: #fafbfc;">
+        {html_cards}
+    </div>
+</div>
+
+<div style="display: flex; align-items: center; margin-bottom: 15px; margin-top: 10px;">
+    <div style="width: 6px; height: 24px; background: linear-gradient(to bottom, #86cc85, #359f33); border-radius: 4px; margin-right: 10px;"></div>
+    <h3 style="margin: 0; font-size: 20px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;">혈당 스파이크 예방 최적의 대안</h3>
+</div>
+""", unsafe_allow_html=True)
         
         st.info(res['advice'])
         
