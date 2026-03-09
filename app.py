@@ -439,15 +439,6 @@ st.markdown(f"""
     [data-testid="stDecoration"] {{ display: none !important; }}
     [data-testid="stAppDeployButton"] {{ display: none !important; }}
     [data-testid="stToolbar"] {{ display: none !important; }}
-    [data-testid="stBottom"] {{ display: none !important; }}
-    [data-testid="stBottomBlockContainer"] {{ display: none !important; }}
-    a[href^="https://streamlit.io/cloud"] {{ display: none !important; }}
-    iframe[src*="manage.streamlit.app"] {{ display: none !important; }}
-
-    /* embed=true 켰을 때 나오는 최하단 Built with Streamlit 회색 바 (다양한 클래스 대응) */
-    div[class*="st-"] > div[style*="bottom: 0"] {{ display: none !important; }}
-    div[style*="position: fixed"][style*="bottom: 0px"] {{ display: none !important; opacity: 0 !important; pointer-events: none !important; }}
-    div[data-testid="stAppViewContainer"] > div:last-child {{ display: none !important; }}
 
     /* 우측 상단 메뉴 버튼 및 스트림릿 워터마크 숨기기 */
     #MainMenu {{visibility: hidden;}}
