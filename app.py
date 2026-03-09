@@ -429,15 +429,14 @@ if menu == t["scanner_menu"]:
             
         st.image(st.session_state['current_img'], use_container_width=True)
         
-        # 분석 버튼 (피그마 스타일 & 무지개 애니메이션)
-        if st.button(t["analyze_btn"], use_container_width=True):
+        # 분석 버튼 (피그마 스타일 & 무지개 애니메이션) - primary 타입으로 지정하여 다른 버튼(뒤로가기)과 CSS 분리
+        if st.button(t["analyze_btn"], use_container_width=True, type="primary"):
             loading_placeholder = st.empty()
             loading_placeholder.markdown("""
                 <style>
-                /* 분석 버튼 자체를 무지개색 반응형 패널로 강제 변조 (선택자 강화 호환성 패치) */
-                div.stButton > button, 
-                button[data-testid="baseButton-secondary"], 
-                button[kind="secondary"] {
+                /* 분석 버튼(primary) 자체를 무지개색 반응형 패널로 강제 변조 */
+                button[data-testid="baseButton-primary"], 
+                button[kind="primary"] {
                     background: linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3, #dd00f3) !important;
                     background-size: 1800% 1800% !important;
                     animation: rainbowBtn 2s ease infinite !important;
@@ -446,14 +445,12 @@ if menu == t["scanner_menu"]:
                     position: relative !important;
                     pointer-events: none !important; /* 중복 클릭 방지 */
                 }
-                div.stButton > button p, 
-                button[data-testid="baseButton-secondary"] p, 
-                button[kind="secondary"] p {
+                button[data-testid="baseButton-primary"] p, 
+                button[kind="primary"] p {
                     color: transparent !important; /* 기존 글자 투명화 (공간 유지용) */
                 }
-                div.stButton > button::after, 
-                button[data-testid="baseButton-secondary"]::after, 
-                button[kind="secondary"]::after {
+                button[data-testid="baseButton-primary"]::after, 
+                button[kind="primary"]::after {
                     content: '🤖 분석중. . .' !important;
                     position: absolute !important;
                     top: 50% !important;
