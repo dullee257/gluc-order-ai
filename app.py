@@ -532,9 +532,8 @@ if menu == t["scanner_menu"]:
         st.image(st.session_state['current_img'], use_container_width=True)
         
         res = st.session_state['current_analysis']
-        st.divider()
-        st.markdown("<h3 style='font-size: 20px; font-weight: 800; color: #333; margin-bottom: 15px;'>현재 음식 종류와 혈당신호등</h3>", unsafe_allow_html=True)
         
+        html_cards = ""
         # 🚀 프리미엄 섭취 순서 카드 UI
         for idx, (name, color, score) in enumerate(res['sorted_items'], 1):
             clean_name = name.replace('*', '').strip()
@@ -552,7 +551,7 @@ if menu == t["scanner_menu"]:
                 bg_color = "#FFEBEE"    
                 border_color = "#EF9A9A"
                 
-            st.markdown(f"""
+            html_cards += f"""
                 <div style="display: flex; align-items: center; padding: 16px; margin-bottom: 12px; border-radius: 12px; background-color: {bg_color}; border: 1px solid {border_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.03);">
                     <div style="width: 32px; height: 32px; border-radius: 50%; background-color: {theme_color}; color: white; display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 16px; margin-right: 15px; flex-shrink: 0;">
                         {idx}
@@ -562,10 +561,25 @@ if menu == t["scanner_menu"]:
                     </div>
                     <div style="width: 16px; height: 16px; border-radius: 50%; background-color: {theme_color}; box-shadow: 0 0 8px {theme_color}; flex-shrink: 0;"></div>
                 </div>
-            """, unsafe_allow_html=True)
+            """
+            
+        # 하나로 묶인 그룹 UI 출력 & 대안 타이틀 출력
+        st.markdown(f"""
+            <div style="margin-top: 15px; margin-bottom: 35px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #f0f0f0; background: white;">
+                <div style="background: linear-gradient(135deg, #1e293b, #334155); color: white; padding: 18px 22px; font-size: 18px; font-weight: 800; letter-spacing: -0.5px;">
+                    🥗 현재 음식 종류와 혈당신호등
+                </div>
+                <div style="padding: 20px; background-color: #fafbfc;">
+                    {html_cards}
+                </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; margin-bottom: 15px; margin-top: 10px;">
+                <div style="width: 6px; height: 24px; background: linear-gradient(to bottom, #86cc85, #359f33); border-radius: 4px; margin-right: 10px;"></div>
+                <h3 style="margin: 0; font-size: 20px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;">혈당 스파이크 예방 최적의 대안</h3>
+            </div>
+        """, unsafe_allow_html=True)
         
-        st.divider()
-        st.markdown("<h3 style='font-size: 20px; font-weight: 800; color: #333; margin-bottom: 15px;'>혈당 스파이크 예방 최적의 대안</h3>", unsafe_allow_html=True)
         st.info(res['advice'])
         
         if st.button(t["save_btn"], use_container_width=True):
