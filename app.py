@@ -481,20 +481,31 @@ if menu == t["scanner_menu"]:
             """, unsafe_allow_html=True)
             try:
                 # 에러 방지: 모델명을 'gemini-flash-latest'로 고정
-                prompt = f"Analyze food for glucose management. Format: FoodName|TrafficColor|Order. Lang: {lang}"
+                prompt = f"""
+                List all food items in the image and their impact on blood sugar. 
+                Format EACH line EXACTLY as: Food Name|Color(Green/Yellow/Red)|Order(1,2,3...)
+                Rules:
+                1. Do NOT use markdown tables.
+                2. Do NOT wrap output in code blocks (```).
+                3. Do NOT add any headers or explanations.
+                4. Only output the exact pipe-separated lines.
+                Lang: {lang}
+                """
                 response = client.models.generate_content(
                     model="gemini-flash-latest", 
-                    contents=[prompt, st.session_state['current_img']]
+                    contents=[prompt.strip(), st.session_state['current_img']]
                 )
                 
                 # 결과 파싱
                 raw_lines = response.text.strip().split('\n')
                 items = []
                 for line in raw_lines:
-                    if '|' in line and not any(x in line for x in ['---', 'Food', '음식']):
+                    # 마크다운 코드 블록이나 테이블 헤더 구분선 무시
+                    if '|' in line and not any(x in line for x in ['---', 'Food', '음식', '```']):
                         parts = line.split('|')
                         if len(parts) >= 3:
-                            items.append([p.strip() for p in parts])
+                            # 텍스트 내 이모지나 불필요한 공백 제거
+                            items.append([p.strip().replace('```', '').replace('**', '') for p in parts])
                 
                 if items:
                     sorted_items = sorted(items, key=lambda x: x[2])
