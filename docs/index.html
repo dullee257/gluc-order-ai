@@ -125,13 +125,34 @@
                 } else {
                     // 네이티브 자동 설치 지원 안하는 브라우저 (iOS 사파리, 인앱 브라우저 등) 기기 감지
                     const ua = navigator.userAgent || navigator.vendor || window.opera;
+                    
+                    // --- 추가: 카카오톡, 네이버 등 인앱 브라우저 강제 외부 브라우저(크롬/사파리) 튕기기 로직 ---
+                    if (ua.indexOf('KAKAOTALK') > -1) {
+                        // 카카오톡 전용 외부 브라우저 호출 스키마
+                        location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
+                        return;
+                    } else if (ua.indexOf('NAVER') > -1 || ua.indexOf('Line') > -1 || ua.indexOf('Instagram') > -1 || ua.indexOf('FB') > -1) {
+                        // 기타 안드로이드 인앱에서 크롬 직접 호출 시도
+                        if (/android/i.test(ua)) {
+                            location.href = 'intent://' + location.href.replace(/https?:\/\//i, "") + '#Intent;scheme=https;package=com.android.chrome;end';
+                            return;
+                        } else {
+                            // iOS에서 인앱 환경일 경우 (강제 호출이 어려우므로 사파리로 열라고 가이드 안내)
+                            modalTitle.innerHTML = "🚨 앱을 사파리(Safari)로 열어주세요!";
+                            modalDesc.innerHTML = "카카오톡/인스타 등의 내부 화면에서는 앱 설치가 불가능합니다.<br><br>화면 우측 하단의 점 3개(•••)나 메뉴를 눌러 <b>'다른 브라우저로 열기(Safari로 열기)'</b>를 선택한 뒤 다시 시도해 주세요.";
+                            manualModal.style.display = 'flex';
+                            return;
+                        }
+                    }
+
+                    // --- 기존 환경별 설치 안내 모달 ---
                     let guideHTML = "";
                     if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
                         modalTitle.innerHTML = "🍏 아이폰(iOS) 설치 방법";
                         guideHTML = "화면 하단 정중앙의 <b>공유 버튼(⍐)</b>을 누른 뒤<br><br><b>'홈 화면에 추가'</b>를 선택해 주세요!";
                     } else if (/android/i.test(ua)) {
                         modalTitle.innerHTML = "🤖 안드로이드 설치 방법";
-                        guideHTML = "현재 환경에서는 자동 설치가 불가능합니다.<br><br>화면 우측 상단/하단의 메뉴(⋮ 또는 ≡)를 누르고 <b>'홈 화면에 추가'</b>를 선택해 주세요!<br><br>*(메뉴가 안 보이면 화면을 살짝 위아래로 스크롤 해보세요)*";
+                        guideHTML = "현재 환경(삼성인터넷 등)은 원클릭 자동 팝업을 지원하지 않습니다.<br><br>화면 상단의 점 3개(⋮)나 메뉴(≡)를 누르고 <b>'홈 화면에 추가'</b> 또는 <b>'앱 설치'</b>를 눌러 직접 설치가 가능합니다.";
                     } else {
                         modalTitle.innerHTML = "💻 PC / 기타 설치 방법";
                         guideHTML = "주소창 우측의 <b>(+) 설치 아이콘</b>이나 브라우저 메뉴에서 <b>앱 설치</b>를 눌러주세요.";
