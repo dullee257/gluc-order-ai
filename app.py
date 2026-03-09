@@ -105,13 +105,16 @@ st.components.v1.html(
         }
     }, true); // Capture phase에서 가장 먼저 차단
 
-    // 5. [UX 보완] PWA 앱 설치 배너 (안정성 강화 버전)
+    // 5. [UX 보완] PWA 앱 설치 배너 (조건 확인 후 항상 노출)
     setTimeout(function() {
         try {
             let isStandalone = false;
-            if (win.matchMedia && win.matchMedia('(display-mode: standalone)').matches) isStandalone = true;
-            if (win.navigator.standalone) isStandalone = true;
-            if (doc.referrer.includes('android-app://')) isStandalone = true;
+            // PWA로 켜졌는지 정확히 확인하는 로직 (기기 내부 검사)
+            if (win.matchMedia && win.matchMedia('(display-mode: standalone)').matches) {
+                isStandalone = true;
+            } else if (win.navigator.standalone === true) {
+                isStandalone = true;
+            }
             
             if (isStandalone) return; // 이미 앱이면 출력 안함
 
@@ -133,7 +136,7 @@ st.components.v1.html(
                             <strong>[아이폰 (Safari)]</strong><br>
                             하단 공유(⍐) 버튼 ➔ <b>'홈 화면에 추가'</b><br><br>
                             <strong>[안드로이드 폰]</strong><br>
-                            메뉴(⋮ 또는 ≡) ➔ <b>'홈 화면에 추가'</b>
+                            우측 상단 메뉴(⋮) ➔ <b>'홈 화면에 추가'</b>
                         </p>
                         <button id="pwa-modal-close" style="margin-top: 20px; width: 100%; background: #86cc85; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 16px; cursor: pointer;">확인</button>
                     </div>
@@ -148,17 +151,20 @@ st.components.v1.html(
             const modalClose = doc.getElementById('pwa-modal-close');
 
             let deferredPrompt;
+            // Native prompt 이벤트 수집
             win.addEventListener('beforeinstallprompt', (e) => {
                 e.preventDefault();
                 deferredPrompt = e;
             });
 
             banner.addEventListener('click', async (e) => {
+                // X 버튼 클릭
                 if(e.target === closeBtn || closeBtn.contains(e.target)) {
                     banner.style.display = 'none';
                     return;
                 }
 
+                // 앱 설치 로직
                 if (deferredPrompt) {
                     deferredPrompt.prompt();
                     const { outcome } = await deferredPrompt.userChoice;
@@ -180,7 +186,7 @@ st.components.v1.html(
         } catch (error) {
             console.error("Install Banner Error:", error);
         }
-    }, 1000); // 페이지 주요 요소 렌더링 후 1초 뒤 노출 (모바일 렉 방지)
+    }, 1500); // 페이지 렌더링 지연 시간 약간 더 확보
 
 
     </script>
