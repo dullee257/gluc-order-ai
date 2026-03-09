@@ -420,34 +420,44 @@ if menu == t["scanner_menu"]:
             loading_placeholder = st.empty()
             loading_placeholder.markdown("""
                 <style>
-                @keyframes loadingDots {
-                    0% { opacity: .2; transform: scale(1); }
-                    20% { opacity: 1; transform: scale(1.5); }
-                    100% { opacity: .2; transform: scale(1); }
+                /* 분석 버튼 자체를 무지개색 반응형 패널로 강제 변조 */
+                [data-testid="baseButton-secondary"] {
+                    background: linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3, #dd00f3) !important;
+                    background-size: 1800% 1800% !important;
+                    animation: rainbowBtn 2s ease infinite !important;
+                    border: none !important;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important;
+                    position: relative !important;
+                    pointer-events: none !important; /* 중복 클릭 방지 */
                 }
-                .dot { display: inline-block; animation: loadingDots 1.4s infinite both; color: #86cc85; font-size: 30px; font-weight: 900; }
-                .dot:nth-child(1) { animation-delay: 0.0s; }
-                .dot:nth-child(2) { animation-delay: 0.2s; }
-                .dot:nth-child(3) { animation-delay: 0.4s; }
-                .dot:nth-child(4) { animation-delay: 0.6s; }
-                .dot:nth-child(5) { animation-delay: 0.8s; }
-                .dot:nth-child(6) { animation-delay: 1.0s; }
-                .dot:nth-child(7) { animation-delay: 1.2s; }
-                
-                @keyframes pulseText {
-                    0% { opacity: 0.6; }
+                [data-testid="baseButton-secondary"] * {
+                    visibility: hidden !important; /* 기존 글자 숨김 */
+                }
+                [data-testid="baseButton-secondary"]::after {
+                    content: '🤖 분석중. . .' !important;
+                    position: absolute !important;
+                    top: 50% !important;
+                    left: 50% !important;
+                    transform: translate(-50%, -50%) !important;
+                    color: white !important;
+                    font-weight: 800 !important;
+                    font-size: 18px !important;
+                    visibility: visible !important;
+                    width: 100% !important;
+                    text-align: center !important;
+                    animation: blinkText 1.2s infinite !important;
+                }
+                @keyframes rainbowBtn { 
+                    0% { background-position: 0% 50% }
+                    50% { background-position: 100% 50% }
+                    100% { background-position: 0% 50% }
+                }
+                @keyframes blinkText {
+                    0% { opacity: 0.4; }
                     50% { opacity: 1; }
-                    100% { opacity: 0.6; }
+                    100% { opacity: 0.4; }
                 }
-                .pulse-text { animation: pulseText 1.5s infinite; }
                 </style>
-                <div style="text-align:center; padding: 40px 10px; background-color: #f8f9fa; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin: 20px 0;">
-                    <span style="font-size: 24px; font-weight: 800; color: #333;">분석중</span>
-                    <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
-                    <div style="margin-top: 15px; font-size: 16px; color: #86cc85; font-weight: 700;" class="pulse-text">
-                        (현재 분석진행중)
-                    </div>
-                </div>
             """, unsafe_allow_html=True)
             try:
                 # 에러 방지: 모델명을 'gemini-flash-latest'로 고정
@@ -539,19 +549,17 @@ if menu == t["scanner_menu"]:
             st.success(t["save_msg"])
             st.session_state['current_analysis'] = None
 
-        # 3️⃣ 분석이 완료되어 결과가 렌더링된 후 최하단으로 부드럽게 스크롤해버리는 보이지 않는 스크립트 실행
-        st.components.v1.html(
+        # 3️⃣ 분석 완료 시 크로스 도메인(CORS) iframe 샌드박스를 우회하는 스트림릿 네이티브 오토 스크롤 해킹 트리거
+        st.markdown(
             """
-            <script>
-            setTimeout(() => {
-                const target = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
-                if (target) {
-                    target.scrollTo({ top: target.scrollHeight, behavior: 'smooth' });
-                }
-            }, 300);
-            </script>
+            <img src="dummy" onerror="
+                setTimeout(() => {
+                    const target = document.querySelector('[data-testid=\\'stAppViewContainer\\']') || document.documentElement;
+                    if(target) { target.scrollTo({top: target.scrollHeight + 1000, behavior: 'smooth'}); }
+                }, 500);
+            " style="display:none;">
             """,
-            height=0
+            unsafe_allow_html=True
         )
 
 # (나의 기록 탭은 기존 로직 유지하되 디자인 가이드 적용)
