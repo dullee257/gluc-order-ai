@@ -481,31 +481,20 @@ if menu == t["scanner_menu"]:
             """, unsafe_allow_html=True)
             try:
                 # 에러 방지: 모델명을 'gemini-flash-latest'로 고정
-                prompt = f"""
-                List all food items in the image and their impact on blood sugar. 
-                Format EACH line EXACTLY as: Food Name|Color(Green/Yellow/Red)|Order(1,2,3...)
-                Rules:
-                1. Do NOT use markdown tables.
-                2. Do NOT wrap output in code blocks (```).
-                3. Do NOT add any headers or explanations.
-                4. Only output the exact pipe-separated lines.
-                Lang: {lang}
-                """
+                prompt = f"Analyze food for glucose management. Format: FoodName|TrafficColor|Order. Lang: {lang}"
                 response = client.models.generate_content(
                     model="gemini-flash-latest", 
-                    contents=[prompt.strip(), st.session_state['current_img']]
+                    contents=[prompt, st.session_state['current_img']]
                 )
                 
                 # 결과 파싱
                 raw_lines = response.text.strip().split('\n')
                 items = []
                 for line in raw_lines:
-                    # 마크다운 코드 블록이나 테이블 헤더 구분선 무시
-                    if '|' in line and not any(x in line for x in ['---', 'Food', '음식', '```']):
+                    if '|' in line and not any(x in line for x in ['---', 'Food', '음식']):
                         parts = line.split('|')
                         if len(parts) >= 3:
-                            # 텍스트 내 이모지나 불필요한 공백 제거
-                            items.append([p.strip().replace('```', '').replace('**', '') for p in parts])
+                            items.append([p.strip() for p in parts])
                 
                 if items:
                     sorted_items = sorted(items, key=lambda x: x[2])
@@ -549,11 +538,11 @@ if menu == t["scanner_menu"]:
         for idx, (name, color, score) in enumerate(res['sorted_items'], 1):
             clean_name = name.replace('*', '').strip()
             
-            if any(x in color for x in ["초록", "Green"]):
+            if any(x in color for x in ["초록", "녹색", "Green"]):
                 theme_color = "#4CAF50" 
                 bg_color = "#F1F8E9"    
                 border_color = "#C5E1A5"
-            elif any(x in color for x in ["노랑", "Yellow"]):
+            elif any(x in color for x in ["노랑", "주황", "Yellow", "Orange"]):
                 theme_color = "#FFB300" 
                 bg_color = "#FFFDE7"    
                 border_color = "#FFF59D"
@@ -562,7 +551,7 @@ if menu == t["scanner_menu"]:
                 bg_color = "#FFEBEE"    
                 border_color = "#EF9A9A"
                 
-        html_cards += f"""<div style="display: flex; align-items: center; padding: 16px; margin-bottom: 12px; border-radius: 12px; background-color: {bg_color}; border: 1px solid {border_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.03);"><div style="width: 32px; height: 32px; border-radius: 50%; background-color: {theme_color}; color: white; display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 16px; margin-right: 15px; flex-shrink: 0;">{idx}</div><div style="flex-grow: 1; font-size: 18px; font-weight: 700; color: #333333;">{clean_name}</div><div style="width: 16px; height: 16px; border-radius: 50%; background-color: {theme_color}; box-shadow: 0 0 8px {theme_color}; flex-shrink: 0;"></div></div>"""
+            html_cards += f"""<div style="display: flex; align-items: center; padding: 16px; margin-bottom: 12px; border-radius: 12px; background-color: {bg_color}; border: 1px solid {border_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.03);"><div style="width: 32px; height: 32px; border-radius: 50%; background-color: {theme_color}; color: white; display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 16px; margin-right: 15px; flex-shrink: 0;">{idx}</div><div style="flex-grow: 1; font-size: 18px; font-weight: 700; color: #333333;">{clean_name}</div><div style="width: 16px; height: 16px; border-radius: 50%; background-color: {theme_color}; box-shadow: 0 0 8px {theme_color}; flex-shrink: 0;"></div></div>"""
             
         # 하나로 묶인 그룹 UI 출력 & 대안 타이틀 출력
         st.markdown(f"""<div style="margin-top: 15px; margin-bottom: 35px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #f0f0f0; background: white;"><div style="background: linear-gradient(135deg, #1e293b, #334155); color: white; padding: 18px 22px; font-size: 18px; font-weight: 800; letter-spacing: -0.5px;">🥗 현재 음식 종류와 혈당신호등</div><div style="padding: 20px; background-color: #fafbfc;">{html_cards}</div></div><div style="display: flex; align-items: center; margin-bottom: 15px; margin-top: 10px;"><div style="width: 6px; height: 24px; background: linear-gradient(to bottom, #86cc85, #359f33); border-radius: 4px; margin-right: 10px;"></div><h3 style="margin: 0; font-size: 20px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;">혈당 스파이크 예방 최적의 대안</h3></div>""", unsafe_allow_html=True)
