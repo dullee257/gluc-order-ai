@@ -427,7 +427,7 @@ if menu == t["scanner_menu"]:
             st.session_state['current_img'] = None
             st.rerun()
             
-        st.image(st.session_state['current_img'], caption="📷 스캔 대기 중인 식단", use_container_width=True)
+        st.image(st.session_state['current_img'], use_container_width=True)
         
         # 분석 버튼 (피그마 스타일 & 무지개 애니메이션)
         if st.button(t["analyze_btn"], use_container_width=True):
@@ -529,11 +529,11 @@ if menu == t["scanner_menu"]:
             st.session_state['current_analysis'] = None
             st.rerun()
             
-        st.image(st.session_state['current_img'], caption="📷 분석 완료된 식단", use_container_width=True)
+        st.image(st.session_state['current_img'], use_container_width=True)
         
         res = st.session_state['current_analysis']
         st.divider()
-        st.subheader(f"✅ {t['analysis_title']}")
+        st.markdown("<h3 style='font-size: 20px; font-weight: 800; color: #333; margin-bottom: 15px;'>현재 음식 종류와 혈당신호등</h3>", unsafe_allow_html=True)
         
         # 🚀 프리미엄 섭취 순서 카드 UI
         for idx, (name, color, score) in enumerate(res['sorted_items'], 1):
@@ -565,7 +565,7 @@ if menu == t["scanner_menu"]:
             """, unsafe_allow_html=True)
         
         st.divider()
-        st.subheader(f"💡 {t['advice_title']}")
+        st.markdown("<h3 style='font-size: 20px; font-weight: 800; color: #333; margin-bottom: 15px;'>혈당 스파이크 예방 최적의 대안</h3>", unsafe_allow_html=True)
         st.info(res['advice'])
         
         if st.button(t["save_btn"], use_container_width=True):
