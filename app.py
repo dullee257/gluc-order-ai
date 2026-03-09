@@ -190,6 +190,17 @@ with st.sidebar:
     st.divider()
     st.title(t["sidebar_title"])
     menu = st.radio("Menu", [t["scanner_menu"], t["history_menu"]])
+    
+    # === PWA 설치 (앱처럼 쓰기) 가이드 ===
+    st.divider()
+    st.markdown("### 📱 앱처럼 사용하기")
+    st.info(
+        "**[안드로이드]**\n\n"
+        "우측 상단 메뉴(⋮) ➔ **'홈 화면에 추가'**\n\n"
+        "---\n"
+        "**[아이폰(iOS)]**\n\n"
+        "하단 공유 버튼(⍐) ➔ **'홈 화면에 추가'**"
+    )
 
 # 4. 피그마 디자인 완벽 이식 및 광채 효과 CSS
 st.markdown(f"""
