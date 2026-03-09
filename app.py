@@ -35,22 +35,43 @@ st.components.v1.html(
         }
     }
     
-    // 2. [PWA 지원] 백그라운드 매니페스트 동적 주입 및 기본 설정(영문/기본 아이콘) 덮어쓰기
-    // Streamlit이 기본으로 심어놓은 아이콘과 매니페스트를 지워버림으로써 우리가 만든 설정이 적용되도록 강제
-    doc.querySelectorAll('link[rel="manifest"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]').forEach(el => el.remove());
+    // 2. [PWA 지원] Streamlit 기본 매니페스트를 강력하게 덮어쓰기 (이름 & 아이콘)
+    // Streamlit Cloud 특성상 기본 'Streamlit' 이름으로 고정되는 현상을 막기 위해, 즉석에서 한국어 매니페스트 파일을 메모리에 생성해 강제로 주입합니다.
+    const myManifest = {
+        "name": "혈당스캐너 - NutriSort",
+        "short_name": "혈당스캐너",
+        "description": "혈당 관리 섭취 순서 스캐너",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#86cc85",
+        "icons": [
+            { "src": "/app/static/icon-192.png", "sizes": "192x192", "type": "image/png" },
+            { "src": "/app/static/icon-512.png", "sizes": "512x512", "type": "image/png" }
+        ]
+    };
+    const blob = new Blob([JSON.stringify(myManifest)], {type: 'application/json'});
+    const manifestURL = URL.createObjectURL(blob);
     
-    // 강제로 설치될 때의 제목 변경 (필수)
-    doc.title = '혈당스캐너 - NutriSort';
+    let existingManifest = doc.querySelector('link[rel="manifest"]');
+    if (existingManifest) {
+        existingManifest.setAttribute('href', manifestURL);
+    } else {
+        const manifest = doc.createElement('link');
+        manifest.rel = 'manifest';
+        manifest.href = manifestURL;
+        doc.head.appendChild(manifest);
+    }
 
-    const manifest = doc.createElement('link');
-    manifest.rel = 'manifest';
-    manifest.href = '/app/static/manifest.json';
-    doc.head.appendChild(manifest);
-
+    // 아이콘도 확실하게 변경
+    doc.querySelectorAll('link[rel="shortcut icon"], link[rel="apple-touch-icon"]').forEach(el => el.remove());
     const appleIcon = doc.createElement('link');
     appleIcon.rel = 'apple-touch-icon';
     appleIcon.href = '/app/static/icon-192.png';
     doc.head.appendChild(appleIcon);
+    
+    // 타이틀 변경
+    doc.title = '혈당스캐너 - NutriSort';
     
     // 3. [PWA 지원] 서비스 워커 등록
     if ('serviceWorker' in win.navigator) {
