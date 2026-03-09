@@ -126,23 +126,12 @@
                     // 네이티브 자동 설치 지원 안하는 브라우저 (iOS 사파리, 인앱 브라우저 등) 기기 감지
                     const ua = navigator.userAgent || navigator.vendor || window.opera;
                     
-                    // --- 추가: 카카오톡, 네이버 등 인앱 브라우저 강제 외부 브라우저(크롬/사파리) 튕기기 로직 ---
-                    if (ua.indexOf('KAKAOTALK') > -1) {
-                        // 카카오톡 전용 외부 브라우저 호출 스키마
-                        location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(location.href);
+                    // --- 추가: 카카오톡, 네이버 등 인앱 브라우저 감지 시 솔직하고 명확한 안내 모달 출력 ---
+                    if (ua.indexOf('KAKAOTALK') > -1 || ua.indexOf('NAVER') > -1 || ua.indexOf('Line') > -1 || ua.indexOf('Instagram') > -1 || ua.indexOf('FB') > -1) {
+                        modalTitle.innerHTML = "🚨 현재 화면에서는 설치할 수 없습니다!";
+                        modalDesc.innerHTML = "카카오톡이나 네이버 같은 <b>앱 내부 화면(인앱 브라우저)</b>에서는 해당 회사의 정책상 홈 화면 바로가기 설치가 원천 차단되어 있습니다.<br><br>화면 우측 하단이나 상단의 <b>메뉴(점 3개 •••)</b>를 누르신 후, 반드시 <b>'다른 브라우저로 열기'(또는 Safari/Chrome으로 접속)</b>를 선택하신 뒤 다시 시도해 주세요.";
+                        manualModal.style.display = 'flex';
                         return;
-                    } else if (ua.indexOf('NAVER') > -1 || ua.indexOf('Line') > -1 || ua.indexOf('Instagram') > -1 || ua.indexOf('FB') > -1) {
-                        // 기타 안드로이드 인앱에서 크롬 직접 호출 시도
-                        if (/android/i.test(ua)) {
-                            location.href = 'intent://' + location.href.replace(/https?:\/\//i, "") + '#Intent;scheme=https;package=com.android.chrome;end';
-                            return;
-                        } else {
-                            // iOS에서 인앱 환경일 경우 (강제 호출이 어려우므로 사파리로 열라고 가이드 안내)
-                            modalTitle.innerHTML = "🚨 앱을 사파리(Safari)로 열어주세요!";
-                            modalDesc.innerHTML = "카카오톡/인스타 등의 내부 화면에서는 앱 설치가 불가능합니다.<br><br>화면 우측 하단의 점 3개(•••)나 메뉴를 눌러 <b>'다른 브라우저로 열기(Safari로 열기)'</b>를 선택한 뒤 다시 시도해 주세요.";
-                            manualModal.style.display = 'flex';
-                            return;
-                        }
                     }
 
                     // --- 기존 환경별 설치 안내 모달 ---
