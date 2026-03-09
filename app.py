@@ -105,63 +105,77 @@ st.components.v1.html(
         }
     }, true); // Capture phase에서 가장 먼저 차단
 
-    // 5. [UX 보완] PWA 앱 설치 버튼 및 로직 추가 (화면 하단 플로팅 버튼)
-    let deferredPrompt;
+    // 5. [UX 보완] PWA 앱 설치 배너 (조건 확인 후 항상 노출)
+    // 이미 앱(standalone)으로 접속한 경우에는 배너를 숨깁니다.
+    const isStandalone = win.matchMedia('(display-mode: standalone)').matches || win.navigator.standalone || doc.referrer.includes('android-app://');
     
-    // 버튼 UI를 동적으로 생성하여 화면에 추가
-    const installBtn = doc.createElement('button');
-    installBtn.innerHTML = '📲 NutriSort 앱으로 설치하기';
-    installBtn.style.cssText = `
-        display: none; /* 처음엔 숨김 */
-        position: fixed;
-        bottom: 30px;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: #333333;
-        color: #ffffff;
-        border: none;
-        border-radius: 25px;
-        padding: 12px 24px;
-        font-size: 16px;
-        font-weight: 700;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        z-index: 9999;
-        cursor: pointer;
-    `;
-    doc.body.appendChild(installBtn);
-
-    win.addEventListener('beforeinstallprompt', (e) => {
-        // 기본 설치 이벤트(미니 인포바 등) 방지
-        e.preventDefault();
-        // 이벤트 객체를 저장해 두어 나중에 사용
-        deferredPrompt = e;
-        // 설치 가능한 환경일 때만 버튼 표시
-        installBtn.style.display = 'block';
-    });
-
-    installBtn.addEventListener('click', async () => {
-        if (deferredPrompt) {
-            // 브라우저가 제공하는 네이티브 설치 화면 띄우기
-            deferredPrompt.prompt();
-            // 사용자의 응답 기다리기
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                console.log('User accepted the install prompt');
-            } else {
-                console.log('User dismissed the install prompt');
-            }
-            // 한 번 띄운 후 사용할 수 없으므로 초기화
-            deferredPrompt = null;
-            // 버튼 다시 숨김
-            installBtn.style.display = 'none';
+    if (!isStandalone) {
+        const installWrapper = doc.createElement('div');
+        installWrapper.id = 'pwa-install-wrapper';
+        installWrapper.innerHTML = `
+            <div id="pwa-install-banner" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333333; color: #ffffff; padding: 12px 20px; border-radius: 30px; font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; white-space: nowrap;">
+                <span style="font-size: 20px;">📲</span> 
+                <span>앱으로 설치해서 쓰기</span>
+                <div id="pwa-close-btn" style="margin-left: 10px; width: 24px; height: 24px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px;">✖</div>
+            </div>
+            <div id="pwa-manual-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 10000; justify-content: center; align-items: center;">
+                <div style="background: white; padding: 25px; border-radius: 20px; text-align: center; width: 80%; max-width: 320px;">
+                    <h3 style="margin-top:0; color:#333;">앱 설치 가이드</h3>
+                    <p style="text-align:left; color:#555; font-size:14px; line-height:1.6;">
+                        <strong>[아이폰 (Safari)]</strong><br>
+                        하단 공유(⍐) 버튼 ➔ '홈 화면에 추가'<br><br>
+                        <strong>[안드로이드/기타]</strong><br>
+                        메뉴(⋮) ➔ '홈 화면에 추가'
+                    </p>
+                    <button id="pwa-modal-close" style="margin-top: 15px; background: #86cc85; color: white; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">확인했어요</button>
+                </div>
+            </div>
+        `;
+        
+        // 중복 방지
+        if (!doc.getElementById('pwa-install-wrapper')) {
+            doc.body.appendChild(installWrapper);
         }
-    });
 
-    // 이미 설치된 환경에서 실행될 경우 버튼을 띄우지 않음
-    win.addEventListener('appinstalled', () => {
-        installBtn.style.display = 'none';
-        console.log('PWA is already installed!');
-    });
+        const banner = doc.getElementById('pwa-install-banner');
+        const closeBtn = doc.getElementById('pwa-close-btn');
+        const manualModal = doc.getElementById('pwa-manual-modal');
+        const modalClose = doc.getElementById('pwa-modal-close');
+
+        let deferredPrompt;
+        win.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+        });
+
+        banner.addEventListener('click', async (e) => {
+            if(e.target === closeBtn || closeBtn.contains(e.target)) {
+                banner.style.display = 'none';
+                return; // 닫기 버튼을 누르면 배너만 숨김
+            }
+
+            if (deferredPrompt) {
+                // 네이티브 설치 프롬프트 지원 시 호출
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                banner.style.display = 'none'; // 한 번 사용하면 숨김
+            } else {
+                // 조건 불만족 또는 iOS의 경우 수동 설치 안내 모달 띄우기
+                manualModal.style.display = 'flex';
+            }
+        });
+
+        modalClose.addEventListener('click', () => {
+            manualModal.style.display = 'none';
+        });
+
+        win.addEventListener('appinstalled', () => {
+            banner.style.display = 'none';
+            manualModal.style.display = 'none';
+        });
+    }
+
 
     </script>
     """,
