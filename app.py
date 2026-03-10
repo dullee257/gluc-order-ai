@@ -90,6 +90,12 @@ st.components.v1.html(
             }
         });
         
+        doc.querySelectorAll('iframe').forEach(el => {
+            if (el.title && el.title.includes('Streamlit App Deploy Button')) {
+                el.style.setProperty('display', 'none', 'important');
+            }
+        });
+
         doc.querySelectorAll('div, footer, span, a').forEach(el => {
             if (el.textContent && el.textContent.includes('Built with Streamlit')) {
                 let parent = el;
@@ -369,6 +375,8 @@ st.markdown(f"""
     [data-testid="stAppDeployButton"] {{ display: none !important; }}
     .stDeployButton {{ display: none !important; }}
     [data-testid="stToolbar"] {{ display: none !important; }}
+    iframe[title="Streamlit App Deploy Button"] {{ display: none !important; }}
+    iframe[src*="share.streamlit.io"] {{ display: none !important; visibility: hidden !important; }}
 
     /* 우측 상단 메뉴 버튼 및 스트림릿 워터마크 숨기기 */
     #MainMenu {{visibility: hidden;}}
