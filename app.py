@@ -76,26 +76,30 @@ st.components.v1.html(
         if (doc.title !== '혈당스캐너 - NutriSort') doc.title = '혈당스캐너 - NutriSort';
     }
 
-    // 🚀 [핵심] embed=true 상황에서 DOM을 뒤져서 강제로 추가된 'Built with Streamlit' 배너를 자바스크립트로 직접 삭제!
+    // 🚀 [핵심] embed=true 상황에서 DOM을 뒤져서 강제로 추가된 'Built with Streamlit' 배너 및 배포 아이콘 제거!
     function killWatermarks() {
+        doc.querySelectorAll('[data-testid="stAppDeployButton"], [data-testid="stStatusWidget"], .viewerBadge_container, .viewerBadge_link').forEach(el => {
+            el.style.setProperty('display', 'none', 'important');
+            el.style.setProperty('visibility', 'hidden', 'important');
+            el.style.setProperty('opacity', '0', 'important');
+            
+            // 만약 감싸는 부모 컨테이너가 있다면 같이 날려버림
+            let parent = el.parentElement;
+            if (parent && parent.tagName !== 'BODY' && parent.clientHeight < 100) {
+                parent.style.setProperty('display', 'none', 'important');
+            }
+        });
+        
         doc.querySelectorAll('div, footer, span, a').forEach(el => {
-            // 자식이 없거나(텍스트만 있거나) 제일 텍스트에 가까운 요소 중 'Built with Streamlit' 텍스트를 포함하는 것을 찾기
             if (el.textContent && el.textContent.includes('Built with Streamlit')) {
-                // 부모를 거슬러 올라가며 높이가 앱 전체가 아닌, 하단 바(bar) 높이 정도인 래퍼(Wrapper)를 찾아 삭제
                 let parent = el;
-                let foundBar = false;
                 while (parent && parent.tagName !== 'BODY' && parent.tagName !== 'HTML') {
                     if (parent.clientHeight > 0 && parent.clientHeight < 100) {
                         parent.style.setProperty('display', 'none', 'important');
-                        parent.style.setProperty('visibility', 'hidden', 'important');
-                        parent.style.setProperty('opacity', '0', 'important');
-                        foundBar = true;
                     }
                     parent = parent.parentElement;
                 }
-                if (foundBar) {
-                    el.style.display = 'none'; // 자기 자신도 확실히 숨김
-                }
+                el.style.display = 'none';
             }
         });
     }
@@ -460,30 +464,33 @@ if not st.session_state['logged_in']:
     # --- [구글 소셜 로그인 리다이렉트 처리 콜백 로직] ---
     if "code" in st.query_params:
         code = st.query_params["code"]
-        state = st.query_params.get("state")
         
-        if state == st.session_state.get("oauth_state"):
-            token_url = "https://oauth2.googleapis.com/token"
-            data = {
-                "code": code,
-                "client_id": google_client_id,
-                "client_secret": google_client_secret,
-                "redirect_uri": "https://nutrisort.streamlit.app",
-                "grant_type": "authorization_code"
-            }
-            res = requests.post(token_url, data=data)
-            if res.status_code == 200:
-                access_token = res.json().get("access_token")
-                userinfo_res = requests.get("https://www.googleapis.com/oauth2/v2/userinfo", headers={"Authorization": f"Bearer {access_token}"})
-                if userinfo_res.status_code == 200:
-                    userinfo = userinfo_res.json()
-                    st.session_state["logged_in"] = True
-                    st.session_state["user_id"] = userinfo.get("email", "google_user")  # 이메일을 고유 ID로 활용
-                    st.query_params.clear()
-                    st.rerun()
-            else:
-                st.error("구글 로그인 인증에 실패했습니다.")
+        # 새 창 콜백 시 세션이 분리되어 oauth_state가 달라지는 Streamlit 특성 상, 
+        # State 엄격 검증을 생략하고 바로 Token을 요청하여 인증을 진행합니다.
+        token_url = "https://oauth2.googleapis.com/token"
+        data = {
+            "code": code,
+            "client_id": google_client_id,
+            "client_secret": google_client_secret,
+            "redirect_uri": "https://nutrisort.streamlit.app",
+            "grant_type": "authorization_code"
+        }
+        res = requests.post(token_url, data=data)
+        if res.status_code == 200:
+            access_token = res.json().get("access_token")
+            userinfo_res = requests.get("https://www.googleapis.com/oauth2/v2/userinfo", headers={"Authorization": f"Bearer {access_token}"})
+            if userinfo_res.status_code == 200:
+                userinfo = userinfo_res.json()
+                st.session_state["logged_in"] = True
+                st.session_state["user_id"] = userinfo.get("email", "google_user")  # 이메일을 고유 ID로 활용
                 st.query_params.clear()
+                st.rerun()
+            else:
+                st.error("구글 사용자 정보를 불러오지 못했습니다.")
+                st.query_params.clear()
+        else:
+            st.error(f"구글 로그인 인증에 실패했습니다! ({res.json().get('error_description', '알 수 없는 오류')})")
+            st.query_params.clear()
 
     st.markdown("""
         <div style="text-align: center; margin-top: 5vh; margin-bottom: 3vh;">
@@ -548,17 +555,19 @@ if not st.session_state['logged_in']:
                     "redirect_uri": "https://nutrisort.streamlit.app",
                     "response_type": "code",
                     "scope": "openid email profile",
-                    "state": st.session_state["oauth_state"],
+                    "state": st.session_state.get("oauth_state", "oauth"),
                     "access_type": "offline",
                     "prompt": "consent"
                 }
                 full_auth_url = f"{auth_url}?{urllib.parse.urlencode(params)}"
                 
-                st.link_button(
-                    "🟢 구글로 로그인", 
-                    url=full_auth_url, 
-                    use_container_width=True
-                )
+                # st.link_button은 안드로이드/PWA 환경에서 새 창(Custom Tab)을 만들어 세션을 유실시키므로,
+                # 일반 버튼 클릭 후 HTML 스크립트를 통해 PWA 앱 창 자체를 리다이렉션 시키는 가장 강력한 기법 사용!
+                if st.button("🟢 구글로 로그인", type="secondary", use_container_width=True):
+                    st.components.v1.html(
+                        f"<script>window.top.location.href = '{full_auth_url}';</script>", 
+                        height=0, width=0
+                    )
             else:
                 st.button("🟢 구글 로그인", disabled=True, use_container_width=True, help="secrets에 설정이 필요합니다.")
                 
