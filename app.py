@@ -561,13 +561,17 @@ if not st.session_state['logged_in']:
                 }
                 full_auth_url = f"{auth_url}?{urllib.parse.urlencode(params)}"
                 
-                # st.link_button은 안드로이드/PWA 환경에서 새 창(Custom Tab)을 만들어 세션을 유실시키므로,
-                # 일반 버튼 클릭 후 HTML 스크립트를 통해 PWA 앱 창 자체를 리다이렉션 시키는 가장 강력한 기법 사용!
-                if st.button("🟢 구글로 로그인", type="secondary", use_container_width=True):
-                    st.components.v1.html(
-                        f"<script>window.top.location.href = '{full_auth_url}';</script>", 
-                        height=0, width=0
-                    )
+                # PWA 환경에서 새 창이 열려 세션이 유실되는 것을 막고, 
+                # IFrame 내부 스크립트 실행이 차단되는 문제(버튼 무반응)를 피하는 가장 완벽한 해답
+                # = 순수 HTML <a> 태그와 target="_top" 속성을 직접 렌더링
+                st.markdown(f'''
+                    <a href="{full_auth_url}" target="_top" style="text-decoration:none;">
+                        <div style="background-color: white; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 10px; text-align: center; font-weight: 600; cursor: pointer; transition: 0.2s;">
+                            🟢 구글로 로그인
+                        </div>
+                    </a>
+                ''', unsafe_allow_html=True)
+                st.markdown("<br>", unsafe_allow_html=True)
             else:
                 st.button("🟢 구글 로그인", disabled=True, use_container_width=True, help="secrets에 설정이 필요합니다.")
                 
