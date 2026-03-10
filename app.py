@@ -365,7 +365,9 @@ st.markdown(f"""
     .viewerBadge_link {{ display: none !important; }}
     [data-testid="viewerBadge"] {{ display: none !important; }}
     [data-testid="stDecoration"] {{ display: none !important; }}
+    [data-testid="stStatusWidget"] {{ display: none !important; }}
     [data-testid="stAppDeployButton"] {{ display: none !important; }}
+    .stDeployButton {{ display: none !important; }}
     [data-testid="stToolbar"] {{ display: none !important; }}
 
     /* 우측 상단 메뉴 버튼 및 스트림릿 워터마크 숨기기 */
@@ -467,6 +469,14 @@ if not st.session_state['logged_in']:
         
         # 새 창 콜백 시 세션이 분리되어 oauth_state가 달라지는 Streamlit 특성 상, 
         # State 엄격 검증을 생략하고 바로 Token을 요청하여 인증을 진행합니다.
+        token_url = "https://oauth2.googleapis.com/token"
+        data = {
+            "code": code,
+            "client_id": google_client_id,
+            "client_secret": google_client_secret,
+            "redirect_uri": "https://nutrisort.streamlit.app",
+            "grant_type": "authorization_code"
+        }
         try:
             res = requests.post(token_url, data=data)
             if res.status_code == 200:
