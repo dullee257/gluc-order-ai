@@ -500,7 +500,7 @@ if not st.session_state['logged_in']:
         with col1:
             try:
                 from streamlit_google_oauth import google_login
-                google_client_id = st.secrets["firebase"].get("client_id", "")
+                google_client_id = st.secrets["firebase"].get("google_oauth_client_id", "")
                 google_client_secret = st.secrets["firebase"].get("google_client_secret", "") # 추후 필요시 추가
                 if google_client_id:
                     # 간단하게 컴포넌트 호출 (구현체에 따라 파라미터가 다름. 여기서는 가장 기초적인 예시)
