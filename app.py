@@ -227,6 +227,10 @@ if 'history' not in st.session_state:
     st.session_state['history'] = []
 if 'current_analysis' not in st.session_state:
     st.session_state['current_analysis'] = None
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+if 'user_id' not in st.session_state:
+    st.session_state['user_id'] = None
 
 # 다국어 텍스트 사전 정의
 texts = {
@@ -384,6 +388,37 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
+# --- 🛑 사용자 로그인 및 접근 권한 체크 ---
+if not st.session_state['logged_in']:
+    st.markdown("""
+        <div style="text-align: center; margin-top: 5vh; margin-bottom: 3vh;">
+            <div style="font-size: clamp(30px, 8vw, 40px); font-weight: 800; color: #333333; margin-bottom: 1vh;">🥗 NutriSort AI</div>
+            <div style="font-size: clamp(16px, 4vw, 20px); font-weight: 500; color: #86cc85;">로그인하고 나만의 식단 기록을 시작하세요</div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.info("실제 Firebase 로그인 연동은 콘솔 설정 및 secrets.toml 작성이 완료되어야 동작합니다.")
+    
+    # 향후 연동될 소셜 로그인 버튼 UI 미리보기 (현재의 민트색 원형 버튼 느낌과 통일)
+    st.markdown("### 소셜 로그인 (Firebase API 연동 예정)")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.button("🟢 구글 계정으로 시작", disabled=True, use_container_width=True)
+    with col2:
+        st.button("🟡 카카오 계정으로 시작", disabled=True, use_container_width=True)
+        
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    # 데모용 임시 입장 버튼 (원활한 테스트를 위해 제공)
+    if st.button("🚀 게스트로 임시 입장하기 (체험용)", type="primary", use_container_width=True):
+        st.session_state['logged_in'] = True
+        st.session_state['user_id'] = "guest_user_demo"
+        st.rerun()
+        
+    st.stop()  # 로그인되지 않은 사용자는 이후의 식단 분석 로직을 볼 수 없음
+
+
 # 5. 메인 화면 - 식단 스캐너
 if menu == t["scanner_menu"]:
     if 'app_stage' not in st.session_state:
@@ -476,47 +511,75 @@ if menu == t["scanner_menu"]:
                 }
                 </style>
             """, unsafe_allow_html=True)
-            try:
-                # 에러 방지: 모델명을 'gemini-flash-latest'로 고정
-                prompt = f"Analyze food for glucose management. Format: FoodName|TrafficColor|Order. Lang: {lang}"
-                response = client.models.generate_content(
-                    model="gemini-flash-latest", 
-                    contents=[prompt, st.session_state['current_img']]
-                )
-                
-                # 결과 파싱
-                raw_lines = response.text.strip().split('\n')
-                items = []
-                for line in raw_lines:
-                    if '|' in line and not any(x in line for x in ['---', 'Food', '음식']):
-                        parts = line.split('|')
-                        if len(parts) >= 3:
-                            items.append([p.strip() for p in parts])
-                
-                if items:
-                    sorted_items = sorted(items, key=lambda x: x[2])
-                    # 소견 분석
-                    advice_res = client.models.generate_content(
+            import time
+            import random
+            
+            max_retries = 3
+            success = False
+            last_err_msg = ""
+            is_503 = False
+            
+            for attempt in range(max_retries):
+                try:
+                    # 에러 방지: 모델명을 'gemini-flash-latest'로 고정
+                    prompt = f"Analyze food for glucose management. Format: FoodName|TrafficColor|Order. Lang: {lang}"
+                    response = client.models.generate_content(
                         model="gemini-flash-latest", 
-                        contents=[t["advice_prompt"], st.session_state['current_img']]
+                        contents=[prompt, st.session_state['current_img']]
                     )
                     
-                    st.session_state['current_analysis'] = {
-                        "sorted_items": sorted_items,
-                        "advice": advice_res.text,
-                        "raw_img": st.session_state['current_img'] 
-                    }
-                    loading_placeholder.empty()
+                    # 결과 파싱
+                    raw_lines = response.text.strip().split('\n')
+                    items = []
+                    for line in raw_lines:
+                        if '|' in line and not any(x in line for x in ['---', 'Food', '음식']):
+                            parts = line.split('|')
+                            if len(parts) >= 3:
+                                items.append([p.strip() for p in parts])
                     
-                    # 분석이 끝나면 3페이지(결과 페이지)로 이동
-                    st.session_state['app_stage'] = 'result'
-                    st.rerun()
-                else:
-                    loading_placeholder.empty()
-                    st.warning("분석에 실패했습니다. 올바른 음식 사진인지 확인해 주세요.")
-            except Exception as e:
+                    if items:
+                        sorted_items = sorted(items, key=lambda x: x[2])
+                        # 소견 분석
+                        advice_res = client.models.generate_content(
+                            model="gemini-flash-latest", 
+                            contents=[t["advice_prompt"], st.session_state['current_img']]
+                        )
+                        
+                        st.session_state['current_analysis'] = {
+                            "sorted_items": sorted_items,
+                            "advice": advice_res.text,
+                            "raw_img": st.session_state['current_img'] 
+                        }
+                        loading_placeholder.empty()
+                        
+                        # 분석이 끝나면 3페이지(결과 페이지)로 이동
+                        st.session_state['app_stage'] = 'result'
+                        success = True
+                        st.rerun()
+                    else:
+                        loading_placeholder.empty()
+                        st.warning("분석에 실패했습니다. 올바른 음식 사진인지 확인해 주세요.")
+                        success = True
+                        break
+                        
+                except Exception as e:
+                    err_str = str(e)
+                    last_err_msg = err_str
+                    if '503' in err_str:
+                        is_503 = True
+                        if attempt < max_retries - 1:
+                            time.sleep(random.uniform(1.0, 2.0))
+                            continue
+                    
+                    is_503 = '503' in err_str
+                    break
+                    
+            if not success:
                 loading_placeholder.empty()
-                st.error(f"분석 엔진 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({str(e)})")
+                if is_503:
+                    st.error("서버가 붐비고 있습니다. 잠시 후 다시 시도해 주세요.")
+                else:
+                    st.error(f"분석 엔진 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({last_err_msg})")
 
     elif st.session_state['app_stage'] == 'result':
         # 3페이지: 분석 완료 및 결과 확인 페이지
@@ -556,8 +619,31 @@ if menu == t["scanner_menu"]:
         st.info(res['advice'])
         
         if st.button(t["save_btn"], use_container_width=True):
+            save_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+            
+            # --- [Firebase Firestore 연결 및 저장 로직 예시] ---
+            # uid = st.session_state['user_id']
+            # try:
+            #     from firebase_admin import firestore
+            #     db = firestore.client()
+            #     
+            #     # Firestore 저장을 위한 데이터 (Image는 URL로 올리거나 용량 문제로 일단 텍스트 결과만 저장)
+            #     new_db_record = {
+            #         "date": save_date,
+            #         "sorted_items": res['sorted_items'],
+            #         "advice": res['advice'],
+            #         # "image_url": "업로드된 버킷 주소..." 
+            #     }
+            #     
+            #     # users/{uid}/history 컬렉션에 새 난수 문서로 추가
+            #     doc_ref = db.collection("users").document(uid).collection("history").document()
+            #     doc_ref.set(new_db_record)
+            # except Exception as e:
+            #     st.toast(f"데이터베이스 연결 에러: {str(e)}")
+            # ------------------------------------------------
+            
             st.session_state['history'].append({
-                "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "date": save_date,
                 "image": res['raw_img'],
                 "sorted_items": res['sorted_items'],
                 "advice": res['advice']
@@ -579,7 +665,7 @@ if menu == t["scanner_menu"]:
             unsafe_allow_html=True
         )
 
-# (나의 기록 탭은 기존 로직 유지하되 디자인 가이드 적용)
+# (나의 기록 탭은 기존 로직 유지하되 디자인 가이드 및 DB 불러오기 적용 가능)
 elif menu == t["history_menu"]:
     st.title(f"📅 {t['history_menu']}")
     if st.session_state['history']:
