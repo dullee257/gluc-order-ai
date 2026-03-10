@@ -385,7 +385,26 @@ st.markdown(f"""
     [data-testid="stUploadedFile"] {{
         display: none !important;
     }}
-    header {{visibility: hidden;}}
+    /* 가로모드(Landscape) 방지 오버레이: 억지로 회전시 화면 덮어버림 */
+    @media screen and (orientation: landscape) and (max-height: 600px) {{
+        .block-container {{ display: none !important; }}
+        body::before {{
+            content: "📱 측면(가로) 모드는 지원하지 않습니다.\\A스마트폰을 다시 세로로 돌려주세요.";
+            white-space: pre-wrap;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #333333;
+            color: #ffffff;
+            font-size: 20px;
+            font-weight: 800;
+            z-index: 999999;
+            line-height: 1.5;
+        }}
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -484,13 +503,11 @@ if not st.session_state['logged_in']:
             st.button("🟡 카카오 로그인", disabled=True, use_container_width=True)
             
     elif st.session_state['auth_mode'] == 'guest':
-        st.markdown("""
-            <div style="background-color: #f8f9fa; border-left: 5px solid #86cc85; padding: 20px; border-radius: 8px; margin-bottom: 20px; color: #333333 !important;">
-                <h4 style="margin-top:0; color: #1e293b !important;">🚀 비회원 체험 모드</h4>
-                체험 모드에서는 본인의 현재 모바일 기기에만 임시 데이터가 기록됩니다.<br>
-                추후 브라우저 캐시가 삭제되면 기록이 지워질 수 있습니다.
-            </div>
-        """, unsafe_allow_html=True)
+        st.info(
+            "🚀 **비회원 체험 모드 안내**\\n\\n"
+            "체험 모드에서는 본인의 현재 모바일 기기에만 임시 데이터가 기록되며, "
+            "추후 브라우저 캐시가 삭제되면 기록이 지워질 수 있습니다."
+        )
         
         if st.button("🚀 위 내용을 확인했으며, 게스트로 입장합니다", type="primary", use_container_width=True):
             st.session_state['logged_in'] = True
