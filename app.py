@@ -514,6 +514,20 @@ if not st.session_state['logged_in']:
             st.session_state['user_id'] = "guest_user_demo"
             st.rerun()
 
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    with st.expander("📲 스마트폰 배경화면에 앱으로 설치하기", expanded=False):
+        st.markdown("""
+            **NutriSort AI**는 설치형 웹앱(PWA)입니다. 아래 방법에 따라 스마트폰 홈 화면에 아이콘을 추가하시면, 매번 브라우저를 켤 필요 없이 진짜 앱처럼 **전체 화면(가로모드 고정 등)**으로 쾌적하게 이용하실 수 있습니다!
+            
+            🍎 **아이폰 (Safari)**
+            1. 화면 화면 하단의 **[공유하기(네모와 위쪽 화살표)]** 아이콘 터치
+            2. 메뉴를 조금 올려서 **[홈 화면에 추가]** 터치
+            
+            🤖 **안드로이드 (Chrome / 삼성 인터넷)**
+            1. 화면 우측 상단(또는 하단)의 **[⋮] (메뉴)** 아이콘 터치
+            2. **[홈 화면에 추가]** 또는 **[앱 설치]** 터치
+        """)
+
     st.stop()  # 로그인되지 않은 사용자는 식단 분석 로직을 볼 수 없음
 
 
