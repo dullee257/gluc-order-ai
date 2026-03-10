@@ -498,7 +498,29 @@ if not st.session_state['logged_in']:
         st.markdown("<br> <div style='text-align:center; color:#888; font-size:14px;'>또는 소셜 계정으로 계속하기</div> <br>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
-            st.button("🟢 구글 로그인", disabled=True, use_container_width=True)
+            try:
+                from streamlit_google_oauth import google_login
+                google_client_id = st.secrets["firebase"].get("client_id", "")
+                google_client_secret = st.secrets["firebase"].get("google_client_secret", "") # 추후 필요시 추가
+                if google_client_id:
+                    # 간단하게 컴포넌트 호출 (구현체에 따라 파라미터가 다름. 여기서는 가장 기초적인 예시)
+                    # st.button() 대신 소셜 라이브러리가 그려주는 버튼을 렌더하도록 설계 변경
+                    oauth_res = google_login(
+                        client_id=google_client_id,
+                        client_secret=google_client_secret,
+                        redirect_uri="https://nutrisort.streamlit.app",
+                        app_name="NutriSort AI"
+                    )
+                    if oauth_res and oauth_res.get('email'):
+                        st.session_state['logged_in'] = True
+                        st.session_state['user_id'] = f"google_{oauth_res.get('email')}"
+                        st.rerun()
+                else:
+                    st.button("🟢 구글 로그인", disabled=True, use_container_width=True, help="secrets에 client_id가 필요합니다.")
+            except Exception as e:
+                # 패키지 에러 시 폴백(fallback) 버튼 노출
+                st.button("🟢 구글 로그인 (준비중)", disabled=True, use_container_width=True)
+                
         with col2:
             st.button("🟡 카카오 로그인", disabled=True, use_container_width=True)
             
