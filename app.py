@@ -423,43 +423,69 @@ if not st.session_state['logged_in']:
         </div>
     """, unsafe_allow_html=True)
     
-    auth_mode = st.radio("접속 방법 선택", ["로그인", "회원가입", "게스트 체험"], horizontal=True)
+    # 더 세련된 커스텀 상태 관리를 통한 모드 변경
+    if 'auth_mode' not in st.session_state:
+        st.session_state['auth_mode'] = 'login'
+        
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("로그인", type="primary" if st.session_state['auth_mode'] == 'login' else "secondary", use_container_width=True):
+            st.session_state['auth_mode'] = 'login'
+            st.rerun()
+    with c2:
+        if st.button("회원가입", type="primary" if st.session_state['auth_mode'] == 'signup' else "secondary", use_container_width=True):
+            st.session_state['auth_mode'] = 'signup'
+            st.rerun()
+    with c3:
+        if st.button("체험하기", type="primary" if st.session_state['auth_mode'] == 'guest' else "secondary", use_container_width=True):
+            st.session_state['auth_mode'] = 'guest'
+            st.rerun()
+            
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    if auth_mode in ["로그인", "회원가입"]:
-        with st.form("auth_form"):
-            email = st.text_input("이메일 (Email)")
-            pwd = st.text_input("비밀번호 (Password)", type="password")
-            submitted = st.form_submit_button(auth_mode, type="primary", use_container_width=True)
+    if st.session_state['auth_mode'] in ['login', 'signup']:
+        mode_text = "로그인" if st.session_state['auth_mode'] == 'login' else "회원가입"
+        with st.form("auth_form_modern"):
+            st.markdown(f"#### 🔒 {mode_text}")
+            email = st.text_input("이메일 (Email)", placeholder="example@email.com")
+            pwd = st.text_input("비밀번호 (Password)", type="password", placeholder="6자리 이상 입력")
+            submitted = st.form_submit_button(f"{mode_text}하기", type="primary", use_container_width=True)
             
             if submitted:
                 if not email or not pwd:
                     st.error("이메일과 비밀번호를 모두 입력해주세요.")
                 else:
-                    success, res = pyrebase_auth(email, pwd, "login" if auth_mode == "로그인" else "signup")
+                    success, res = pyrebase_auth(email, pwd, "login" if st.session_state['auth_mode'] == 'login' else "signup")
                     
                     if success:
-                        st.success(f"{auth_mode} 성공! 환영합니다.")
                         st.session_state['logged_in'] = True
                         st.session_state['user_id'] = res.get('localId', f"user_{email}")
                         st.rerun()
                     else:
                         if "EMAIL_EXISTS" in res:
-                            st.error("이미 식단 앱에 가입된 이메일입니다.")
+                            st.error("이미 식단 앱에 가입된 이메일입니다. 로그인해주세요.")
                         elif "INVALID_LOGIN_CREDENTIALS" in res or "INVALID_PASSWORD" in res or "EMAIL_NOT_FOUND" in res:
                             st.error("이메일 또는 비밀번호가 잘못되었습니다.")
                         else:
-                            st.error(f"{auth_mode} 실패: {res}")
+                            st.error(f"{mode_text} 실패: {res}")
                 
-        st.markdown("### 소셜 로그인 (Firebase API 연동 예정)")
+        st.markdown("<br> <div style='text-align:center; color:#888; font-size:14px;'>또는 소셜 계정으로 계속하기</div> <br>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
-            st.button("🟢 구글 계정으로 시작", disabled=True, use_container_width=True)
+            st.button("🟢 구글 로그인", disabled=True, use_container_width=True)
         with col2:
-            st.button("🟡 카카오 계정으로 시작", disabled=True, use_container_width=True)
+            st.button("🟡 카카오 로그인", disabled=True, use_container_width=True)
             
-    elif auth_mode == "게스트 체험":
-        st.info("체험 모드에서는 본인의 기기에 임시 데이터가 쌓입니다.")
-        if st.button("🚀 게스트로 임시 입장하기", type="primary", use_container_width=True):
+    elif st.session_state['auth_mode'] == 'guest':
+        st.markdown("""
+            <div style="background-color: #f8f9fa; border-left: 5px solid #86cc85; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h4 style="margin-top:0;">🚀 비회원 체험 모드</h4>
+                체험 모드에서는 본인의 현재 모바일 기기에만 임시 데이터가 기록됩니다.<br>
+                추후 브라우저 캐시가 삭제되면 기록이 지워질 수 있습니다.
+            </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🚀 위 내용을 확인했으며, 게스트로 입장합니다", type="primary", use_container_width=True):
             st.session_state['logged_in'] = True
             st.session_state['user_id'] = "guest_user_demo"
             st.rerun()
