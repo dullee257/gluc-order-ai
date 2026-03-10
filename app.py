@@ -42,6 +42,7 @@ st.components.v1.html(
         "description": "혈당 관리 섭취 순서 스캐너",
         "start_url": "/",
         "display": "standalone",
+        "orientation": "portrait",
         "background_color": "#ffffff",
         "theme_color": "#86cc85",
         "icons": [
@@ -484,8 +485,8 @@ if not st.session_state['logged_in']:
             
     elif st.session_state['auth_mode'] == 'guest':
         st.markdown("""
-            <div style="background-color: #f8f9fa; border-left: 5px solid #86cc85; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                <h4 style="margin-top:0;">🚀 비회원 체험 모드</h4>
+            <div style="background-color: #f8f9fa; border-left: 5px solid #86cc85; padding: 20px; border-radius: 8px; margin-bottom: 20px; color: #333333 !important;">
+                <h4 style="margin-top:0; color: #1e293b !important;">🚀 비회원 체험 모드</h4>
                 체험 모드에서는 본인의 현재 모바일 기기에만 임시 데이터가 기록됩니다.<br>
                 추후 브라우저 캐시가 삭제되면 기록이 지워질 수 있습니다.
             </div>

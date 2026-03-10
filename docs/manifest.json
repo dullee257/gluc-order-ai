@@ -4,6 +4,7 @@
   "description": "혈당 관리 섭취 순서 스캐너",
   "start_url": "./",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#86cc85",
   "icons": [
