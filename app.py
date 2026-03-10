@@ -432,13 +432,23 @@ if not st.session_state['logged_in']:
             submitted = st.form_submit_button(auth_mode, type="primary", use_container_width=True)
             
             if submitted:
-                # [TODO] Web API Key가 추가되면 실제 로직 작동
-                # success, res = pyrebase_auth(email, pwd, "login" if auth_mode == "로그인" else "signup")
-                
-                st.warning("Firebase Web API Key (Client용)가 secrets.toml에 아직 등록되지 않아 시뮬레이션으로 통과합니다.")
-                st.session_state['logged_in'] = True
-                st.session_state['user_id'] = f"test_user_{email}"
-                st.rerun()
+                if not email or not pwd:
+                    st.error("이메일과 비밀번호를 모두 입력해주세요.")
+                else:
+                    success, res = pyrebase_auth(email, pwd, "login" if auth_mode == "로그인" else "signup")
+                    
+                    if success:
+                        st.success(f"{auth_mode} 성공! 환영합니다.")
+                        st.session_state['logged_in'] = True
+                        st.session_state['user_id'] = res.get('localId', f"user_{email}")
+                        st.rerun()
+                    else:
+                        if "EMAIL_EXISTS" in res:
+                            st.error("이미 식단 앱에 가입된 이메일입니다.")
+                        elif "INVALID_LOGIN_CREDENTIALS" in res or "INVALID_PASSWORD" in res or "EMAIL_NOT_FOUND" in res:
+                            st.error("이메일 또는 비밀번호가 잘못되었습니다.")
+                        else:
+                            st.error(f"{auth_mode} 실패: {res}")
                 
         st.markdown("### 소셜 로그인 (Firebase API 연동 예정)")
         col1, col2 = st.columns(2)
