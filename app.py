@@ -467,30 +467,29 @@ if not st.session_state['logged_in']:
         
         # 새 창 콜백 시 세션이 분리되어 oauth_state가 달라지는 Streamlit 특성 상, 
         # State 엄격 검증을 생략하고 바로 Token을 요청하여 인증을 진행합니다.
-        token_url = "https://oauth2.googleapis.com/token"
-        data = {
-            "code": code,
-            "client_id": google_client_id,
-            "client_secret": google_client_secret,
-            "redirect_uri": "https://nutrisort.streamlit.app",
-            "grant_type": "authorization_code"
-        }
-        res = requests.post(token_url, data=data)
-        if res.status_code == 200:
-            access_token = res.json().get("access_token")
-            userinfo_res = requests.get("https://www.googleapis.com/oauth2/v2/userinfo", headers={"Authorization": f"Bearer {access_token}"})
-            if userinfo_res.status_code == 200:
-                userinfo = userinfo_res.json()
-                st.session_state["logged_in"] = True
-                st.session_state["user_id"] = userinfo.get("email", "google_user")  # 이메일을 고유 ID로 활용
-                st.query_params.clear()
-                st.rerun()
+        try:
+            res = requests.post(token_url, data=data)
+            if res.status_code == 200:
+                access_token = res.json().get("access_token")
+                userinfo_res = requests.get("https://www.googleapis.com/oauth2/v2/userinfo", headers={"Authorization": f"Bearer {access_token}"})
+                if userinfo_res.status_code == 200:
+                    userinfo = userinfo_res.json()
+                    st.session_state["logged_in"] = True
+                    st.session_state["user_id"] = userinfo.get("email", "google_user")  # 이메일을 고유 ID로 활용
+                    st.query_params.clear()
+                    st.rerun()
+                else:
+                    st.error(f"🚨 구글 사용자 정보를 불러오지 못했습니다! 에러코드: {userinfo_res.status_code}")
+                    st.query_params.clear()
+                    st.stop()
             else:
-                st.error("구글 사용자 정보를 불러오지 못했습니다.")
+                st.error(f"🚨 구글 로그인 인증 토큰 교환에 실패했습니다!\n에러 응답: {res.text}")
                 st.query_params.clear()
-        else:
-            st.error(f"구글 로그인 인증에 실패했습니다! ({res.json().get('error_description', '알 수 없는 오류')})")
+                st.stop()
+        except Exception as e:
+            st.error(f"🚨 구글 로그인 서버와의 통신 중 오류가 발생했습니다!\n{str(e)}")
             st.query_params.clear()
+            st.stop()
 
     st.markdown("""
         <div style="text-align: center; margin-top: 5vh; margin-bottom: 3vh;">
@@ -561,16 +560,12 @@ if not st.session_state['logged_in']:
                 }
                 full_auth_url = f"{auth_url}?{urllib.parse.urlencode(params)}"
                 
-                # PWA 환경에서 새 창이 열려 세션이 유실되는 것을 막고, 
-                # IFrame 내부 스크립트 실행이 차단되는 문제(버튼 무반응)를 피하는 가장 완벽한 해답
-                # = 순수 HTML <a> 태그와 target="_top" 속성을 직접 렌더링
-                st.markdown(f'''
-                    <a href="{full_auth_url}" target="_top" style="text-decoration:none;">
-                        <div style="background-color: white; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 10px; text-align: center; font-weight: 600; cursor: pointer; transition: 0.2s;">
-                            🟢 구글로 로그인
-                        </div>
-                    </a>
-                ''', unsafe_allow_html=True)
+                # DOMPurify 필터링 및 Iframe 샌드박스로 인한 클릭 방지를 우회하기 위해 가장 확실한 st.link_button 사용
+                st.link_button(
+                    "🟢 구글로 로그인", 
+                    url=full_auth_url, 
+                    use_container_width=True
+                )
                 st.markdown("<br>", unsafe_allow_html=True)
             else:
                 st.button("🟢 구글 로그인", disabled=True, use_container_width=True, help="secrets에 설정이 필요합니다.")
