@@ -78,11 +78,34 @@ st.components.v1.html(
 
     // 🚀 [핵심] embed=true 상황에서 DOM을 뒤져서 강제로 추가된 'Built with Streamlit' 배너 및 배포 아이콘 제거!
     function killWatermarks() {
+        // [1] 상위 프레임(Streamlit Cloud) 전체에 강력한 감춤 속성을 가진 CSS를 영구적으로 박아 넣기
+        if (!doc.getElementById('custom-streamlit-killer')) {
+            const killerStyle = doc.createElement('style');
+            killerStyle.id = 'custom-streamlit-killer';
+            killerStyle.innerHTML = `
+                [data-testid="stAppDeployButton"], 
+                [data-testid="stStatusWidget"], 
+                .viewerBadge_container, 
+                .viewerBadge_link, 
+                .stDeployButton,
+                iframe[title*="Deploy"],
+                iframe[src*="share.streamlit.io"] {
+                    display: none !important;
+                    visibility: hidden !important;
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                    width: 0 !important;
+                    height: 0 !important;
+                    position: absolute !important;
+                    z-index: -9999 !important;
+                }
+            `;
+            doc.head.appendChild(killerStyle);
+        }
+
+        // [2] 직접 DOM을 훑어서 인라인 스타일로도 조져버리기
         doc.querySelectorAll('[data-testid="stAppDeployButton"], [data-testid="stStatusWidget"], .viewerBadge_container, .viewerBadge_link').forEach(el => {
             el.style.setProperty('display', 'none', 'important');
-            el.style.setProperty('visibility', 'hidden', 'important');
-            el.style.setProperty('opacity', '0', 'important');
-            
             // 만약 감싸는 부모 컨테이너가 있다면 같이 날려버림
             let parent = el.parentElement;
             if (parent && parent.tagName !== 'BODY' && parent.clientHeight < 100) {
@@ -91,7 +114,7 @@ st.components.v1.html(
         });
         
         doc.querySelectorAll('iframe').forEach(el => {
-            if (el.title && el.title.includes('Streamlit App Deploy Button')) {
+            if (el.title && el.title.includes('Deploy')) {
                 el.style.setProperty('display', 'none', 'important');
             }
         });
