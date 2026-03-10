@@ -387,7 +387,7 @@ st.markdown(f"""
     }}
     /* 가로모드(Landscape) 방지 오버레이: 억지로 회전시 화면 덮어버림 */
     @media screen and (orientation: landscape) and (max-height: 600px) {{
-        .block-container {{ display: none !important; }}
+        #root, .stApp {{ display: none !important; }}
         body::before {{
             content: "📱 측면(가로) 모드는 지원하지 않습니다.\\A스마트폰을 다시 세로로 돌려주세요.";
             white-space: pre-wrap;
