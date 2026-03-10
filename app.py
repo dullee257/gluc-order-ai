@@ -622,24 +622,34 @@ if menu == t["scanner_menu"]:
             save_date = datetime.now().strftime("%Y-%m-%d %H:%M")
             
             # --- [Firebase Firestore 연결 및 저장 로직 예시] ---
-            # uid = st.session_state['user_id']
-            # try:
-            #     from firebase_admin import firestore
-            #     db = firestore.client()
-            #     
-            #     # Firestore 저장을 위한 데이터 (Image는 URL로 올리거나 용량 문제로 일단 텍스트 결과만 저장)
-            #     new_db_record = {
-            #         "date": save_date,
-            #         "sorted_items": res['sorted_items'],
-            #         "advice": res['advice'],
-            #         # "image_url": "업로드된 버킷 주소..." 
-            #     }
-            #     
-            #     # users/{uid}/history 컬렉션에 새 난수 문서로 추가
-            #     doc_ref = db.collection("users").document(uid).collection("history").document()
-            #     doc_ref.set(new_db_record)
-            # except Exception as e:
-            #     st.toast(f"데이터베이스 연결 에러: {str(e)}")
+            uid = st.session_state['user_id']
+            try:
+                from firebase_admin import firestore
+                import firebase_admin
+                from firebase_admin import credentials
+                
+                # 중복 초기화 방지
+                if not firebase_admin._apps:
+                    # secrets.toml에서 정보를 가져와 credentials 구성
+                    key_dict = dict(st.secrets["firebase"])
+                    cred = credentials.Certificate(key_dict)
+                    firebase_admin.initialize_app(cred)
+                
+                db = firestore.client()
+                
+                # Firestore 저장을 위한 데이터 (Image는 URL로 올리거나 용량 문제로 일단 텍스트 결과만 저장)
+                new_db_record = {
+                    "date": save_date,
+                    "sorted_items": res['sorted_items'],
+                    "advice": res['advice'],
+                    # "image_url": "업로드된 버킷 주소..." 
+                }
+                
+                # users/{uid}/history 컬렉션에 새 난수 문서로 추가
+                doc_ref = db.collection("users").document(uid).collection("history").document()
+                doc_ref.set(new_db_record)
+            except Exception as e:
+                st.toast(f"데이터베이스 저장 에러: {str(e)}")
             # ------------------------------------------------
             
             st.session_state['history'].append({
