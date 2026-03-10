@@ -554,14 +554,11 @@ if not st.session_state['logged_in']:
                 }
                 full_auth_url = f"{auth_url}?{urllib.parse.urlencode(params)}"
                 
-                # 외부 라이브러리 충돌을 막기 위해 100% 안전한 HTML 버튼 링크 방식 사용. (Iframe 차단 방지를 위해 target="_top" 필수)
-                st.markdown(f'''
-                    <a href="{full_auth_url}" target="_top" style="text-decoration:none;">
-                        <div style="background-color: white; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 10px; text-align: center; font-weight: 600; cursor: pointer; transition: 0.2s;">
-                            🟢 구글로 로그인
-                        </div>
-                    </a>
-                ''', unsafe_allow_html=True)
+                st.link_button(
+                    "🟢 구글로 로그인", 
+                    url=full_auth_url, 
+                    use_container_width=True
+                )
             else:
                 st.button("🟢 구글 로그인", disabled=True, use_container_width=True, help="secrets에 설정이 필요합니다.")
                 
