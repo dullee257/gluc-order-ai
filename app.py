@@ -601,14 +601,24 @@ if not st.session_state['logged_in']:
                 }
                 full_auth_url = f"{auth_url}?{urllib.parse.urlencode(params)}"
                 
-                # PWA 외부 브라우저(새 탭) 이탈 방지 및 Streamlit Iframe 샌드박스 우회 로직
-                # st.link_button은 무조건 새 창(target="_blank")을 열기 때문에 PWA 앱 바깥으로 튕겨 나갑니다.
-                # 반면 st.components.v1.html 내부에 그린 버튼은 샌드박스 보안 정책 때문에 화면 이동 자체가 차단(무반응)됩니다.
-                # 완벽한 해결책: Streamlit 본체 DOM에 샌드박스 없이 직접 렌더링되는 st.html을 사용하여 순수 탈출 HTML 주입!
+                # PWA 외부 브라우저(새 탭) 이탈 방지 및 Streamlit Event Hooker 우회 로직
+                # a 태그(target="_top") 사용 시, Streamlit 메인 React 라우터가 클릭 이벤트를 강제 가로채어 
+                # 403 Forbidden 에러를 발생시키거나 Iframe 내부에서 강제 이동시켜 구글 서버 정책(X-Frame-Options)에 가로막힙니다.
+                # 완벽한 해결책: Streamlit 라우터가 절대 가로챌 수 없는 순수 HTML <form> Get Submit 방식을 사용합니다!
+                oauth_state = st.session_state.get("oauth_state", "oauth")
                 auth_html = f'''
-                    <a href="{full_auth_url}" target="_top" style="display: flex; align-items: center; justify-content: center; height: 43px; width: 100%; border: 1px solid #dcdcdc; border-radius: 8px; font-weight: 600; font-size: 15.5px; background-color: white; color: #333333; text-decoration: none; cursor: pointer; transition: background-color 0.2s;">
-                        🟢 구글로 로그인
-                    </a>
+                    <form action="{auth_url}" method="GET" target="_top" style="margin: 0; padding: 0;">
+                        <input type="hidden" name="client_id" value="{google_client_id}">
+                        <input type="hidden" name="redirect_uri" value="https://nutrisort.streamlit.app">
+                        <input type="hidden" name="response_type" value="code">
+                        <input type="hidden" name="scope" value="openid email profile">
+                        <input type="hidden" name="state" value="{oauth_state}">
+                        <input type="hidden" name="access_type" value="offline">
+                        <input type="hidden" name="prompt" value="consent">
+                        <button type="submit" style="display: flex; align-items: center; justify-content: center; height: 43px; width: 100%; border: 1px solid #dcdcdc; border-radius: 8px; font-weight: 600; font-size: 15.5px; background-color: white; color: #333333; cursor: pointer; transition: background-color 0.2s;">
+                            🟢 구글로 로그인
+                        </button>
+                    </form>
                 '''
                 if hasattr(st, "html"):
                     st.html(auth_html)
