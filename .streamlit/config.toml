@@ -1,0 +1,11 @@
+[server]
+enableStaticServing = true
+headless = true
+
+[client]
+showErrorDetails = false
+toolbarMode = "viewer"
+
+[theme]
+base = "light"
+primaryColor = "#86cc85"
