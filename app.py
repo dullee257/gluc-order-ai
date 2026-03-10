@@ -394,7 +394,13 @@ import json
 
 def pyrebase_auth(email, password, mode="login"):
     """REST API를 활용한 Firebase 기본 이메일/패스워드 인증 로직"""
-    api_key = st.secrets["firebase"].get("api_key", "") # 추후 사용자 추가용
+    try:
+        if "firebase" not in st.secrets:
+            return False, "Firebase secrets 설정이 존재하지 않습니다."
+        api_key = st.secrets["firebase"].get("api_key", "")
+    except Exception:
+        return False, "secrets.toml 파일을 읽는 중 오류가 발생했습니다."
+        
     if not api_key:
         return False, "Firebase Web API Key가 secrets.toml에 없습니다."
         
