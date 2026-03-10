@@ -601,12 +601,22 @@ if not st.session_state['logged_in']:
                 }
                 full_auth_url = f"{auth_url}?{urllib.parse.urlencode(params)}"
                 
-                # DOMPurify 필터링 및 Iframe 샌드박스로 인한 클릭 방지를 우회하기 위해 가장 확실한 st.link_button 사용
-                st.link_button(
-                    "🟢 구글로 로그인", 
-                    url=full_auth_url, 
-                    use_container_width=True
-                )
+                # PWA 외부 브라우저(새 탭) 이탈 방지 및 Streamlit Iframe 우회 로직
+                # st.link_button은 무조건 새 창(target="_blank")을 열기 때문에 PWA 앱 바깥으로 튕겨 나갑니다.
+                # 반면 st.components.v1.html 내부에 직접 a 태그(target="_top")를 그려 사용자가 클릭하게 하면,
+                # 최상위 PWA 앱 창 자체를 구글 화면으로 넘길 수 있어 앱 내부에서 로그인 흐름이 유지됩니다!
+                auth_html = f'''
+                    <style>
+                        body {{ margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; font-family: "Pretendard", "Apple SD Gothic Neo", "Inter", sans-serif; }}
+                        .btn {{ width: 100%; border: 1px solid #dcdcdc; border-radius: 8px; font-weight: 600; font-size: 15.5px; padding: 10px; background: white; color: #333333; text-decoration: none; text-align: center; box-sizing: border-box; transition: 0.2s; cursor: pointer; }}
+                        .btn:hover {{ background-color: #f8f9fa; border-color: #c4c4c4; }}
+                        .btn:active {{ transform: scale(0.97); }}
+                        /* 약간의 디테일: 버튼 내 텍스트 수직 중앙 정렬 위함 */
+                        .btn {{ display: flex; align-items: center; justify-content: center; height: 100%; }}
+                    </style>
+                    <a href="{full_auth_url}" target="_top" class="btn">🟢 구글로 로그인</a>
+                '''
+                st.components.v1.html(auth_html, height=43)
                 st.markdown("<br>", unsafe_allow_html=True)
             else:
                 st.button("🟢 구글 로그인", disabled=True, use_container_width=True, help="secrets에 설정이 필요합니다.")
