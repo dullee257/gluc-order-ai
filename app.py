@@ -389,6 +389,32 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- 🛑 사용자 로그인 및 접근 권한 체크 ---
+import requests
+import json
+
+def pyrebase_auth(email, password, mode="login"):
+    """REST API를 활용한 Firebase 기본 이메일/패스워드 인증 로직"""
+    api_key = st.secrets["firebase"].get("api_key", "") # 추후 사용자 추가용
+    if not api_key:
+        return False, "Firebase Web API Key가 secrets.toml에 없습니다."
+        
+    if mode == "signup":
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
+    else:
+        url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+        
+    payload = json.dumps({"email": email, "password": password, "returnSecureToken": True})
+    headers = {'content-type': 'application/json'}
+    
+    try:
+        res = requests.post(url, data=payload, headers=headers)
+        data = res.json()
+        if "error" in data:
+            return False, data["error"]["message"]
+        return True, data
+    except Exception as e:
+        return False, str(e)
+
 if not st.session_state['logged_in']:
     st.markdown("""
         <div style="text-align: center; margin-top: 5vh; margin-bottom: 3vh;">
@@ -397,26 +423,38 @@ if not st.session_state['logged_in']:
         </div>
     """, unsafe_allow_html=True)
     
-    st.info("실제 Firebase 로그인 연동은 콘솔 설정 및 secrets.toml 작성이 완료되어야 동작합니다.")
+    auth_mode = st.radio("접속 방법 선택", ["로그인", "회원가입", "게스트 체험"], horizontal=True)
     
-    # 향후 연동될 소셜 로그인 버튼 UI 미리보기 (현재의 민트색 원형 버튼 느낌과 통일)
-    st.markdown("### 소셜 로그인 (Firebase API 연동 예정)")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.button("🟢 구글 계정으로 시작", disabled=True, use_container_width=True)
-    with col2:
-        st.button("🟡 카카오 계정으로 시작", disabled=True, use_container_width=True)
-        
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    st.markdown("---")
-    
-    # 데모용 임시 입장 버튼 (원활한 테스트를 위해 제공)
-    if st.button("🚀 게스트로 임시 입장하기 (체험용)", type="primary", use_container_width=True):
-        st.session_state['logged_in'] = True
-        st.session_state['user_id'] = "guest_user_demo"
-        st.rerun()
-        
-    st.stop()  # 로그인되지 않은 사용자는 이후의 식단 분석 로직을 볼 수 없음
+    if auth_mode in ["로그인", "회원가입"]:
+        with st.form("auth_form"):
+            email = st.text_input("이메일 (Email)")
+            pwd = st.text_input("비밀번호 (Password)", type="password")
+            submitted = st.form_submit_button(auth_mode, type="primary", use_container_width=True)
+            
+            if submitted:
+                # [TODO] Web API Key가 추가되면 실제 로직 작동
+                # success, res = pyrebase_auth(email, pwd, "login" if auth_mode == "로그인" else "signup")
+                
+                st.warning("Firebase Web API Key (Client용)가 secrets.toml에 아직 등록되지 않아 시뮬레이션으로 통과합니다.")
+                st.session_state['logged_in'] = True
+                st.session_state['user_id'] = f"test_user_{email}"
+                st.rerun()
+                
+        st.markdown("### 소셜 로그인 (Firebase API 연동 예정)")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.button("🟢 구글 계정으로 시작", disabled=True, use_container_width=True)
+        with col2:
+            st.button("🟡 카카오 계정으로 시작", disabled=True, use_container_width=True)
+            
+    elif auth_mode == "게스트 체험":
+        st.info("체험 모드에서는 본인의 기기에 임시 데이터가 쌓입니다.")
+        if st.button("🚀 게스트로 임시 입장하기", type="primary", use_container_width=True):
+            st.session_state['logged_in'] = True
+            st.session_state['user_id'] = "guest_user_demo"
+            st.rerun()
+
+    st.stop()  # 로그인되지 않은 사용자는 식단 분석 로직을 볼 수 없음
 
 
 # 5. 메인 화면 - 식단 스캐너
