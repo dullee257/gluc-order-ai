@@ -442,6 +442,49 @@ def pyrebase_auth(email, password, mode="login"):
         return False, str(e)
 
 if not st.session_state['logged_in']:
+    import urllib.parse
+    import uuid
+
+    if "oauth_state" not in st.session_state:
+        st.session_state["oauth_state"] = str(uuid.uuid4())
+        
+    google_client_id = ""
+    google_client_secret = ""
+    try:
+        if "firebase" in st.secrets:
+            google_client_id = st.secrets["firebase"].get("google_oauth_client_id", "")
+            google_client_secret = st.secrets["firebase"].get("google_client_secret", "")
+    except Exception:
+        pass
+        
+    # --- [구글 소셜 로그인 리다이렉트 처리 콜백 로직] ---
+    if "code" in st.query_params:
+        code = st.query_params["code"]
+        state = st.query_params.get("state")
+        
+        if state == st.session_state.get("oauth_state"):
+            token_url = "https://oauth2.googleapis.com/token"
+            data = {
+                "code": code,
+                "client_id": google_client_id,
+                "client_secret": google_client_secret,
+                "redirect_uri": "https://nutrisort.streamlit.app",
+                "grant_type": "authorization_code"
+            }
+            res = requests.post(token_url, data=data)
+            if res.status_code == 200:
+                access_token = res.json().get("access_token")
+                userinfo_res = requests.get("https://www.googleapis.com/oauth2/v2/userinfo", headers={"Authorization": f"Bearer {access_token}"})
+                if userinfo_res.status_code == 200:
+                    userinfo = userinfo_res.json()
+                    st.session_state["logged_in"] = True
+                    st.session_state["user_id"] = userinfo.get("email", "google_user")  # 이메일을 고유 ID로 활용
+                    st.query_params.clear()
+                    st.rerun()
+            else:
+                st.error("구글 로그인 인증에 실패했습니다.")
+                st.query_params.clear()
+
     st.markdown("""
         <div style="text-align: center; margin-top: 5vh; margin-bottom: 3vh;">
             <div style="font-size: clamp(30px, 8vw, 40px); font-weight: 800; color: #333333; margin-bottom: 1vh;">🥗 NutriSort AI</div>
@@ -498,28 +541,29 @@ if not st.session_state['logged_in']:
         st.markdown("<br> <div style='text-align:center; color:#888; font-size:14px;'>또는 소셜 계정으로 계속하기</div> <br>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
-            try:
-                from streamlit_google_oauth import google_login
-                google_client_id = st.secrets["firebase"].get("google_oauth_client_id", "")
-                google_client_secret = st.secrets["firebase"].get("google_client_secret", "") # 추후 필요시 추가
-                if google_client_id:
-                    # 간단하게 컴포넌트 호출 (구현체에 따라 파라미터가 다름. 여기서는 가장 기초적인 예시)
-                    # st.button() 대신 소셜 라이브러리가 그려주는 버튼을 렌더하도록 설계 변경
-                    oauth_res = google_login(
-                        client_id=google_client_id,
-                        client_secret=google_client_secret,
-                        redirect_uri="https://nutrisort.streamlit.app",
-                        app_name="NutriSort AI"
-                    )
-                    if oauth_res and oauth_res.get('email'):
-                        st.session_state['logged_in'] = True
-                        st.session_state['user_id'] = f"google_{oauth_res.get('email')}"
-                        st.rerun()
-                else:
-                    st.button("🟢 구글 로그인", disabled=True, use_container_width=True, help="secrets에 client_id가 필요합니다.")
-            except Exception as e:
-                # 패키지 에러 시 폴백(fallback) 버튼 노출
-                st.button("🟢 구글 로그인 (준비중)", disabled=True, use_container_width=True)
+            if google_client_id:
+                auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
+                params = {
+                    "client_id": google_client_id,
+                    "redirect_uri": "https://nutrisort.streamlit.app",
+                    "response_type": "code",
+                    "scope": "openid email profile",
+                    "state": st.session_state["oauth_state"],
+                    "access_type": "offline",
+                    "prompt": "consent"
+                }
+                full_auth_url = f"{auth_url}?{urllib.parse.urlencode(params)}"
+                
+                # 외부 라이브러리 충돌을 막기 위해 100% 안전한 HTML 버튼 링크 방식 사용
+                st.markdown(f'''
+                    <a href="{full_auth_url}" target="_self" style="text-decoration:none;">
+                        <div style="background-color: white; color: #333; border: 1px solid #ddd; border-radius: 8px; padding: 10px; text-align: center; font-weight: 600; cursor: pointer; transition: 0.2s;">
+                            🟢 구글로 로그인
+                        </div>
+                    </a>
+                ''', unsafe_allow_html=True)
+            else:
+                st.button("🟢 구글 로그인", disabled=True, use_container_width=True, help="secrets에 설정이 필요합니다.")
                 
         with col2:
             st.button("🟡 카카오 로그인", disabled=True, use_container_width=True)
