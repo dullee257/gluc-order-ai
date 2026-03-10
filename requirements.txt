@@ -4,4 +4,3 @@ Pillow
 pandas
 firebase-admin
 requests
-streamlit-google-oauth
