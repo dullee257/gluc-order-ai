@@ -161,59 +161,8 @@ st.components.v1.html(
         });
     }
 
-    // 4. [성능 최적화] 서버 전송 전 브라우저 단에서 이미지 500KB 이하 압축 로직
-    doc.addEventListener('change', async function(e) {
-        // 스트림릿의 st.file_uploader 내부 input[type="file"] 감지
-        if (e.target && e.target.type === 'file') {
-            if (e.target.dataset.doingCompression) return; // 무한 루프 방지
-            
-            const file = e.target.files[0];
-            if (!file || !file.type.startsWith('image/')) return;
-            
-            // 500KB (500 * 1024 bytes) 기준
-            const MAX_SIZE = 500 * 1024;
-            if (file.size <= MAX_SIZE) return; // 이미 작으면 통과
-
-            // React/Streamlit으로 이벤트가 전달되어 서버로 올라가는 것을 일단 막음
-            e.stopImmediatePropagation();
-            e.preventDefault();
-            e.target.dataset.doingCompression = "true";
-            
-            console.log("Original file size:", file.size);
-            
-            const img = new Image();
-            img.onload = function() {
-                const canvas = doc.createElement('canvas'); // 주의: doc.createElement
-                let scale = Math.sqrt(MAX_SIZE / file.size); 
-                scale = scale * 0.9;
-                
-                canvas.width = img.width * scale;
-                canvas.height = img.height * scale;
-                
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                
-                canvas.toBlob((blob) => {
-                    const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + "_compressed.jpg", { 
-                        type: 'image/jpeg',
-                        lastModified: Date.now()
-                    });
-                    
-                    console.log("Compressed file size:", newFile.size);
-                    
-                    const dataTransfer = new DataTransfer();
-                    dataTransfer.items.add(newFile);
-                    e.target.files = dataTransfer.files;
-                    
-                    const event = new Event('change', { bubbles: true });
-                    e.target.dispatchEvent(event);
-                    
-                    delete e.target.dataset.doingCompression;
-                }, 'image/jpeg', 0.85); 
-            };
-            img.src = URL.createObjectURL(file);
-        }
-    }, true); // Capture phase에서 가장 먼저 차단
+    // 4. [성능 최적화] 브라우저 단 이미지 압축 로직은 모바일 카메라 촬영 시 
+    // 메모리/캔버스 오작동을 유발하므로 제거됨. (Python 서버단 compress_image 함수가 대신 처리)
 
     // iframe 내부의 PWA 배너 로직 생성 코드는 docs/index.html의 최상위 프레임 전용으로 이관되어 삭제됨.
 
@@ -279,7 +228,7 @@ texts = {
         "history_menu": "나의 식단 기록",
         "analysis_title": "섭취순서",
         "advice_title": "식단분석",
-        "advice_prompt": "사진 속 음식을 분석해서 혈당 관리에 따른 식사 순서를 정해줘. 사진에 잡곡밥이나 채소 등 칭찬할 요소가 '실제로 있을 경우에만' 칭찬하고 없으면 언급하지 마. 식사 순서 원리(단백질/지방, 식이섬유 그물망 등)와 나트륨 주의 조언은 포함해. 특히, 음식 종류를 분석하여 사용자가 식사 중인 장소(예: 치킨집, 호프집, 고기집, 분식집, 중식당 등)를 유추하고, 해당 장소에서 쉽게 구할 수 있거나 추가 주문할 수 있는 채소 반찬/사이드 메뉴(예: 치킨집이면 양배추 샐러드 추가, 고기집이면 상추/파절이 쌈 채소 듬뿍, 분식집이면 단무지보단 튀김 대신 김밥 속 채소 활용 등)를 구체적으로 제안하며 함께 곁들여 먹어 혈당 스파이크를 방지하라는 '실전 메뉴 꿀팁'을 반드시 포함해.",
+        "advice_prompt": "사진 속 음식을 분석하여 혈당 관리를 위한 조언을 다음 4단계 카테고리로 나누어 '반드시' 순서대로 작성해줘. 각 카테고리 앞에 번호와 제목을 적어줘.\n\n1. 사진 속 메뉴 확인\n- '사진 속 메뉴를 보니...'로 시작하여 사진의 음식에 대한 간략한 기본 분석을 진행해.\n- 실제로 사진에 잡곡밥, 채소 등 칭찬할 요소가 있을 때만 칭찬하고 없으면 지어내지 마.\n\n2. 장소 유추 및 실전 메뉴 꿀팁\n- 음식(배경/로고 등)을 기반으로 식사 장소를 유추해.\n- [가장 중요한 규칙]: 유추한 장소가 카페나 디저트 전문점처럼 채소/단백질 메뉴가 메인이 아닌 곳이라면, **굳이 채소 샐러드나 샌드위치를 억지로 추가 주문하라고 제안하지 마!** 해당 장소에 적합한 가벼운 팁(예: 시럽 빼기, 우유 대신 오트밀크 변경 등)만 주고 넘어가.\n- 밥집/고깃집 등 추가 반찬 주문이 자연스러운 곳에서만 보완 음식을 적극 제안해.\n\n3. 권장 식사 순서\n- '2번 단계에서 실제로 추가를 제안한 음식이 있을 경우에만' 원래 상차림과 합쳐서 섭취 순서를 안내해.\n- 억지로 채소나 단백질을 먹으라는 템플릿 문구를 쓰지 말고, **오직 지금 사진에 찍힌 음식(+자연스러운 추가 메뉴) 에 한해서만** 어떻게 순서대로 먹는 것이 혈당 방어에 최선인지 설명해 줘. (커피만 있으면 커피 마시는 법만 설명해).\n\n4. 그 외 부가 설명\n- 음식의 나트륨, 조리법 주의사항, 식후 10분 걷기 등 추가적인 혈당 조언을 자연스럽게 덧붙여줘.",
         "save_msg": "대표님, '나의 기록' 탭에 저장되었습니다!",
         "browse_text": "파일 찾기"
     },
@@ -592,7 +541,7 @@ if not st.session_state['logged_in']:
                 auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
                 params = {
                     "client_id": google_client_id,
-                    "redirect_uri": "https://nutrisort.streamlit.app",
+                    "redirect_uri": "https://nutrisort.streamlit.app/",
                     "response_type": "code",
                     "scope": "openid email profile",
                     "state": st.session_state.get("oauth_state", "oauth"),
@@ -601,13 +550,12 @@ if not st.session_state['logged_in']:
                 }
                 full_auth_url = f"{auth_url}?{urllib.parse.urlencode(params)}"
                 
-                # PWA 외부 브라우저(새 탭) 이탈 방지 및 Streamlit Event Hooker 우회 로직
-                # a 태그(target="_top") 사용 시, Streamlit 메인 React 라우터가 클릭 이벤트를 강제 가로채어 
-                # 403 Forbidden 에러를 발생시키거나 Iframe 내부에서 강제 이동시켜 구글 서버 정책(X-Frame-Options)에 가로막힙니다.
-                # 완벽한 해결책: Streamlit 라우터가 절대 가로챌 수 없는 순수 HTML <form> Get Submit 방식을 사용합니다!
-                oauth_state = st.session_state.get("oauth_state", "oauth")
+                # [Google Login 403 Forbidden 우회 끝판왕]
+                # 자바스크립트나 일반 a 태그까지도 Streamlit의 내부 React Router 돔 이벤트 리스너가 
+                # e.preventDefault()로 가로채기 때문에 403이 발생합니다.
+                # 완벽한 해결책: 버튼 클릭 시 순수 브라우저의 기본 Form 제출 엔진을 사용하여 완전히 React를 무시하고 튕겨나갑니다.
                 auth_html = f'''
-                    <form action="{auth_url}" method="GET" target="_top" style="margin: 0; padding: 0;">
+                    <form action="https://accounts.google.com/o/oauth2/v2/auth" method="GET" target="_top" style="margin: 0; padding: 0;">
                         <input type="hidden" name="client_id" value="{google_client_id}">
                         <input type="hidden" name="redirect_uri" value="https://nutrisort.streamlit.app">
                         <input type="hidden" name="response_type" value="code">
@@ -615,16 +563,15 @@ if not st.session_state['logged_in']:
                         <input type="hidden" name="state" value="{oauth_state}">
                         <input type="hidden" name="access_type" value="offline">
                         <input type="hidden" name="prompt" value="consent">
-                        <button type="submit" style="display: flex; align-items: center; justify-content: center; height: 43px; width: 100%; border: 1px solid #dcdcdc; border-radius: 8px; font-weight: 600; font-size: 15.5px; background-color: white; color: #333333; cursor: pointer; transition: background-color 0.2s;">
+                        <button type="submit" style="display: flex; align-items: center; justify-content: center; height: 43px; width: 100%; border: 1px solid #dcdcdc; border-radius: 8px; font-weight: 600; font-size: 15.5px; background-color: white; color: #333333; cursor: pointer; text-decoration: none; transition: background-color 0.2s;">
                             🟢 구글로 로그인
                         </button>
                     </form>
+                    <div style="text-align:center; font-size:11px; color:#999; margin-top:5px; line-height:1.2;">
+                        * 만약 에러 시, 화면 우측 상단 ⋮ 메뉴에서<br>'기본 브라우저에서 열기'를 눌러주세요.
+                    </div>
                 '''
-                if hasattr(st, "html"):
-                    st.html(auth_html)
-                else:
-                    st.markdown(auth_html, unsafe_allow_html=True)
-                st.markdown("<br>", unsafe_allow_html=True)
+                st.components.v1.html(auth_html, height=80)
             else:
                 st.button("🟢 구글 로그인", disabled=True, use_container_width=True, help="secrets에 설정이 필요합니다.")
                 
@@ -679,28 +626,79 @@ if menu == t["scanner_menu"]:
             </div>
         """, unsafe_allow_html=True)
         
-        # 2️⃣ 업로드 위젯 (외부 라벨을 완전히 숨김)
-        uploaded_file = st.file_uploader(
-            "label_hidden", 
-            type=["jpg", "png", "jpeg"],
-            label_visibility="collapsed" 
-        )
+        # [무료 체험 일일 횟수 및 광고 리워드 로직]
+        is_guest = st.session_state['user_id'] == 'guest_user_demo'
+        if 'guest_usage_count' not in st.session_state:
+            st.session_state['guest_usage_count'] = 0
+            
+        # 광고 시청 후 획득한 보너스 횟수
+        if 'guest_bonus_count' not in st.session_state:
+            st.session_state['guest_bonus_count'] = 0
+            
+        total_remaining = (2 + st.session_state['guest_bonus_count']) - st.session_state['guest_usage_count']
         
-        if uploaded_file:
-            img = Image.open(uploaded_file) # PIL을 떼고 Image로 바로 호출합니다.
+        if is_guest and total_remaining <= 0:
+            st.warning("⚠️ **무료 체험 횟수(2회)를 모두 소진하셨습니다.**")
+            st.info("💡 **광고를 보면 1회 무료 분석을 추가로 드립니다!**")
             
-            # [최적화] 이미지가 서버 메모리에 로드된 직후 브라우저 표시 및 전송 전에 500KB 이하로 압축
-            img = compress_image(img, max_size_kb=500)
+            # --- [Google AdSense 보상형 광고 시뮬레이션 버튼] ---
+            # 실제 배포 시에는 구글 애드몹/애드센스 리워드형 태그로 교체 가능합니다.
+            col_ad1, col_ad2 = st.columns([2, 1])
+            with col_ad1:
+                st.markdown("""
+                    <div style="border:1px solid #ddd; padding:15px; border-radius:10px; background-color:#fefefe; text-align:center;">
+                        <span style="color:#888; font-size:12px; display:block; margin-bottom:5px;">Google 광고</span>
+                        <div style="font-weight:700; color:#4285F4; margin-bottom:5px;">혈당 관리 전문앱, NutriSort 프리미엄!</div>
+                        <div style="font-size:14px; color:#555;">지금 구독하시면 첫 달 무료 혜택과 무제한 스캔을 제공합니다.</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            with col_ad2:
+                st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True) # 줄맞춤
+                if st.button("🎁 광고 보고 1회 충전", use_container_width=True):
+                    # 광고를 보면 보너스 횟수를 1 부여하고 화면 리로드
+                    st.session_state['guest_bonus_count'] += 1
+                    st.rerun()
             
-            st.session_state['current_img'] = img
-            st.session_state['app_stage'] = 'analyze'
-            st.rerun()
+            st.markdown("<br><hr>", unsafe_allow_html=True)
+            st.markdown("**기다리지 않고 바로 계속 분석하시겠어요?**")
+            if st.button("🔐 회원가입 / 로그인 탭으로 이동", type="primary", use_container_width=True):
+                st.session_state['logged_in'] = False
+                st.session_state['auth_mode'] = 'signup'
+                st.rerun()
+        else:
+            if is_guest:
+                st.info(f"💡 현재 **무료 체험 모드**입니다. (남은 횟수: {total_remaining}회)")
+                
+            if 'uploader_key' not in st.session_state:
+                st.session_state['uploader_key'] = 0
+                
+            # 2️⃣ 업로드 위젯 (외부 라벨을 완전히 숨김) - key를 동적으로 주어 이전 파일 잔여물 제거
+            uploaded_file = st.file_uploader(
+                "label_hidden", 
+                type=["jpg", "png", "jpeg"],
+                label_visibility="collapsed",
+                key=f"uploader_{st.session_state['uploader_key']}"
+            )
+            
+            if uploaded_file:
+                if is_guest:
+                    st.session_state['guest_usage_count'] += 1
+                    
+                img = Image.open(uploaded_file) # PIL을 떼고 Image로 바로 호출합니다.
+                
+                # [최적화] 이미지가 서버 메모리에 로드된 직후 브라우저 표시 및 전송 전에 500KB 이하로 압축
+                img = compress_image(img, max_size_kb=500)
+                
+                st.session_state['current_img'] = img
+                st.session_state['app_stage'] = 'analyze'
+                st.rerun()
 
     elif st.session_state['app_stage'] == 'analyze':
         # 2페이지: 업로드 완료 & 분석 대기 페이지
         if st.button("⬅️ 메인으로 가기", key="btn_back_main_1", use_container_width=True):
             st.session_state['app_stage'] = 'main'
             st.session_state['current_img'] = None
+            st.session_state['uploader_key'] += 1 # 강제로 새 업로더 생성(초기화)
             st.rerun()
             
         st.image(st.session_state['current_img'], use_container_width=True)
@@ -809,7 +807,8 @@ if menu == t["scanner_menu"]:
                     if '503' in err_str:
                         is_503 = True
                         if attempt < max_retries - 1:
-                            time.sleep(random.uniform(1.0, 2.0))
+                            # 503 발생 시 점진적으로 대기 시간을 늘립니다.
+                            time.sleep(random.uniform(2.0, 4.0))
                             continue
                     
                     is_503 = '503' in err_str
@@ -817,8 +816,12 @@ if menu == t["scanner_menu"]:
                     
             if not success:
                 loading_placeholder.empty()
+                # 에러로 인해 스캔이 실패했으므로, 게스트 유저인 경우 차감된 횟수를 1회 복구해줍니다.
+                if is_guest and st.session_state['guest_usage_count'] > 0:
+                    st.session_state['guest_usage_count'] -= 1
+                    
                 if is_503:
-                    st.error("서버가 붐비고 있습니다. 잠시 후 다시 시도해 주세요.")
+                    st.error("🚀 접속자가 많아 AI 서버가 잠시 지연되고 있습니다. 2~3초 뒤에 다시 스캔 버튼을 눌러주세요!")
                 else:
                     st.error(f"분석 엔진 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({last_err_msg})")
 
@@ -828,11 +831,44 @@ if menu == t["scanner_menu"]:
             st.session_state['app_stage'] = 'main'
             st.session_state['current_img'] = None
             st.session_state['current_analysis'] = None
+            if 'uploader_key' in st.session_state:
+                st.session_state['uploader_key'] += 1
             st.rerun()
             
         st.image(st.session_state['current_img'], use_container_width=True)
         
         res = st.session_state['current_analysis']
+        
+        # 결과 페이지 렌더링 시 사진 아래(분석 내용 시작점)로 확실하게 자동 스크롤 (모바일 프레임 완벽 대응)
+        st.components.v1.html(
+            """
+            <script>
+                // Streamlit의 DOM 로딩 타이밍 이슈를 해결하기 위해 최대 1.5초간 반복 시도
+                let scrollAttempts = 0;
+                const scrollInterval = setInterval(() => {
+                    scrollAttempts++;
+                    // 모바일 PWA 또는 Iframe 내부일 수 있으므로 parent 및 최상위 window 객체까지 시도
+                    let targetWindow = window;
+                    try { if (window.parent) targetWindow = window.parent; } catch(e){}
+                    
+                    // 스크롤 시도 (문서 전체 창을 y축 400px 가량 아래로 밀어버림)
+                    if (targetWindow.document && targetWindow.document.documentElement) {
+                        targetWindow.scrollTo({ top: 400, left: 0, behavior: 'smooth' });
+                        // 특정 엘리먼트를 찾아서 스크롤
+                        const appNode = targetWindow.document.querySelector('.stApp');
+                        if (appNode) {
+                            appNode.scrollTo({ top: 400, left: 0, behavior: 'smooth' });
+                        }
+                    }
+                    
+                    if (scrollAttempts >= 10) { // 10회 (1초) 시도 후 종료
+                        clearInterval(scrollInterval);
+                    }
+                }, 100);
+            </script>
+            """,
+            height=0
+        )
         
         html_cards = ""
         # 🚀 프리미엄 섭취 순서 카드 UI
@@ -902,19 +938,7 @@ if menu == t["scanner_menu"]:
             st.balloons()
             st.success(t["save_msg"])
             
-        # 결과 페이지 렌더링 시 최상단부터 부드럽게 결과(스피너가 있던 자리)로 내려오도록 추가 조치
-        st.markdown("<div id='scroll-target'></div>", unsafe_allow_html=True)
-        st.markdown(
-            """
-            <img src="dummy" onerror="
-                setTimeout(() => {
-                    const el = document.getElementById('scroll-target');
-                    if(el) { el.scrollIntoView({behavior: 'smooth', block: 'end'}); }
-                }, 400);
-            " style="display:none;">
-            """,
-            unsafe_allow_html=True
-        )
+
 
 # (나의 기록 탭은 기존 로직 유지하되 디자인 가이드 및 DB 불러오기 적용 가능)
 elif menu == t["history_menu"]:
