@@ -554,6 +554,7 @@ if not st.session_state['logged_in']:
                 # 자바스크립트나 일반 a 태그까지도 Streamlit의 내부 React Router 돔 이벤트 리스너가 
                 # e.preventDefault()로 가로채기 때문에 403이 발생합니다.
                 # 완벽한 해결책: 버튼 클릭 시 순수 브라우저의 기본 Form 제출 엔진을 사용하여 완전히 React를 무시하고 튕겨나갑니다.
+                oauth_state = st.session_state.get("oauth_state", "oauth")
                 auth_html = f'''
                     <form action="https://accounts.google.com/o/oauth2/v2/auth" method="GET" target="_top" style="margin: 0; padding: 0;">
                         <input type="hidden" name="client_id" value="{google_client_id}">
