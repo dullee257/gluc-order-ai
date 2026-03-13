@@ -214,6 +214,17 @@ if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 if 'user_id' not in st.session_state:
     st.session_state['user_id'] = None
+# Cal AI 스타일 하루 혈당 누적 추적
+if 'daily_blood_sugar_score' not in st.session_state:
+    st.session_state['daily_blood_sugar_score'] = 0
+if 'daily_carbs' not in st.session_state:
+    st.session_state['daily_carbs'] = 0
+if 'daily_protein' not in st.session_state:
+    st.session_state['daily_protein'] = 0
+if 'daily_meals_count' not in st.session_state:
+    st.session_state['daily_meals_count'] = 0
+if 'user_goal' not in st.session_state:
+    st.session_state['user_goal'] = '일반 관리'
 
 # 다국어 텍스트 사전 정의
 texts = {
@@ -258,6 +269,30 @@ with st.sidebar:
     st.title(t["sidebar_title"])
     menu = st.radio("Menu", [t["scanner_menu"], t["history_menu"]])
     
+    # === 혈당 관리 목표 설정 ===
+    st.divider()
+    st.markdown("### 🎯 나의 건강 목표")
+    goal_options = ["일반 관리", "당뇨 관리", "다이어트", "근력 강화"]
+    goal = st.selectbox("목표 선택", goal_options,
+        index=goal_options.index(st.session_state['user_goal'])
+    )
+    if goal != st.session_state['user_goal']:
+        st.session_state['user_goal'] = goal
+    goal_carbs_map = {"일반 관리": 250, "당뇨 관리": 130, "다이어트": 150, "근력 강화": 300}
+    target_carbs = goal_carbs_map[st.session_state['user_goal']]
+    if st.session_state['daily_meals_count'] > 0:
+        carb_pct = min(100, int(st.session_state['daily_carbs'] / max(target_carbs,1) * 100))
+        bar_color = '#4CAF50' if carb_pct < 80 else '#FFB300' if carb_pct < 100 else '#F44336'
+        st.markdown(f"""
+        <div style="background:#f8f9fa;border-radius:10px;padding:12px;margin-top:6px;">
+            <div style="font-size:12px;color:#888;margin-bottom:3px;">오늘 탄수화물</div>
+            <div style="font-size:20px;font-weight:800;color:#333;">{st.session_state['daily_carbs']}g <span style="font-size:12px;color:#888;">/ {target_carbs}g</span></div>
+            <div style="background:#e0e0e0;border-radius:4px;height:6px;margin-top:5px;">
+                <div style="background:{bar_color};width:{carb_pct}%;height:6px;border-radius:4px;"></div>
+            </div>
+            <div style="font-size:11px;color:#888;margin-top:4px;">식사 {st.session_state['daily_meals_count']}회 분석</div>
+        </div>
+        """, unsafe_allow_html=True)
     # === PWA 설치 (앱처럼 쓰기) 가이드 ===
     st.divider()
     st.markdown("### 📱 앱처럼 사용하기")
@@ -761,38 +796,95 @@ if menu == t["scanner_menu"]:
             
             for attempt in range(max_retries):
                 try:
-                    # 에러 방지: 모델명을 'gemini-flash-latest'로 고정
-                    prompt = f"Analyze food for glucose management. Format: FoodName|TrafficColor|Order. Lang: {lang}"
+                    # Cal AI 스타일 혈당 분석 프롬프트 (GI + 탄수화물 + 단백질)
+                    if lang == "KO":
+                        prompt = """사진 속 음식들을 혈당 관리 관점에서 분석해줘.
+각 음식을 아래 형식으로 정확히 반환해 (헤더 없이 데이터만, 한 줄에 하나):
+음식이름|GI수치|탄수화물g|단백질g|혈당신호|섭취순서
+
+규칙:
+- GI수치: 0~100 정수 (혈당지수)
+- 탄수화물g: 해당 음식 예상 섭취량 기준 정수
+- 단백질g: 해당 음식 예상 섭취량 기준 정수
+- 혈당신호: 초록/노랑/빨강 중 하나
+- 섭취순서: 1부터 시작
+
+예시:
+나물반찬|22|8|3|초록|1
+잡곡밥|55|45|5|노랑|2
+삼겹살|28|0|22|초록|3"""
+                    else:
+                        prompt = """Analyze foods in the photo for blood sugar management.
+Return each food in this exact format (data only, one line each):
+FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
+- GI: integer 0-100
+- Carbs_g and Protein_g: estimated grams (integer)
+- Signal: Green/Yellow/Red
+- EatingOrder: integer from 1"""
+
                     response = client.models.generate_content(
-                        model="gemini-flash-latest", 
+                        model="gemini-flash-latest",
                         contents=[prompt, st.session_state['current_img']]
                     )
-                    
-                    # 결과 파싱
+
+                    # 결과 파싱 (새 형식: name|GI|carbs|protein|color|order)
                     raw_lines = response.text.strip().split('\n')
                     items = []
                     for line in raw_lines:
-                        if '|' in line and not any(x in line for x in ['---', 'Food', '음식']):
-                            parts = line.split('|')
-                            if len(parts) >= 3:
-                                items.append([p.strip() for p in parts])
-                    
+                        line = line.strip()
+                        if '|' not in line:
+                            continue
+                        skip_words = ['---', 'GI', 'Food', '음식이름', '형식', '규칙', '예시']
+                        if any(x in line for x in skip_words):
+                            continue
+                        parts = [p.strip() for p in line.split('|')]
+                        try:
+                            if len(parts) >= 6:
+                                gi = int(''.join(filter(str.isdigit, parts[1])) or '50')
+                                carbs = int(''.join(filter(str.isdigit, parts[2])) or '0')
+                                protein = int(''.join(filter(str.isdigit, parts[3])) or '0')
+                                order = int(''.join(filter(str.isdigit, parts[5])) or '99')
+                                items.append([parts[0], gi, carbs, protein, parts[4], order])
+                            elif len(parts) >= 3:
+                                # 구 형식 fallback
+                                order = int(''.join(filter(str.isdigit, parts[2])) or '99')
+                                items.append([parts[0], 50, 30, 10, parts[1] if len(parts) > 1 else '노랑', order])
+                        except Exception:
+                            pass
+
                     if items:
-                        sorted_items = sorted(items, key=lambda x: x[2])
+                        sorted_items = sorted(items, key=lambda x: x[5])
+                        # 혈당 스코어 계산
+                        avg_gi = int(sum(i[1] for i in items) / len(items))
+                        blood_sugar_score = min(100, avg_gi)
+                        total_carbs = sum(i[2] for i in items)
+                        total_protein = sum(i[3] for i in items)
+
                         # 소견 분석
                         advice_res = client.models.generate_content(
-                            model="gemini-flash-latest", 
+                            model="gemini-flash-latest",
                             contents=[t["advice_prompt"], st.session_state['current_img']]
                         )
-                        
+
+                        # 하루 누적 업데이트
+                        prev_count = st.session_state['daily_meals_count']
+                        st.session_state['daily_blood_sugar_score'] = int(
+                            (st.session_state['daily_blood_sugar_score'] * prev_count + blood_sugar_score) / (prev_count + 1)
+                        )
+                        st.session_state['daily_carbs'] += total_carbs
+                        st.session_state['daily_protein'] += total_protein
+                        st.session_state['daily_meals_count'] += 1
+
                         st.session_state['current_analysis'] = {
                             "sorted_items": sorted_items,
                             "advice": advice_res.text,
-                            "raw_img": st.session_state['current_img'] 
+                            "raw_img": st.session_state['current_img'],
+                            "blood_sugar_score": blood_sugar_score,
+                            "total_carbs": total_carbs,
+                            "total_protein": total_protein,
+                            "avg_gi": avg_gi,
                         }
                         loading_placeholder.empty()
-                        
-                        # 분석이 끝나면 3페이지(결과 페이지)로 이동
                         st.session_state['app_stage'] = 'result'
                         success = True
                         st.rerun()
@@ -827,7 +919,6 @@ if menu == t["scanner_menu"]:
                     st.error(f"분석 엔진 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({last_err_msg})")
 
     elif st.session_state['app_stage'] == 'result':
-        # 3페이지: 분석 완료 및 결과 확인 페이지
         if st.button("⬅️ 메인으로 돌아가기 (다시하기)", key="btn_back_main_2", use_container_width=True):
             st.session_state['app_stage'] = 'main'
             st.session_state['current_img'] = None
@@ -835,133 +926,260 @@ if menu == t["scanner_menu"]:
             if 'uploader_key' in st.session_state:
                 st.session_state['uploader_key'] += 1
             st.rerun()
-            
-        st.image(st.session_state['current_img'], use_container_width=True)
-        
+
         res = st.session_state['current_analysis']
-        
-        # 결과 페이지 렌더링 시 사진 아래(분석 내용 시작점)로 확실하게 자동 스크롤 (모바일 프레임 완벽 대응)
-        st.components.v1.html(
-            """
-            <script>
-                // Streamlit의 DOM 로딩 타이밍 이슈를 해결하기 위해 최대 1.5초간 반복 시도
-                let scrollAttempts = 0;
-                const scrollInterval = setInterval(() => {
-                    scrollAttempts++;
-                    // 모바일 PWA 또는 Iframe 내부일 수 있으므로 parent 및 최상위 window 객체까지 시도
-                    let targetWindow = window;
-                    try { if (window.parent) targetWindow = window.parent; } catch(e){}
-                    
-                    // 스크롤 시도 (문서 전체 창을 y축 400px 가량 아래로 밀어버림)
-                    if (targetWindow.document && targetWindow.document.documentElement) {
-                        targetWindow.scrollTo({ top: 400, left: 0, behavior: 'smooth' });
-                        // 특정 엘리먼트를 찾아서 스크롤
-                        const appNode = targetWindow.document.querySelector('.stApp');
-                        if (appNode) {
-                            appNode.scrollTo({ top: 400, left: 0, behavior: 'smooth' });
-                        }
-                    }
-                    
-                    if (scrollAttempts >= 10) { // 10회 (1초) 시도 후 종료
-                        clearInterval(scrollInterval);
-                    }
-                }, 100);
-            </script>
-            """,
-            height=0
-        )
-        
-        html_cards = ""
-        # 🚀 프리미엄 섭취 순서 카드 UI
-        for idx, (name, color, score) in enumerate(res['sorted_items'], 1):
-            clean_name = name.replace('*', '').strip()
-            
-            if any(x in color for x in ["초록", "녹색", "Green"]):
-                theme_color = "#4CAF50" 
-                bg_color = "#F1F8E9"    
-                border_color = "#C5E1A5"
-            elif any(x in color for x in ["노랑", "주황", "Yellow", "Orange"]):
-                theme_color = "#FFB300" 
-                bg_color = "#FFFDE7"    
-                border_color = "#FFF59D"
+        score = res.get('blood_sugar_score', 50)
+        total_carbs = res.get('total_carbs', 0)
+        total_protein = res.get('total_protein', 0)
+        avg_gi = res.get('avg_gi', score)
+
+        if score <= 40:
+            risk_label, risk_color = "혈당 안전 🟢", "#4CAF50"
+        elif score <= 65:
+            risk_label, risk_color = "주의 필요 🟡", "#FFB300"
+        else:
+            risk_label, risk_color = "혈당 위험 🔴", "#F44336"
+
+        # ── 1. 이미지 + 원형 혈당 스코어 (Cal AI 핵심 UI) ──
+        col_img, col_score = st.columns([1, 1])
+        with col_img:
+            st.image(res['raw_img'], use_container_width=True)
+        with col_score:
+            st.markdown(f"""
+            <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;padding:8px;">
+                <div style="font-size:12px;color:#888;font-weight:600;letter-spacing:1px;margin-bottom:6px;">혈당 스코어</div>
+                <div style="width:110px;height:110px;border-radius:50%;
+                    background:conic-gradient({risk_color} {score}%, #f0f0f0 {score}%);
+                    display:flex;justify-content:center;align-items:center;
+                    box-shadow:0 4px 18px {risk_color}44;">
+                    <div style="width:82px;height:82px;border-radius:50%;background:white;
+                        display:flex;flex-direction:column;justify-content:center;align-items:center;">
+                        <div style="font-size:26px;font-weight:900;color:{risk_color};line-height:1;">{score}</div>
+                        <div style="font-size:9px;color:#aaa;">/ 100</div>
+                    </div>
+                </div>
+                <div style="margin-top:10px;background:{risk_color}22;color:{risk_color};
+                    font-weight:700;font-size:13px;padding:5px 12px;border-radius:20px;">{risk_label}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ── 2. 매크로 요약 3칸 ──
+        st.markdown(f"""
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0;">
+            <div style="background:white;border-radius:14px;padding:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #f0f0f0;">
+                <div style="font-size:18px;">🍚</div>
+                <div style="font-size:21px;font-weight:900;color:#333;margin:3px 0;">{total_carbs}g</div>
+                <div style="font-size:10px;color:#888;">탄수화물</div>
+            </div>
+            <div style="background:white;border-radius:14px;padding:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #f0f0f0;">
+                <div style="font-size:18px;">🩸</div>
+                <div style="font-size:21px;font-weight:900;color:{risk_color};margin:3px 0;">{avg_gi}</div>
+                <div style="font-size:10px;color:#888;">평균 GI</div>
+            </div>
+            <div style="background:white;border-radius:14px;padding:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #f0f0f0;">
+                <div style="font-size:18px;">💪</div>
+                <div style="font-size:21px;font-weight:900;color:#333;margin:3px 0;">{total_protein}g</div>
+                <div style="font-size:10px;color:#888;">단백질</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # ── 3. 혈당 스파이크 예측 바 ──
+        spike_label = "낮음 🙂" if score <= 40 else "보통 😐" if score <= 65 else "높음 😰"
+        st.markdown(f"""
+        <div style="background:white;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #f0f0f0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+                <div style="font-weight:700;font-size:14px;color:#333;">⚡ 혈당 스파이크 예측</div>
+                <div style="font-weight:700;font-size:14px;color:{risk_color};">{spike_label}</div>
+            </div>
+            <div style="background:#f0f0f0;border-radius:8px;height:10px;overflow:hidden;">
+                <div style="background:linear-gradient(90deg,#4CAF50,#FFB300,#F44336);width:{score}%;height:10px;border-radius:8px;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                <div style="font-size:10px;color:#aaa;">안전(0)</div>
+                <div style="font-size:10px;color:#aaa;">위험(100)</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # ── 4. 음식별 혈당 분석 카드 (GI 바 포함) ──
+        st.markdown("""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">음식별 혈당 분석</div></div>""", unsafe_allow_html=True)
+
+        cards_html = ""
+        for idx, item in enumerate(res['sorted_items'], 1):
+            name = str(item[0]).replace('*', '').strip()
+            gi = item[1] if len(item) > 1 and isinstance(item[1], int) else 50
+            carbs = item[2] if len(item) > 2 and isinstance(item[2], int) else 0
+            protein = item[3] if len(item) > 3 and isinstance(item[3], int) else 0
+            color_str = str(item[4]) if len(item) > 4 else '노랑'
+            if any(x in color_str for x in ["초록", "Green"]):
+                tc, bg, bc, gl = "#4CAF50", "#F1F8E9", "#C5E1A5", "낮음"
+            elif any(x in color_str for x in ["노랑", "주황", "Yellow", "Orange"]):
+                tc, bg, bc, gl = "#FFB300", "#FFFDE7", "#FFF59D", "보통"
             else:
-                theme_color = "#F44336" 
-                bg_color = "#FFEBEE"    
-                border_color = "#EF9A9A"
-                
-            html_cards += f"""<div style="display: flex; align-items: center; padding: 16px; margin-bottom: 12px; border-radius: 12px; background-color: {bg_color}; border: 1px solid {border_color}; box-shadow: 0 2px 4px rgba(0,0,0,0.03);"><div style="width: 32px; height: 32px; border-radius: 50%; background-color: {theme_color}; color: white; display: flex; justify-content: center; align-items: center; font-weight: 800; font-size: 16px; margin-right: 15px; flex-shrink: 0;">{idx}</div><div style="flex-grow: 1; font-size: 18px; font-weight: 700; color: #333333;">{clean_name}</div><div style="width: 16px; height: 16px; border-radius: 50%; background-color: {theme_color}; box-shadow: 0 0 8px {theme_color}; flex-shrink: 0;"></div></div>"""
-            
-        # 하나로 묶인 그룹 UI 출력 & 대안 타이틀 출력
-        st.markdown(f"""<div style="margin-top: 15px; margin-bottom: 35px; border-radius: 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); overflow: hidden; border: 1px solid #f0f0f0; background: white;"><div style="background: linear-gradient(135deg, #1e293b, #334155); color: white; padding: 18px 22px; font-size: 18px; font-weight: 800; letter-spacing: -0.5px;">🥗 현재 음식 종류와 혈당신호등</div><div style="padding: 20px; background-color: #fafbfc;">{html_cards}</div></div><div style="display: flex; align-items: center; margin-bottom: 15px; margin-top: 10px;"><div style="width: 6px; height: 24px; background: linear-gradient(to bottom, #86cc85, #359f33); border-radius: 4px; margin-right: 10px;"></div><h3 style="margin: 0; font-size: 20px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px;">혈당 스파이크 예방 최적의 대안</h3></div>""", unsafe_allow_html=True)
-        
+                tc, bg, bc, gl = "#F44336", "#FFEBEE", "#EF9A9A", "높음"
+            gi_w = min(100, gi)
+            cards_html += f"""
+            <div style="background:{bg};border:1px solid {bc};border-radius:14px;padding:13px;margin-bottom:9px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+                    <div style="display:flex;align-items:center;gap:9px;">
+                        <div style="width:26px;height:26px;border-radius:50%;background:{tc};color:white;display:flex;justify-content:center;align-items:center;font-weight:800;font-size:13px;flex-shrink:0;">{idx}</div>
+                        <div style="font-size:15px;font-weight:700;color:#1e293b;">{name}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:17px;font-weight:900;color:{tc};">GI {gi}</div>
+                        <div style="font-size:10px;color:#888;">{gl}</div>
+                    </div>
+                </div>
+                <div style="background:rgba(255,255,255,0.5);border-radius:5px;height:5px;margin-bottom:7px;">
+                    <div style="background:{tc};width:{gi_w}%;height:5px;border-radius:5px;"></div>
+                </div>
+                <div style="display:flex;gap:14px;">
+                    <div style="font-size:12px;color:#555;">🍚 탄수화물 <b>{carbs}g</b></div>
+                    <div style="font-size:12px;color:#555;">💪 단백질 <b>{protein}g</b></div>
+                </div>
+            </div>"""
+        st.markdown(cards_html, unsafe_allow_html=True)
+
+        # ── 5. 권장 섭취 순서 태그 ──
+        st.markdown("""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">🥗 권장 섭취 순서</div></div>""", unsafe_allow_html=True)
+        tags_html = '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;">'
+        for idx, item in enumerate(res['sorted_items'], 1):
+            name = str(item[0]).replace('*', '').strip()
+            color_str = str(item[4]) if len(item) > 4 else '노랑'
+            tc = "#4CAF50" if any(x in color_str for x in ["초록","Green"]) else "#FFB300" if any(x in color_str for x in ["노랑","Yellow","Orange"]) else "#F44336"
+            tags_html += f'<div style="background:{tc}22;border:1px solid {tc}55;border-radius:20px;padding:5px 12px;font-size:13px;font-weight:600;color:{tc};">{idx}. {name}</div>'
+        tags_html += '</div>'
+        st.markdown(tags_html, unsafe_allow_html=True)
+
+        # ── 6. AI 소견 ──
+        st.markdown("""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">🤖 혈당 관리 AI 소견</div></div>""", unsafe_allow_html=True)
         st.info(res['advice'])
-        
+
+        # ── 7. 저장 버튼 ──
         if st.button(t["save_btn"], use_container_width=True):
             save_date = datetime.now().strftime("%Y-%m-%d %H:%M")
-            
-            # --- [Firebase Firestore 연결 및 저장 로직 예시] ---
             uid = st.session_state['user_id']
             try:
                 from firebase_admin import firestore
                 import firebase_admin
                 from firebase_admin import credentials
-                
-                # 중복 초기화 방지
                 if not firebase_admin._apps:
-                    # secrets.toml에서 정보를 가져와 credentials 구성
                     key_dict = dict(st.secrets["firebase"])
                     cred = credentials.Certificate(key_dict)
                     firebase_admin.initialize_app(cred)
-                
                 db = firestore.client()
-                
-                # Firestore 저장을 위한 데이터 (Image는 URL로 올리거나 용량 문제로 일단 텍스트 결과만 저장)
                 new_db_record = {
                     "date": save_date,
-                    "sorted_items": res['sorted_items'],
+                    "sorted_items": [[str(x) for x in item] for item in res['sorted_items']],
                     "advice": res['advice'],
-                    # "image_url": "업로드된 버킷 주소..." 
+                    "blood_sugar_score": res.get('blood_sugar_score', 0),
+                    "total_carbs": res.get('total_carbs', 0),
+                    "total_protein": res.get('total_protein', 0),
+                    "avg_gi": res.get('avg_gi', 0),
                 }
-                
-                # users/{uid}/history 컬렉션에 새 난수 문서로 추가
                 doc_ref = db.collection("users").document(uid).collection("history").document()
                 doc_ref.set(new_db_record)
             except Exception as e:
-                st.toast(f"데이터베이스 저장 에러: {str(e)}")
-            # ------------------------------------------------
-            
+                st.toast(f"DB 저장 에러: {str(e)}")
+
             st.session_state['history'].append({
                 "date": save_date,
                 "image": res['raw_img'],
                 "sorted_items": res['sorted_items'],
-                "advice": res['advice']
+                "advice": res['advice'],
+                "blood_sugar_score": res.get('blood_sugar_score', 0),
+                "total_carbs": res.get('total_carbs', 0),
+                "total_protein": res.get('total_protein', 0),
+                "avg_gi": res.get('avg_gi', 0),
             })
             st.balloons()
             st.success(t["save_msg"])
-            
 
 
-# (나의 기록 탭은 기존 로직 유지하되 디자인 가이드 및 DB 불러오기 적용 가능)
+# ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
 elif menu == t["history_menu"]:
     st.title(f"📅 {t['history_menu']}")
+
+    # 오늘 하루 요약 대시보드
+    if st.session_state['daily_meals_count'] > 0:
+        goal_carbs_map2 = {"일반 관리": 250, "당뇨 관리": 130, "다이어트": 150, "근력 강화": 300}
+        target_c = goal_carbs_map2.get(st.session_state['user_goal'], 250)
+        ds = st.session_state['daily_blood_sugar_score']
+        ds_color = "#4CAF50" if ds <= 40 else "#FFB300" if ds <= 65 else "#F44336"
+        ds_label = "안전" if ds <= 40 else "주의" if ds <= 65 else "위험"
+        carb_pct2 = min(100, int(st.session_state['daily_carbs'] / max(target_c, 1) * 100))
+        st.markdown(f"""
+        <div style="background:linear-gradient(135deg,#1e293b,#334155);border-radius:20px;padding:20px;margin-bottom:18px;color:white;">
+            <div style="font-size:13px;color:#94a3b8;margin-bottom:10px;">📊 오늘의 혈당 관리 현황</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+                <div style="text-align:center;">
+                    <div style="font-size:26px;font-weight:900;color:{ds_color};">{ds}</div>
+                    <div style="font-size:10px;color:#94a3b8;">평균 혈당스코어</div>
+                    <div style="font-size:12px;font-weight:700;color:{ds_color};">{ds_label}</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:26px;font-weight:900;color:white;">{st.session_state['daily_carbs']}g</div>
+                    <div style="font-size:10px;color:#94a3b8;">탄수화물</div>
+                    <div style="font-size:11px;color:#94a3b8;">목표 {target_c}g</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:26px;font-weight:900;color:white;">{st.session_state['daily_meals_count']}</div>
+                    <div style="font-size:10px;color:#94a3b8;">분석 식사</div>
+                    <div style="font-size:11px;color:#94a3b8;">{st.session_state['user_goal']}</div>
+                </div>
+            </div>
+            <div style="background:rgba(255,255,255,0.15);border-radius:6px;height:7px;">
+                <div style="background:{ds_color};width:{carb_pct2}%;height:7px;border-radius:6px;"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🔄 오늘 기록 초기화", use_container_width=True):
+            st.session_state['daily_blood_sugar_score'] = 0
+            st.session_state['daily_carbs'] = 0
+            st.session_state['daily_protein'] = 0
+            st.session_state['daily_meals_count'] = 0
+            st.rerun()
+        st.markdown("---")
+
     if st.session_state['history']:
         for rec in reversed(st.session_state['history']):
-            with st.expander(f"🍴 {rec['date']} 식단 기록"):
-                if rec['image']:
+            rec_score = rec.get('blood_sugar_score', 0)
+            rec_carbs = rec.get('total_carbs', 0)
+            rec_gi = rec.get('avg_gi', 0)
+            rc = "#4CAF50" if rec_score <= 40 else "#FFB300" if rec_score <= 65 else "#F44336"
+            rl = "안전" if rec_score <= 40 else "주의" if rec_score <= 65 else "위험"
+            with st.expander(f"🍴 {rec['date']}  |  혈당 {rec_score}점({rl})  |  탄수화물 {rec_carbs}g"):
+                if rec.get('image'):
                     st.image(rec['image'], use_container_width=True)
-                
-                st.markdown(f"**[{t['analysis_title']}]**")
-                for name, color, score in rec['sorted_items']:
-                    icon_color = "#00FF00" if any(x in color for x in ["초록", "Green"]) else "#FFFF00" if any(x in color for x in ["노랑", "Yellow"]) else "#FF0000"
+                st.markdown(f"""
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0;">
+                    <div style="background:{rc}11;border:1px solid {rc}33;border-radius:10px;padding:10px;text-align:center;">
+                        <div style="font-size:18px;font-weight:900;color:{rc};">{rec_score}</div>
+                        <div style="font-size:10px;color:#888;">혈당스코어</div>
+                    </div>
+                    <div style="background:#f8f9fa;border-radius:10px;padding:10px;text-align:center;">
+                        <div style="font-size:18px;font-weight:900;color:#333;">{rec_carbs}g</div>
+                        <div style="font-size:10px;color:#888;">탄수화물</div>
+                    </div>
+                    <div style="background:#f8f9fa;border-radius:10px;padding:10px;text-align:center;">
+                        <div style="font-size:18px;font-weight:900;color:#333;">{rec_gi}</div>
+                        <div style="font-size:10px;color:#888;">평균 GI</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                for item in rec['sorted_items']:
+                    name = str(item[0]).replace('*', '').strip() if item else ''
+                    color_str = str(item[4]) if len(item) > 4 else (str(item[1]) if len(item) > 1 else '노랑')
+                    gi_val = item[1] if len(item) > 1 and isinstance(item[1], int) else '-'
+                    ic = "#4CAF50" if any(x in color_str for x in ["초록","Green"]) else "#FFB300" if any(x in color_str for x in ["노랑","Yellow"]) else "#F44336"
                     st.markdown(f"""
-                        <div class="result-card">
-                            <span style="font-size: 16px; font-weight: 500;">{name}</span>
-                            <div style="width: 18px; height: 18px; background-color: {icon_color}; border-radius: 50%;"></div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                
+                    <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;">
+                        <div style="width:12px;height:12px;background:{ic};border-radius:50%;margin-right:9px;flex-shrink:0;"></div>
+                        <span style="font-size:14px;font-weight:500;">{name}</span>
+                        <span style="margin-left:auto;font-size:12px;color:#888;">GI {gi_val}</span>
+                    </div>""", unsafe_allow_html=True)
                 st.divider()
-                st.markdown(f"**[{t['advice_title']}]**")
-                st.success(rec['advice'])
+                st.info(rec['advice'])
     else:
-        st.info("No records found.")
+        st.info("저장된 식단 기록이 없습니다. 분석 후 '저장하기' 버튼을 눌러보세요!")
