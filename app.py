@@ -360,6 +360,23 @@ with st.sidebar:
     with st.expander(f"⚠️ {t['health_disclaimer_title']}", expanded=False):
         st.caption(t.get("health_disclaimer_body", ""))
 
+    # === 2페이지 → 1페이지: 로그아웃 / 로그인하기 ===
+    _lt = st.session_state.get("login_type")
+    if _lt == "guest":
+        if st.button(f"🔐 {t['sidebar_go_login']}", key="sidebar_go_login", use_container_width=True):
+            st.session_state["logged_in"] = False
+            st.session_state["login_type"] = None
+            st.session_state["user_id"] = None
+            st.session_state["auth_mode"] = "login"
+            st.rerun()
+    elif _lt == "google":
+        if st.button(f"🚪 {t['sidebar_logout']}", key="sidebar_logout", use_container_width=True):
+            st.session_state["logged_in"] = False
+            st.session_state["login_type"] = None
+            st.session_state["user_id"] = None
+            st.session_state["auth_mode"] = "login"
+            st.rerun()
+
 # 3-2. 언어 선택 드롭다운: 로그인/체험 전(1페이지)에만 표시, 2페이지부터는 숨김
 if not st.session_state.get("logged_in", False):
     st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
