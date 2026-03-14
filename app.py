@@ -270,6 +270,8 @@ if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 if 'user_id' not in st.session_state:
     st.session_state['user_id'] = None
+if 'login_type' not in st.session_state:
+    st.session_state['login_type'] = None  # 'google' | 'guest'
 # Cal AI 스타일 하루 혈당 누적 추적
 if 'daily_blood_sugar_score' not in st.session_state:
     st.session_state['daily_blood_sugar_score'] = 0
@@ -294,6 +296,18 @@ t = LANG_DICT[_current_lang]
 # 3. 사이드바 메뉴 (언어와 무관한 안정 키 사용 → 분석 후 rerun 시에도 스캐너/결과 화면 유지)
 with st.sidebar:
     st.title(t.get("sidebar_title", "설정"))
+    # 로그인 타입 뱃지: 게스트는 주황색 경고, 계정 로그인은 초록 표시
+    _lt = st.session_state.get("login_type")
+    if _lt == "guest":
+        st.markdown(
+            f'<div style="background:#FF9800;color:white;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;text-align:center;margin-bottom:8px;">⚠️ {t["login_badge_guest"]}</div>',
+            unsafe_allow_html=True,
+        )
+    elif _lt == "google":
+        st.markdown(
+            f'<div style="background:#4CAF50;color:white;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;margin-bottom:8px;">✓ {t["login_badge_account"]}</div>',
+            unsafe_allow_html=True,
+        )
     st.divider()
     menu_key = st.radio(
         t.get("menu_label", "메뉴"),
@@ -560,7 +574,8 @@ if not st.session_state['logged_in']:
                 if userinfo_res.status_code == 200:
                     userinfo = userinfo_res.json()
                     st.session_state["logged_in"] = True
-                    st.session_state["user_id"] = userinfo.get("email", "google_user")  # 이메일을 고유 ID로 활용
+                    st.session_state["user_id"] = userinfo.get("email", "google_user")
+                    st.session_state["login_type"] = "google"
                     st.query_params.clear()
                     st.rerun()
                 else:
@@ -621,6 +636,7 @@ if not st.session_state['logged_in']:
                     if success:
                         st.session_state['logged_in'] = True
                         st.session_state['user_id'] = res.get('localId', f"user_{email}")
+                        st.session_state['login_type'] = "google"
                         st.rerun()
                     else:
                         if "EMAIL_EXISTS" in res:
@@ -681,6 +697,7 @@ if not st.session_state['logged_in']:
         if st.button(t["guest_confirm_btn"], type="primary", use_container_width=True):
             st.session_state['logged_in'] = True
             st.session_state['user_id'] = "guest_user_demo"
+            st.session_state['login_type'] = "guest"
             st.rerun()
 
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -747,6 +764,7 @@ if menu_key == "scanner":
             st.markdown(f"**{t['guest_continue_question']}**")
             if st.button(t["btn_go_signup"], type="primary", use_container_width=True):
                 st.session_state['logged_in'] = False
+                st.session_state['login_type'] = None
                 st.session_state['auth_mode'] = 'signup'
                 st.rerun()
         else:
@@ -1089,53 +1107,60 @@ if menu_key == "scanner":
         st.markdown(f"""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">{t['ai_advice_section']}</div></div>""", unsafe_allow_html=True)
         st.info(res['advice'])
 
-        # ── 7. 저장 버튼 ──
-        if st.button(t["save_btn"], use_container_width=True):
-            save_date = datetime.now().strftime("%Y-%m-%d %H:%M")
-            uid = st.session_state['user_id']
-            try:
-                from firebase_admin import firestore
-                import firebase_admin
-                from firebase_admin import credentials
-                if not firebase_admin._apps:
-                    # firebase_admin SDK가 인식하는 서비스 계정 키만 추출
-                    # (google_oauth_client_id, google_client_secret, api_key 등 비SDK 키 제외)
-                    _FIREBASE_ADMIN_KEYS = [
-                        "type", "project_id", "private_key_id", "private_key",
-                        "client_email", "client_id", "auth_uri", "token_uri",
-                        "auth_provider_x509_cert_url", "client_x509_cert_url",
-                        "universe_domain"
-                    ]
-                    key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
-                    cred = credentials.Certificate(key_dict)
-                    firebase_admin.initialize_app(cred)
-                db = firestore.client()
-                new_db_record = {
+        # ── 7. 저장 버튼 (게스트는 비활성화 + 로그인 유도) ──
+        if st.session_state.get("login_type") == "guest":
+            st.button(t["save_btn"], use_container_width=True, disabled=True, help=t["guest_save_disabled_msg"])
+            st.info(t["guest_save_disabled_msg"])
+            if st.button(t["guest_save_go_login"], use_container_width=True, type="primary"):
+                st.session_state["logged_in"] = False
+                st.session_state["login_type"] = None
+                st.session_state["auth_mode"] = "login"
+                st.rerun()
+        else:
+            if st.button(t["save_btn"], use_container_width=True):
+                save_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+                uid = st.session_state['user_id']
+                try:
+                    from firebase_admin import firestore
+                    import firebase_admin
+                    from firebase_admin import credentials
+                    if not firebase_admin._apps:
+                        _FIREBASE_ADMIN_KEYS = [
+                            "type", "project_id", "private_key_id", "private_key",
+                            "client_email", "client_id", "auth_uri", "token_uri",
+                            "auth_provider_x509_cert_url", "client_x509_cert_url",
+                            "universe_domain"
+                        ]
+                        key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
+                        cred = credentials.Certificate(key_dict)
+                        firebase_admin.initialize_app(cred)
+                    db = firestore.client()
+                    new_db_record = {
+                        "date": save_date,
+                        "sorted_items": [[str(x) for x in item] for item in res['sorted_items']],
+                        "advice": res['advice'],
+                        "blood_sugar_score": res.get('blood_sugar_score', 0),
+                        "total_carbs": res.get('total_carbs', 0),
+                        "total_protein": res.get('total_protein', 0),
+                        "avg_gi": res.get('avg_gi', 0),
+                    }
+                    doc_ref = db.collection("users").document(uid).collection("history").document()
+                    doc_ref.set(new_db_record)
+                except Exception as e:
+                    st.toast(f"DB 저장 에러: {str(e)}")
+
+                st.session_state['history'].append({
                     "date": save_date,
-                    "sorted_items": [[str(x) for x in item] for item in res['sorted_items']],
+                    "image": res['raw_img'],
+                    "sorted_items": res['sorted_items'],
                     "advice": res['advice'],
                     "blood_sugar_score": res.get('blood_sugar_score', 0),
                     "total_carbs": res.get('total_carbs', 0),
                     "total_protein": res.get('total_protein', 0),
                     "avg_gi": res.get('avg_gi', 0),
-                }
-                doc_ref = db.collection("users").document(uid).collection("history").document()
-                doc_ref.set(new_db_record)
-            except Exception as e:
-                st.toast(f"DB 저장 에러: {str(e)}")
-
-            st.session_state['history'].append({
-                "date": save_date,
-                "image": res['raw_img'],
-                "sorted_items": res['sorted_items'],
-                "advice": res['advice'],
-                "blood_sugar_score": res.get('blood_sugar_score', 0),
-                "total_carbs": res.get('total_carbs', 0),
-                "total_protein": res.get('total_protein', 0),
-                "avg_gi": res.get('avg_gi', 0),
-            })
-            st.balloons()
-            st.success(t["save_msg"])
+                })
+                st.balloons()
+                st.success(t["save_msg"])
 
 
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
