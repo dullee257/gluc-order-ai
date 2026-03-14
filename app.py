@@ -628,14 +628,27 @@ if not st.session_state['logged_in']:
             st.query_params.clear()
             st.stop()
 
+    # 1페이지 반응형: 모바일에서 스크롤 없이 한 화면에 맞추기
+    st.markdown("""
+    <style>
+    @media (max-height: 700px), (max-width: 480px) {
+        .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+        .login-page-title { margin-top: 1vh !important; margin-bottom: 0.5vh !important; }
+        .login-page-title .main { font-size: clamp(22px, 6vw, 36px) !important; }
+        .login-page-title .sub { font-size: clamp(13px, 3.5vw, 18px) !important; }
+    }
+    .login-page-title { margin-top: 2vh; margin-bottom: 1.5vh; text-align: center; }
+    .login-page-title .main { font-size: clamp(26px, 7vw, 40px); font-weight: 800; color: #333; margin-bottom: 0.5vh; }
+    .login-page-title .sub { font-size: clamp(14px, 4vw, 20px); font-weight: 500; color: #86cc85; }
+    </style>
+    """, unsafe_allow_html=True)
     st.markdown(f"""
-        <div style="text-align: center; margin-top: 5vh; margin-bottom: 3vh;">
-            <div style="font-size: clamp(30px, 8vw, 40px); font-weight: 800; color: #333333; margin-bottom: 1vh;">{t['title']}</div>
-            <div style="font-size: clamp(16px, 4vw, 20px); font-weight: 500; color: #86cc85;">{t['login_heading']}</div>
+        <div class="login-page-title">
+            <div class="main">{t['title']}</div>
+            <div class="sub">{t['login_heading']}</div>
         </div>
     """, unsafe_allow_html=True)
     
-    # 더 세련된 커스텀 상태 관리를 통한 모드 변경
     if 'auth_mode' not in st.session_state:
         st.session_state['auth_mode'] = 'login'
         
@@ -652,8 +665,8 @@ if not st.session_state['logged_in']:
         if st.button(t["btn_guest"], type="primary" if st.session_state['auth_mode'] == 'guest' else "secondary", use_container_width=True):
             st.session_state['auth_mode'] = 'guest'
             st.rerun()
-            
-    st.markdown("<br>", unsafe_allow_html=True)
+    
+    st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
     
     if st.session_state['auth_mode'] in ['login', 'signup']:
         mode_text = t["btn_login"] if st.session_state['auth_mode'] == 'login' else t["btn_signup"]
@@ -684,28 +697,25 @@ if not st.session_state['logged_in']:
                         else:
                             st.error(get_text(st.session_state.get("lang", "KO"), "err_auth_failed", msg=str(res)))
                 
-        st.markdown(f"<br> <div style='text-align:center; color:#888; font-size:14px;'>{t['or_social']}</div> <br>", unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
-        with col1:
-            if google_client_id:
-                auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
-                params = {
-                    "client_id": google_client_id,
-                    "redirect_uri": BASE_URL + "/",
-                    "response_type": "code",
-                    "scope": "openid email profile",
-                    "state": st.session_state.get("oauth_state", "oauth"),
-                    "access_type": "offline",
-                    "prompt": "consent"
-                }
-                full_auth_url = f"{auth_url}?{urllib.parse.urlencode(params)}"
-                
-                # [Google Login 403 Forbidden 우회 끝판왕]
-                # 자바스크립트나 일반 a 태그까지도 Streamlit의 내부 React Router 돔 이벤트 리스너가 
-                # e.preventDefault()로 가로채기 때문에 403이 발생합니다.
-                # 완벽한 해결책: 버튼 클릭 시 순수 브라우저의 기본 Form 제출 엔진을 사용하여 완전히 React를 무시하고 튕겨나갑니다.
-                oauth_state = st.session_state.get("oauth_state", "oauth")
-                auth_html = f'''
+        # 소셜 로그인: 버튼(확장) 클릭 시 구글·카카오·네이버 등 표시
+        with st.expander(t.get("btn_social_login", "🔐 소셜 계정으로 로그인하기"), expanded=False):
+            st.caption(t["or_social"])
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if google_client_id:
+                    auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
+                    params = {
+                        "client_id": google_client_id,
+                        "redirect_uri": BASE_URL + "/",
+                        "response_type": "code",
+                        "scope": "openid email profile",
+                        "state": st.session_state.get("oauth_state", "oauth"),
+                        "access_type": "offline",
+                        "prompt": "consent"
+                    }
+                    full_auth_url = f"{auth_url}?{urllib.parse.urlencode(params)}"
+                    oauth_state = st.session_state.get("oauth_state", "oauth")
+                    auth_html = f'''
                     <form action="https://accounts.google.com/o/oauth2/v2/auth" method="GET" target="_top" style="margin: 0; padding: 0;">
                         <input type="hidden" name="client_id" value="{google_client_id}">
                         <input type="hidden" name="redirect_uri" value="{BASE_URL}">
@@ -721,24 +731,24 @@ if not st.session_state['logged_in']:
                     <div style="text-align:center; font-size:11px; color:#999; margin-top:5px; line-height:1.2;">
                         {t['oauth_open_in_browser']}
                     </div>
-                '''
-                st.components.v1.html(auth_html, height=80)
-            else:
-                st.button(t["google_login_btn"], disabled=True, use_container_width=True, help=t["google_login_disabled_help"])
-                
-        with col2:
-            st.button(t["kakao_login_btn"], disabled=True, use_container_width=True)
+                    '''
+                    st.components.v1.html(auth_html, height=80)
+                else:
+                    st.button(t["google_login_btn"], disabled=True, use_container_width=True, help=t["google_login_disabled_help"])
+            with col2:
+                st.button(t["kakao_login_btn"], disabled=True, use_container_width=True)
+            with col3:
+                st.button(t.get("naver_login_btn", "🟢 네이버 로그인"), disabled=True, use_container_width=True)
             
     elif st.session_state['auth_mode'] == 'guest':
-        st.info(f"{t['guest_info_title']}\n\n{t['guest_info_body']}")
-        
+        st.info(f"{t['guest_info_title']}\n\n{t['guest_info_body']}", icon="🚀")
         if st.button(t["guest_confirm_btn"], type="primary", use_container_width=True):
             st.session_state['logged_in'] = True
             st.session_state['user_id'] = "guest_user_demo"
             st.session_state['login_type'] = "guest"
             st.rerun()
 
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
     st.stop()  # 로그인되지 않은 사용자는 식단 분석 로직을 볼 수 없음
 
