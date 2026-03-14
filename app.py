@@ -288,17 +288,17 @@ if 'user_goal' not in st.session_state:
 texts = {
     "KO": {
         "title": "🥗 NutriSort AI",
-        "sidebar_title": "💡 NutriSort 관리 시스템",
-        "description": "📈|혈당 스파이크 방지|섭취 순서의 마법", # | 기호로 행 구분점을 만듭니다. 
+        "sidebar_title": "💡 NutriSort 관리",
+        "description": "📈|혈당 스파이크 방지|올바른 섭취 순서",
         "uploader_label": "음식 스캔하기",
-        "analyze_btn": "혈당관리 솔루션 및 섭취순서 분석",
+        "analyze_btn": "혈당 관리 솔루션 및 섭취 순서 분석",
         "save_btn": "💾 이 식단 기록 저장하기",
         "scanner_menu": "식단 스캐너",
         "history_menu": "나의 식단 기록",
-        "analysis_title": "섭취순서",
-        "advice_title": "식단분석",
-        "advice_prompt": "사진 속 음식을 분석하여 혈당 관리를 위한 조언을 다음 4단계 카테고리로 나누어 '반드시' 순서대로 작성해줘. 각 카테고리 앞에 번호와 제목을 적어줘.\n\n1. 사진 속 메뉴 확인\n- '사진 속 메뉴를 보니...'로 시작하여 사진의 음식에 대한 간략한 기본 분석을 진행해.\n- 실제로 사진에 잡곡밥, 채소 등 칭찬할 요소가 있을 때만 칭찬하고 없으면 지어내지 마.\n\n2. 장소 유추 및 실전 메뉴 꿀팁\n- 음식(배경/로고 등)을 기반으로 식사 장소를 유추해.\n- [가장 중요한 규칙]: 유추한 장소가 카페나 디저트 전문점처럼 채소/단백질 메뉴가 메인이 아닌 곳이라면, **굳이 채소 샐러드나 샌드위치를 억지로 추가 주문하라고 제안하지 마!** 해당 장소에 적합한 가벼운 팁(예: 시럽 빼기, 우유 대신 오트밀크 변경 등)만 주고 넘어가.\n- 밥집/고깃집 등 추가 반찬 주문이 자연스러운 곳에서만 보완 음식을 적극 제안해.\n\n3. 권장 식사 순서\n- '2번 단계에서 실제로 추가를 제안한 음식이 있을 경우에만' 원래 상차림과 합쳐서 섭취 순서를 안내해.\n- 억지로 채소나 단백질을 먹으라는 템플릿 문구를 쓰지 말고, **오직 지금 사진에 찍힌 음식(+자연스러운 추가 메뉴) 에 한해서만** 어떻게 순서대로 먹는 것이 혈당 방어에 최선인지 설명해 줘. (커피만 있으면 커피 마시는 법만 설명해).\n\n4. 그 외 부가 설명\n- 음식의 나트륨, 조리법 주의사항, 식후 10분 걷기 등 추가적인 혈당 조언을 자연스럽게 덧붙여줘.",
-        "save_msg": "대표님, '나의 기록' 탭에 저장되었습니다!",
+        "analysis_title": "섭취 순서",
+        "advice_title": "식단 분석",
+        "advice_prompt": "모든 답변은 맞춤법에 맞는 자연스러운 한글로 작성해 주세요. 오타와 잘못된 띄어쓰기를 사용하지 마세요.\n\n사진 속 음식을 분석하여 혈당 관리를 위한 조언을 다음 4단계 카테고리로 나누어 반드시 순서대로 작성해 주세요. 각 카테고리 앞에 번호와 제목을 적어 주세요.\n\n1. 사진 속 메뉴 확인\n- '사진 속 메뉴를 보니...'로 시작하여 사진의 음식에 대한 간략한 기본 분석을 진행해 주세요.\n- 실제로 사진에 잡곡밥, 채소 등 칭찬할 요소가 있을 때만 칭찬하고, 없으면 지어내지 마세요.\n\n2. 장소 유추 및 실전 메뉴 꿀팁\n- 음식(배경·로고 등)을 기반으로 식사 장소를 유추해 주세요.\n- [중요] 유추한 장소가 카페나 디저트 전문점처럼 채소·단백질 메뉴가 메인이 아닌 곳이라면, 굳이 채소 샐러드나 샌드위치를 억지로 추가 주문하라고 제안하지 마세요. 해당 장소에 적합한 가벼운 팁(예: 시럽 빼기, 우유 대신 오트밀크 변경 등)만 주세요.\n- 밥집·고깃집 등 추가 반찬 주문이 자연스러운 곳에서만 보완 음식을 적극 제안해 주세요.\n\n3. 권장 식사 순서\n- 2번 단계에서 실제로 추가를 제안한 음식이 있을 경우에만, 원래 상차림과 합쳐서 섭취 순서를 안내해 주세요.\n- 억지로 채소나 단백질을 먹으라는 문구를 쓰지 말고, 오직 지금 사진에 찍힌 음식(과 자연스러운 추가 메뉴)에 한해서만, 어떻게 순서대로 먹는 것이 혈당 관리에 좋은지 설명해 주세요. (커피만 있으면 커피 마시는 방법만 설명하세요.)\n\n4. 그밖에 부가 설명\n- 음식의 나트륨, 조리법 주의사항, 식후 10분 걷기 등 추가적인 혈당 조언을 자연스럽게 덧붙여 주세요.",
+        "save_msg": "저장되었습니다. '나의 기록'에서 확인하세요!",
         "browse_text": "파일 찾기"
     },
     "EN": {
@@ -325,7 +325,7 @@ with st.sidebar:
     t = texts[lang]
     st.divider()
     st.title(t["sidebar_title"])
-    menu = st.radio("Menu", [t["scanner_menu"], t["history_menu"]])
+    menu = st.radio("메뉴", [t["scanner_menu"], t["history_menu"]])
     # Streamlit Cloud 잠자기 화면 안내 (최초 1회)
     if "sleep_notice_seen" not in st.session_state:
         st.session_state["sleep_notice_seen"] = True
@@ -438,7 +438,7 @@ st.markdown(f"""
 
     /* 내부 텍스트: 화면이 작아지면 같이 작아짐 (최소 14px ~ 최대 20px) */
     [data-testid="stFileUploader"] section::after {{
-        content: "식단 스캔시작"; 
+        content: "식단 스캔 시작"; 
         font-size: clamp(14px, 4vw, 20px); 
         font-weight: 700;
         color: #333333;
@@ -774,7 +774,7 @@ if menu == t["scanner_menu"]:
             
             st.markdown("<br><hr>", unsafe_allow_html=True)
             st.markdown("**기다리지 않고 바로 계속 분석하시겠어요?**")
-            if st.button("🔐 회원가입 / 로그인 탭으로 이동", type="primary", use_container_width=True):
+            if st.button("🔐 회원가입 / 로그인 화면으로 이동", type="primary", use_container_width=True):
                 st.session_state['logged_in'] = False
                 st.session_state['auth_mode'] = 'signup'
                 st.rerun()
@@ -838,7 +838,7 @@ if menu == t["scanner_menu"]:
                 }
                 button[data-testid="baseButton-primary"]::after, 
                 button[kind="primary"]::after {
-                    content: '🤖 분석중. . .' !important;
+                    content: '🤖 분석 중...' !important;
                     position: absolute !important;
                     top: 50% !important;
                     left: 50% !important;
@@ -967,7 +967,7 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
                         st.rerun()
                     else:
                         loading_placeholder.empty()
-                        st.warning("분석에 실패했습니다. 올바른 음식 사진인지 확인해 주세요.")
+                        st.warning("분석에 실패했습니다. 올바른 음식 사진인지 확인해 보세요.")
                         success = True
                         break
                         
@@ -991,9 +991,9 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
                     st.session_state['guest_usage_count'] -= 1
                     
                 if is_503:
-                    st.error("🚀 접속자가 많아 AI 서버가 잠시 지연되고 있습니다. 2~3초 뒤에 다시 스캔 버튼을 눌러주세요!")
+                    st.error("접속자가 많아 AI 서버가 잠시 지연되고 있습니다. 2~3초 뒤에 다시 스캔 버튼을 눌러 주세요.")
                 else:
-                    st.error(f"분석 엔진 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({last_err_msg})")
+                    st.error(f"분석 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({last_err_msg})")
 
     elif st.session_state['app_stage'] == 'result':
         if st.button("⬅️ 메인으로 돌아가기 (다시하기)", key="btn_back_main_2", use_container_width=True):
@@ -1024,7 +1024,7 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
         with col_score:
             st.markdown(f"""
             <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;padding:8px;">
-                <div style="font-size:12px;color:#888;font-weight:600;letter-spacing:1px;margin-bottom:6px;">혈당 스코어</div>
+                <div style="font-size:12px;color:#888;font-weight:600;letter-spacing:1px;margin-bottom:6px;">혈당 점수</div>
                 <div style="width:110px;height:110px;border-radius:50%;
                     background:conic-gradient({risk_color} {score}%, #f0f0f0 {score}%);
                     display:flex;justify-content:center;align-items:center;
@@ -1073,8 +1073,8 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
                 <div style="background:linear-gradient(90deg,#4CAF50,#FFB300,#F44336);width:{score}%;height:10px;border-radius:8px;"></div>
             </div>
             <div style="display:flex;justify-content:space-between;margin-top:4px;">
-                <div style="font-size:10px;color:#aaa;">안전(0)</div>
-                <div style="font-size:10px;color:#aaa;">위험(100)</div>
+                <div style="font-size:10px;color:#aaa;">안전 (0)</div>
+                <div style="font-size:10px;color:#aaa;">위험 (100)</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1200,7 +1200,7 @@ elif menu == t["history_menu"]:
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
                 <div style="text-align:center;">
                     <div style="font-size:26px;font-weight:900;color:{ds_color};">{ds}</div>
-                    <div style="font-size:10px;color:#94a3b8;">평균 혈당스코어</div>
+                    <div style="font-size:10px;color:#94a3b8;">평균 혈당 점수</div>
                     <div style="font-size:12px;font-weight:700;color:{ds_color};">{ds_label}</div>
                 </div>
                 <div style="text-align:center;">
@@ -1234,14 +1234,14 @@ elif menu == t["history_menu"]:
             rec_gi = rec.get('avg_gi', 0)
             rc = "#4CAF50" if rec_score <= 40 else "#FFB300" if rec_score <= 65 else "#F44336"
             rl = "안전" if rec_score <= 40 else "주의" if rec_score <= 65 else "위험"
-            with st.expander(f"🍴 {rec['date']}  |  혈당 {rec_score}점({rl})  |  탄수화물 {rec_carbs}g"):
+            with st.expander(f"🍴 {rec['date']}  |  혈당 {rec_score}점 ({rl})  |  탄수화물 {rec_carbs}g"):
                 if rec.get('image'):
                     st.image(rec['image'], use_container_width=True)
                 st.markdown(f"""
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0;">
                     <div style="background:{rc}11;border:1px solid {rc}33;border-radius:10px;padding:10px;text-align:center;">
                         <div style="font-size:18px;font-weight:900;color:{rc};">{rec_score}</div>
-                        <div style="font-size:10px;color:#888;">혈당스코어</div>
+                        <div style="font-size:10px;color:#888;">혈당 점수</div>
                     </div>
                     <div style="background:#f8f9fa;border-radius:10px;padding:10px;text-align:center;">
                         <div style="font-size:18px;font-weight:900;color:#333;">{rec_carbs}g</div>
@@ -1267,4 +1267,4 @@ elif menu == t["history_menu"]:
                 st.divider()
                 st.info(rec['advice'])
     else:
-        st.info("저장된 식단 기록이 없습니다. 분석 후 '저장하기' 버튼을 눌러보세요!")
+        st.info("저장된 식단 기록이 없습니다. 분석 후 '저장하기' 버튼을 눌러 보세요.")
