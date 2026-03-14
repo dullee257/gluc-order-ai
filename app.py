@@ -359,11 +359,16 @@ messages_en = {
 MESSAGES = {"KO": messages_ko, "EN": messages_en}
 t = MESSAGES[st.session_state["lang"]]
 
-# 3. 사이드바 메뉴 (언어는 상단에서 선택, 세션에 유지)
+# 3. 사이드바 메뉴 (언어와 무관한 안정 키 사용 → 분석 후 rerun 시에도 스캐너/결과 화면 유지)
 with st.sidebar:
     st.title(t.get("sidebar_title", "설정"))
     st.divider()
-    menu = st.radio("메뉴", [t["scanner_menu"], t["history_menu"]])
+    menu_key = st.radio(
+        "메뉴",
+        options=["scanner", "history"],
+        format_func=lambda x: t["scanner_menu"] if x == "scanner" else t["history_menu"],
+        key="sidebar_menu",
+    )
     # Streamlit Cloud 잠자기 화면 안내 (최초 1회)
     if "sleep_notice_seen" not in st.session_state:
         st.session_state["sleep_notice_seen"] = True
@@ -788,7 +793,7 @@ if not st.session_state['logged_in']:
 
 
 # 5. 메인 화면 - 식단 스캐너
-if menu == t["scanner_menu"]:
+if menu_key == "scanner":
     if 'app_stage' not in st.session_state:
         st.session_state['app_stage'] = 'main'
         
@@ -1066,6 +1071,15 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
                     st.error(f"분석 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({last_err_msg})")
 
     elif st.session_state['app_stage'] == 'result':
+        # 세션 손실(다중 워커/타임아웃 등) 시 분석 결과가 없으면 메인으로 복귀
+        if st.session_state.get('current_analysis') is None:
+            st.session_state['app_stage'] = 'main'
+            st.session_state['current_img'] = None
+            if 'uploader_key' in st.session_state:
+                st.session_state['uploader_key'] += 1
+            st.warning("세션이 초기화되었습니다. 다시 사진을 올려 분석해 주세요.")
+            st.rerun()
+
         if st.button("⬅️ 메인으로 돌아가기 (다시하기)", key="btn_back_main_2", use_container_width=True):
             st.session_state['app_stage'] = 'main'
             st.session_state['current_img'] = None
@@ -1253,7 +1267,7 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
 
 
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
-elif menu == t["history_menu"]:
+elif menu_key == "history":
     st.title(f"📅 {t['history_menu']}")
 
     # 오늘 하루 요약 대시보드
