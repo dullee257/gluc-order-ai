@@ -697,10 +697,25 @@ if not st.session_state['logged_in']:
                         else:
                             st.error(get_text(st.session_state.get("lang", "KO"), "err_auth_failed", msg=str(res)))
                 
-        # 소셜 로그인: 한글(KO)일 때만 카카오·네이버 표시, 그 외 언어는 구글만
+        # 소셜 로그인: 버튼 클릭 시 펼침(expander 제거 → 글자 겹침 방지), 배경색·자동 스크롤
         _lang = st.session_state.get("lang", "KO")
         _show_kakao_naver = _lang == "KO"
-        with st.expander(t.get("btn_social_login", "소셜 계정으로 로그인하기"), expanded=False):
+        if "show_social_buttons" not in st.session_state:
+            st.session_state["show_social_buttons"] = False
+        _btn_label = t.get("btn_social_login", "소셜 계정으로 로그인하기")
+        st.markdown("""
+        <style>
+        /* 소셜 로그인하기 버튼만 배경색 적용 (바로 다음 블록의 버튼) */
+        #social-login-trigger-marker + div button { background-color: #e8f5e9 !important; color: #1b5e20 !important; border: 1px solid #a5d6a7 !important; border-radius: 8px !important; font-weight: 600 !important; }
+        #social-login-trigger-marker + div button:hover { background-color: #c8e6c9 !important; }
+        </style>
+        """, unsafe_allow_html=True)
+        st.markdown('<div id="social-login-trigger-marker"></div>', unsafe_allow_html=True)
+        if st.button(_btn_label, key="social_login_toggle", type="secondary", use_container_width=True):
+            st.session_state["show_social_buttons"] = True
+            st.rerun()
+        if st.session_state.get("show_social_buttons"):
+            st.markdown('<div id="social-buttons-block" style="scroll-margin-top: 12px;"></div>', unsafe_allow_html=True)
             st.caption(t["or_social"])
             if _show_kakao_naver:
                 col1, col2, col3 = st.columns(3)
@@ -745,6 +760,16 @@ if not st.session_state['logged_in']:
                     st.button(t["kakao_login_btn"], disabled=True, use_container_width=True)
                 with col3:
                     st.button(t.get("naver_login_btn", "네이버 로그인"), disabled=True, use_container_width=True)
+            # 펼친 직후 구글 등이 보이도록 자동 스크롤 (부모 문서 기준)
+            st.components.v1.html("""
+            <script>
+            (function(){
+                var doc = window.parent.document;
+                var el = doc.getElementById("social-buttons-block");
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+            })();
+            </script>
+            """, height=1)
             
     elif st.session_state['auth_mode'] == 'guest':
         st.info(f"{t['guest_info_title']}\n\n{t['guest_info_body']}", icon="🚀")
