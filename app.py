@@ -791,6 +791,8 @@ if not st.session_state['logged_in']:
 
 # 5. 메인 화면 - 식단 스캐너
 if menu_key == "scanner":
+    # 환영 문구를 로그아웃 버튼 위에 표시
+    render_login_badge()
     # 메인 상단: 1페이지로 가기 버튼 (사이드바 접힌 상태에서도 보이도록)
     _lt = st.session_state.get("login_type")
     col_top1, col_top2 = st.columns([5, 1])
@@ -830,7 +832,6 @@ if menu_key == "scanner":
                 <div style="font-size: clamp(14px, 4vw, 18px); font-weight: 500; color: #86cc85; margin-top: 1vh;">{title_parts[2]}</div>
             </div>
         """, unsafe_allow_html=True)
-        render_login_badge()
         
         # [무료 체험 일일 횟수 및 광고 리워드 로직]
         is_guest = st.session_state['user_id'] == 'guest_user_demo'
@@ -903,7 +904,6 @@ if menu_key == "scanner":
                 st.rerun()
 
     elif st.session_state['app_stage'] == 'analyze':
-        render_login_badge()
         # 2페이지: 업로드 완료 & 분석 대기 페이지
         if st.button(t["btn_back_main"], key="btn_back_main_1", use_container_width=True):
             st.session_state['app_stage'] = 'main'
@@ -1069,7 +1069,6 @@ if menu_key == "scanner":
                     st.error(get_text(st.session_state.get("lang", "KO"), "analysis_error_generic", msg=last_err_msg))
 
     elif st.session_state['app_stage'] == 'result':
-        render_login_badge()
         # 세션 손실(다중 워커/타임아웃 등) 시 분석 결과가 없으면 메인으로 복귀
         if st.session_state.get('current_analysis') is None:
             st.session_state['app_stage'] = 'main'
@@ -1276,6 +1275,8 @@ if menu_key == "scanner":
 
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
 elif menu_key == "history":
+    # 환영 문구를 로그아웃 버튼 위에 표시
+    render_login_badge()
     # 메인 상단: 1페이지로 가기 버튼
     _lt_h = st.session_state.get("login_type")
     c1, c2 = st.columns([5, 1])
@@ -1297,7 +1298,6 @@ elif menu_key == "history":
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
     st.title(f"📅 {t['history_menu']}")
-    render_login_badge()
 
     # 오늘 하루 요약 대시보드
     if st.session_state['daily_meals_count'] > 0:
