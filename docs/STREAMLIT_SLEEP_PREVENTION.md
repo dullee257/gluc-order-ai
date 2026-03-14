@@ -29,10 +29,11 @@ Streamlit Community Cloud **무료** 플랜은 약 12시간 비활성 시 앱을
   Streamlit은 "깨우기" 페이지를 보여 주는 HTML만 주고, 실제 앱 프로세스는 사용자가 **브라우저에서 "Yes, get this app back up!" 버튼을 눌렀을 때**만 시작됩니다.
 - 그래서 **브라우저 자동화**(Playwright 등)로 해당 버튼을 주기적으로 클릭하는 방식이 필요합니다.
 
-이 레포에는 **GitHub Actions**로 4시간마다 위 동작을 하는 워크플로와 스크립트가 들어 있습니다.
+이 레포에는 **GitHub Actions**로 위 동작을 하는 워크플로와 스크립트가 들어 있습니다.
 
 - **위치**: `.github/workflows/streamlit-keepalive.yml`  
-- **동작**: 4시간마다 앱 URL 접속 → "Yes, get this app back up!" 버튼이 보이면 클릭 → 앱이 깨어난 상태로 유지
+- **동작**: 앱 URL 접속 → "Yes, get this app back up!" 버튼이 보이면 클릭 → 앱이 깨어난 상태로 유지
+- **Railway 사용 시**: 서버가 24시간 켜져 있으므로 **자동 실행(cron)은 비활성화**되어 있습니다. 수동 실행(workflow_dispatch)만 가능. Streamlit Cloud로 다시 전환하면 워크플로에서 `schedule` 주석을 해제해 두면 됩니다.
 - **설정**:  
   - 기본 URL은 `https://nutrisort.streamlit.app` 입니다.  
   - 다른 URL을 쓰려면 GitHub 저장소 **Settings → Secrets and variables → Actions**에서 `STREAMLIT_APP_URL` 시크릿을 추가해 앱 URL을 넣으면 됩니다.
