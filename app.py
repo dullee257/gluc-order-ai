@@ -245,6 +245,7 @@ from google import genai
 from PIL import Image
 from datetime import datetime
 import io
+import base64
 
 def compress_image(img, max_size_kb=500):
     """이미지가 서버에 로드된 직후 500KB 이하로 브라우저 표시 및 전송 전에 최적화(압축)하는 함수"""
@@ -260,6 +261,22 @@ def compress_image(img, max_size_kb=500):
             return Image.open(output)
         quality -= 10
         img = img.resize((int(img.width * 0.8), int(img.height * 0.8)), Image.Resampling.LANCZOS)
+
+
+def compress_image_for_storage(img, max_width=1024, quality=80):
+    """Firebase Storage 업로드 직전: 최대 너비 1024px, 화질 80, 비율 유지. (PIL Image, JPEG bytes) 반환."""
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    w, h = img.size
+    if w > max_width:
+        ratio = max_width / w
+        new_h = int(h * ratio)
+        img = img.resize((max_width, new_h), Image.Resampling.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=quality)
+    buf.seek(0)
+    return img, buf.getvalue()
+
 
 # 2. 세션 상태 초기화
 if 'history' not in st.session_state:
@@ -903,6 +920,75 @@ if menu_key == "scanner":
                 st.session_state['app_stage'] = 'analyze'
                 st.rerun()
 
+        # 나의 혈당 관리 리포트 (로그인 사용자만, 메인 화면 하단)
+        if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
+            st.markdown("---")
+            st.markdown(f"### 📊 {t.get('report_section_title', '나의 혈당 관리 리포트')}")
+            _period_labels = {"today": t.get("report_filter_today", "오늘"), "week": t.get("report_filter_week", "주간"), "month": t.get("report_filter_month", "월간")}
+            report_period = st.radio(
+                "기간",
+                options=["today", "week", "month"],
+                format_func=lambda x: _period_labels.get(x, x),
+                key="report_period",
+                horizontal=True,
+                label_visibility="collapsed",
+            )
+            try:
+                from firebase_admin import firestore
+                import firebase_admin
+                from firebase_admin import credentials
+                if not firebase_admin._apps:
+                    _FIREBASE_ADMIN_KEYS = [
+                        "type", "project_id", "private_key_id", "private_key",
+                        "client_email", "client_id", "auth_uri", "token_uri",
+                        "auth_provider_x509_cert_url", "client_x509_cert_url",
+                        "universe_domain"
+                    ]
+                    key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
+                    cred = credentials.Certificate(key_dict)
+                    firebase_admin.initialize_app(cred)
+                db = firestore.client()
+                now = datetime.now()
+                if report_period == "today":
+                    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                elif report_period == "week":
+                    from datetime import timedelta
+                    start = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+                else:
+                    from datetime import timedelta
+                    start = (now.replace(day=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                ref = db.collection("user_logs").where("user_id", "==", st.session_state["user_id"]).where("timestamp", ">=", start)
+                docs = list(ref.stream())
+                docs = sorted(docs, key=lambda d: (d.to_dict().get("timestamp") or datetime.min), reverse=True)
+                if not docs:
+                    st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
+                else:
+                    import plotly.express as px
+                    import pandas as pd
+                    rows = []
+                    for d in docs:
+                        data = d.to_dict()
+                        rows.append({
+                            "date": data.get("date", ""),
+                            "carbs": data.get("total_carbs", 0),
+                            "score": data.get("blood_sugar_score", 0),
+                            "protein": data.get("total_protein", 0),
+                        })
+                    df = pd.DataFrame(rows)
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        st.metric(t.get("report_meals_count", "식단 수"), len(df))
+                    with c2:
+                        st.metric(t.get("report_avg_carbs", "평균 탄수화물"), f"{df['carbs'].mean():.0f}g")
+                    with c3:
+                        st.metric(t.get("report_avg_score", "평균 혈당 점수"), f"{df['score'].mean():.0f}")
+                    if len(df) >= 2:
+                        fig = px.bar(df, x="date", y="carbs", title="", color_discrete_sequence=["#86cc85"])
+                        fig.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=220, xaxis_tickangle=-45)
+                        st.plotly_chart(fig, use_container_width=True)
+            except Exception as _e:
+                st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
+
     elif st.session_state['app_stage'] == 'analyze':
         # 2페이지: 업로드 완료 & 분석 대기 페이지
         if st.button(t["btn_back_main"], key="btn_back_main_1", use_container_width=True):
@@ -910,8 +996,20 @@ if menu_key == "scanner":
             st.session_state['current_img'] = None
             st.session_state['uploader_key'] += 1 # 강제로 새 업로더 생성(초기화)
             st.rerun()
-            
-        st.image(st.session_state['current_img'], use_container_width=True)
+        
+        # 미리보기: 최대 높이 350px, object-fit contain → 분석 버튼이 스크롤 없이 보이도록
+        _img = st.session_state['current_img']
+        if _img:
+            _buf = io.BytesIO()
+            if _img.mode in ("RGBA", "P"):
+                _img = _img.convert("RGB")
+            _img.save(_buf, format="JPEG", quality=85)
+            _b64 = base64.b64encode(_buf.getvalue()).decode()
+            st.markdown(f"""
+            <div style="max-height:350px;display:flex;justify-content:center;align-items:center;margin-bottom:10px;background:#f8f9fa;border-radius:12px;overflow:hidden;">
+                <img src="data:image/jpeg;base64,{_b64}" style="max-height:350px;width:100%;object-fit:contain;" />
+            </div>
+            """, unsafe_allow_html=True)
         
         # 분석 버튼 (피그마 스타일 & 무지개 애니메이션) - primary 타입으로 지정하여 다른 버튼(뒤로가기)과 CSS 분리
         if st.button(t["analyze_btn"], use_container_width=True, type="primary"):
@@ -1099,10 +1197,21 @@ if menu_key == "scanner":
         else:
             risk_label, risk_color = f"{t['risk_danger']} 🔴", "#F44336"
 
-        # ── 1. 이미지 + 원형 혈당 스코어 (Cal AI 핵심 UI) ──
+        # ── 1. 이미지 + 원형 혈당 스코어 (Cal AI 핵심 UI, 미리보기 높이 350px로 콤팩트) ──
         col_img, col_score = st.columns([1, 1])
         with col_img:
-            st.image(res['raw_img'], use_container_width=True)
+            _res_img = res.get("raw_img")
+            if _res_img:
+                _rb = io.BytesIO()
+                if _res_img.mode in ("RGBA", "P"):
+                    _res_img = _res_img.convert("RGB")
+                _res_img.save(_rb, format="JPEG", quality=85)
+                _res_b64 = base64.b64encode(_rb.getvalue()).decode()
+                st.markdown(f"""
+                <div style="max-height:350px;display:flex;justify-content:center;align-items:center;background:#f8f9fa;border-radius:12px;overflow:hidden;">
+                    <img src="data:image/jpeg;base64,{_res_b64}" style="max-height:350px;width:100%;object-fit:contain;" />
+                </div>
+                """, unsafe_allow_html=True)
         with col_score:
             st.markdown(f"""
             <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;padding:8px;">
@@ -1230,8 +1339,9 @@ if menu_key == "scanner":
             if st.button(t["save_btn"], use_container_width=True):
                 save_date = datetime.now().strftime("%Y-%m-%d %H:%M")
                 uid = st.session_state['user_id']
+                image_url = None
                 try:
-                    from firebase_admin import firestore
+                    from firebase_admin import firestore, storage
                     import firebase_admin
                     from firebase_admin import credentials
                     if not firebase_admin._apps:
@@ -1245,29 +1355,58 @@ if menu_key == "scanner":
                         cred = credentials.Certificate(key_dict)
                         firebase_admin.initialize_app(cred)
                     db = firestore.client()
+                    doc_ref = db.collection("users").document(uid).collection("history").document()
+                    doc_id = doc_ref.id
+                    # Storage 업로드: 1024px·quality 80 압축본 업로드
+                    raw_pil = res.get("raw_img")
+                    if raw_pil is not None:
+                        _, img_bytes = compress_image_for_storage(raw_pil, max_width=1024, quality=80)
+                        try:
+                            bucket = storage.bucket()
+                            path = f"users/{uid}/meals/{doc_id}.jpg"
+                            blob = bucket.blob(path)
+                            blob.upload_from_string(img_bytes, content_type="image/jpeg")
+                            blob.make_public()
+                            image_url = blob.public_url
+                        except Exception as storage_err:
+                            pass  # 이미지 없이 메타만 저장
                     new_db_record = {
                         "date": save_date,
-                        "sorted_items": [[str(x) for x in item] for item in res['sorted_items']],
-                        "advice": res['advice'],
-                        "blood_sugar_score": res.get('blood_sugar_score', 0),
-                        "total_carbs": res.get('total_carbs', 0),
-                        "total_protein": res.get('total_protein', 0),
-                        "avg_gi": res.get('avg_gi', 0),
+                        "sorted_items": [[str(x) for x in item] for item in res["sorted_items"]],
+                        "advice": res["advice"],
+                        "blood_sugar_score": res.get("blood_sugar_score", 0),
+                        "total_carbs": res.get("total_carbs", 0),
+                        "total_protein": res.get("total_protein", 0),
+                        "avg_gi": res.get("avg_gi", 0),
+                        "image_url": image_url,
                     }
-                    doc_ref = db.collection("users").document(uid).collection("history").document()
                     doc_ref.set(new_db_record)
+                    # user_logs 컬렉션에 사용자 ID별 저장 (리포트용)
+                    db.collection("user_logs").add({
+                        "user_id": uid,
+                        "date": save_date,
+                        "timestamp": datetime.now(),
+                        "sorted_items": new_db_record["sorted_items"],
+                        "advice": new_db_record["advice"],
+                        "blood_sugar_score": new_db_record["blood_sugar_score"],
+                        "total_carbs": new_db_record["total_carbs"],
+                        "total_protein": new_db_record["total_protein"],
+                        "avg_gi": new_db_record["avg_gi"],
+                        "image_url": image_url,
+                    })
                 except Exception as e:
                     st.toast(f"DB 저장 에러: {str(e)}")
 
-                st.session_state['history'].append({
+                st.session_state["history"].append({
                     "date": save_date,
-                    "image": res['raw_img'],
-                    "sorted_items": res['sorted_items'],
-                    "advice": res['advice'],
-                    "blood_sugar_score": res.get('blood_sugar_score', 0),
-                    "total_carbs": res.get('total_carbs', 0),
-                    "total_protein": res.get('total_protein', 0),
-                    "avg_gi": res.get('avg_gi', 0),
+                    "image": res["raw_img"],
+                    "image_url": image_url,
+                    "sorted_items": res["sorted_items"],
+                    "advice": res["advice"],
+                    "blood_sugar_score": res.get("blood_sugar_score", 0),
+                    "total_carbs": res.get("total_carbs", 0),
+                    "total_protein": res.get("total_protein", 0),
+                    "avg_gi": res.get("avg_gi", 0),
                 })
                 st.balloons()
                 st.success(t["save_msg"])
@@ -1348,7 +1487,9 @@ elif menu_key == "history":
             rc = "#4CAF50" if rec_score <= 40 else "#FFB300" if rec_score <= 65 else "#F44336"
             rl = t["risk_safe"] if rec_score <= 40 else t["risk_caution"] if rec_score <= 65 else t["risk_danger"]
             with st.expander(f"🍴 {rec['date']}  |  {t['blood_score_label']} {rec_score} ({rl})  |  {t['carbs']} {rec_carbs}g"):
-                if rec.get('image'):
+                if rec.get('image_url'):
+                    st.image(rec['image_url'], use_container_width=True)
+                elif rec.get('image'):
                     st.image(rec['image'], use_container_width=True)
                 st.markdown(f"""
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0;">
