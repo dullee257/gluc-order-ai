@@ -334,10 +334,6 @@ with st.sidebar:
             <div style="font-size:11px;color:#888;margin-top:4px;">{meals_text}</div>
         </div>
         """, unsafe_allow_html=True)
-    # === PWA 설치 (앱처럼 쓰기) 가이드 ===
-    st.divider()
-    st.markdown(f"### 📱 {t['install_app_title']}")
-    st.info(t.get("install_app_sidebar", ""))
     # === 상용화: 건강 정보 면책 고지 (법적 권장) ===
     with st.expander(f"⚠️ {t['health_disclaimer_title']}", expanded=False):
         st.caption(t.get("health_disclaimer_body", ""))
@@ -687,8 +683,6 @@ if not st.session_state['logged_in']:
             st.rerun()
 
     st.markdown("<br><br>", unsafe_allow_html=True)
-    with st.expander(t["install_guide_title"], expanded=False):
-        st.markdown(t["install_guide_body"].replace("\n", "\n\n"))
 
     st.stop()  # 로그인되지 않은 사용자는 식단 분석 로직을 볼 수 없음
 
