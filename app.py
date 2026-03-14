@@ -338,24 +338,25 @@ with st.sidebar:
     with st.expander(f"⚠️ {t['health_disclaimer_title']}", expanded=False):
         st.caption(t.get("health_disclaimer_body", ""))
 
-# 3-2. Cal AI 스타일 상단 언어 선택 (세션에 저장되어 새로고침 후에도 유지)
-st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-lang_col1, lang_col2, lang_col3 = st.columns([1, 2, 1])
-with lang_col2:
-    current_idx = SUPPORTED_LANGS.index(st.session_state["lang"]) if st.session_state["lang"] in SUPPORTED_LANGS else 0
-    selected_lang = st.selectbox(
-        "Language",
-        options=SUPPORTED_LANGS,
-        format_func=lambda x: LANG_LABELS.get(x, x),
-        index=current_idx,
-        key="lang_select_top",
-        label_visibility="collapsed",
-    )
-if selected_lang != st.session_state["lang"]:
-    st.session_state["lang"] = selected_lang
-    t = LANG_DICT[st.session_state["lang"]]
-    st.rerun()
-st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
+# 3-2. 언어 선택 드롭다운: 로그인/체험 전(1페이지)에만 표시, 2페이지부터는 숨김
+if not st.session_state.get("logged_in", False):
+    st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+    lang_col1, lang_col2, lang_col3 = st.columns([1, 2, 1])
+    with lang_col2:
+        current_idx = SUPPORTED_LANGS.index(st.session_state["lang"]) if st.session_state["lang"] in SUPPORTED_LANGS else 0
+        selected_lang = st.selectbox(
+            "Language",
+            options=SUPPORTED_LANGS,
+            format_func=lambda x: LANG_LABELS.get(x, x),
+            index=current_idx,
+            key="lang_select_top",
+            label_visibility="collapsed",
+        )
+    if selected_lang != st.session_state["lang"]:
+        st.session_state["lang"] = selected_lang
+        t = LANG_DICT[st.session_state["lang"]]
+        st.rerun()
+    st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
 
 # 3-3. 브라우저 자동번역 방지: 선택된 언어로 HTML lang 속성 설정
 _lang_attr = LANG_HTML_ATTR.get(st.session_state.get("lang", "KO"), "ko")
