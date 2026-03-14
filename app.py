@@ -3,6 +3,7 @@
 import sys
 import os
 import json
+import traceback
 
 from translation import LANG_DICT, get_text, SUPPORTED_LANGS, LANG_LABELS, LANG_HTML_ATTR, GOAL_INTERNAL_KEYS
 from prompts import get_analysis_prompt
@@ -265,17 +266,23 @@ def compress_image(img, max_size_kb=500):
 
 def compress_image_for_storage(img, max_width=1024, quality=80):
     """Firebase Storage 업로드 직전: 최대 너비 1024px, 화질 80, 비율 유지. (PIL Image, JPEG bytes) 반환."""
+    if img is None:
+        return None, None
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
     w, h = img.size
     if w > max_width:
         ratio = max_width / w
-        new_h = int(h * ratio)
+        new_h = max(1, int(h * ratio))
         img = img.resize((max_width, new_h), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=quality)
     buf.seek(0)
-    return img, buf.getvalue()
+    img_bytes = buf.getvalue()
+    # JPEG 매직 바이트 검증 (Firebase Storage 400 방지)
+    if len(img_bytes) < 2 or img_bytes[0:2] != b"\xff\xd8":
+        return None, None
+    return img, img_bytes
 
 
 # 2. 세션 상태 초기화
@@ -1357,44 +1364,64 @@ if menu_key == "scanner":
                     db = firestore.client()
                     doc_ref = db.collection("users").document(uid).collection("history").document()
                     doc_id = doc_ref.id
-                    # Storage 업로드: 1024px·quality 80 압축본 업로드
+                    # Firestore 호환: 숫자는 native int/float (numpy 등 제거)
+                    def _num(v):
+                        if v is None:
+                            return 0
+                        try:
+                            return int(v) if isinstance(v, (int, float)) or hasattr(v, "__int__") else int(float(v))
+                        except (TypeError, ValueError):
+                            return 0
+
+                    # Storage 업로드: 1024px·quality 80 압축본, 형식 검증 후 업로드
                     raw_pil = res.get("raw_img")
                     if raw_pil is not None:
                         _, img_bytes = compress_image_for_storage(raw_pil, max_width=1024, quality=80)
-                        try:
-                            bucket = storage.bucket()
-                            path = f"users/{uid}/meals/{doc_id}.jpg"
-                            blob = bucket.blob(path)
-                            blob.upload_from_string(img_bytes, content_type="image/jpeg")
-                            blob.make_public()
-                            image_url = blob.public_url
-                        except Exception as storage_err:
-                            pass  # 이미지 없이 메타만 저장
+                        if img_bytes and isinstance(img_bytes, bytes) and len(img_bytes) > 0:
+                            try:
+                                bucket = storage.bucket()
+                                _uid_safe = str(uid).replace("/", "_").replace("\\", "_") if uid else "unknown"
+                                path = f"users/{_uid_safe}/meals/{doc_id}.jpg"
+                                blob = bucket.blob(path)
+                                blob.upload_from_string(img_bytes, content_type="image/jpeg")
+                                blob.make_public()
+                                image_url = blob.public_url
+                            except Exception as storage_err:
+                                traceback.print_exc(file=sys.stderr)
+                                sys.stderr.write(f"[Storage] {type(storage_err).__name__}: {storage_err}\n")
+                    # Firestore 필드: 필수·타입 준수 (date, sorted_items, advice, 숫자 필드, image_url)
+                    sorted_items_serial = []
+                    for item in res.get("sorted_items", []):
+                        sorted_items_serial.append([str(x) for x in item])
                     new_db_record = {
-                        "date": save_date,
-                        "sorted_items": [[str(x) for x in item] for item in res["sorted_items"]],
-                        "advice": res["advice"],
-                        "blood_sugar_score": res.get("blood_sugar_score", 0),
-                        "total_carbs": res.get("total_carbs", 0),
-                        "total_protein": res.get("total_protein", 0),
-                        "avg_gi": res.get("avg_gi", 0),
-                        "image_url": image_url,
+                        "date": str(save_date),
+                        "sorted_items": sorted_items_serial,
+                        "advice": str(res.get("advice", "")),
+                        "blood_sugar_score": _num(res.get("blood_sugar_score")),
+                        "total_carbs": _num(res.get("total_carbs")),
+                        "total_protein": _num(res.get("total_protein")),
+                        "avg_gi": _num(res.get("avg_gi")),
+                        "image_url": image_url if image_url is not None else None,
                     }
                     doc_ref.set(new_db_record)
-                    # user_logs 컬렉션에 사용자 ID별 저장 (리포트용)
+                    # user_logs: timestamp는 Firestore가 허용하는 datetime
+                    from datetime import timezone
+                    now_utc = datetime.now(timezone.utc)
                     db.collection("user_logs").add({
-                        "user_id": uid,
-                        "date": save_date,
-                        "timestamp": datetime.now(),
+                        "user_id": str(uid),
+                        "date": str(save_date),
+                        "timestamp": now_utc,
                         "sorted_items": new_db_record["sorted_items"],
                         "advice": new_db_record["advice"],
                         "blood_sugar_score": new_db_record["blood_sugar_score"],
                         "total_carbs": new_db_record["total_carbs"],
                         "total_protein": new_db_record["total_protein"],
                         "avg_gi": new_db_record["avg_gi"],
-                        "image_url": image_url,
+                        "image_url": new_db_record["image_url"],
                     })
                 except Exception as e:
+                    traceback.print_exc(file=sys.stderr)
+                    sys.stderr.write(f"[DB 저장] {type(e).__name__}: {e}\n")
                     st.toast(f"DB 저장 에러: {str(e)}")
 
                 st.session_state["history"].append({
