@@ -616,7 +616,7 @@ if not st.session_state['logged_in']:
             
     elif st.session_state['auth_mode'] == 'guest':
         st.info(
-            "🚀 **비회원 체험 모드 안내**\\n\\n"
+            "🚀 **비회원 체험 모드 안내**\n\n"
             "체험 모드에서는 본인의 현재 모바일 기기에만 임시 데이터가 기록되며, "
             "추후 브라우저 캐시가 삭제되면 기록이 지워질 수 있습니다."
         )
@@ -1065,7 +1065,15 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
                 import firebase_admin
                 from firebase_admin import credentials
                 if not firebase_admin._apps:
-                    key_dict = dict(st.secrets["firebase"])
+                    # firebase_admin SDK가 인식하는 서비스 계정 키만 추출
+                    # (google_oauth_client_id, google_client_secret, api_key 등 비SDK 키 제외)
+                    _FIREBASE_ADMIN_KEYS = [
+                        "type", "project_id", "private_key_id", "private_key",
+                        "client_email", "client_id", "auth_uri", "token_uri",
+                        "auth_provider_x509_cert_url", "client_x509_cert_url",
+                        "universe_domain"
+                    ]
+                    key_dict = {k: v for k, v in st.secrets["firebase"].items() if k in _FIREBASE_ADMIN_KEYS}
                     cred = credentials.Certificate(key_dict)
                     firebase_admin.initialize_app(cred)
                 db = firestore.client()

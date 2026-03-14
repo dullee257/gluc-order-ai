@@ -16,3 +16,8 @@ secrets.toml
 
 # MacOS
 .DS_Store
+
+# 임시/테스트 파일 (커밋 제외)
+test_script.py
+4.jpg
+main.;py
