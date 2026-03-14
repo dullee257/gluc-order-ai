@@ -306,8 +306,11 @@ def render_login_badge():
             unsafe_allow_html=True,
         )
     elif _lt == "google":
+        uid = st.session_state.get("user_id") or ""
+        display_name = (uid.split("@")[0] if "@" in uid else uid) or "User"
+        welcome_msg = get_text(st.session_state.get("lang", "KO"), "welcome_user", name=display_name)
         st.markdown(
-            f'<div style="background:#4CAF50;color:white;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;margin-bottom:8px;">✓ {t["login_badge_account"]}</div>',
+            f'<div style="background:#4CAF50;color:white;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;margin-bottom:8px;">✓ {welcome_msg}</div>',
             unsafe_allow_html=True,
         )
 
@@ -316,6 +319,22 @@ def render_login_badge():
 with st.sidebar:
     st.title(t.get("sidebar_title", "설정"))
     render_login_badge()
+    # 2페이지 → 1페이지: 상단에 배치해 항상 보이도록
+    _lt = st.session_state.get("login_type")
+    if _lt == "guest":
+        if st.button(f"🔐 {t['sidebar_go_login']}", key="sidebar_go_login", use_container_width=True):
+            st.session_state["logged_in"] = False
+            st.session_state["login_type"] = None
+            st.session_state["user_id"] = None
+            st.session_state["auth_mode"] = "login"
+            st.rerun()
+    elif _lt == "google":
+        if st.button(f"🚪 {t['sidebar_logout']}", key="sidebar_logout", use_container_width=True):
+            st.session_state["logged_in"] = False
+            st.session_state["login_type"] = None
+            st.session_state["user_id"] = None
+            st.session_state["auth_mode"] = "login"
+            st.rerun()
     st.divider()
     menu_key = st.radio(
         t.get("menu_label", "메뉴"),
@@ -359,23 +378,6 @@ with st.sidebar:
     # === 상용화: 건강 정보 면책 고지 (법적 권장) ===
     with st.expander(f"⚠️ {t['health_disclaimer_title']}", expanded=False):
         st.caption(t.get("health_disclaimer_body", ""))
-
-    # === 2페이지 → 1페이지: 로그아웃 / 로그인하기 ===
-    _lt = st.session_state.get("login_type")
-    if _lt == "guest":
-        if st.button(f"🔐 {t['sidebar_go_login']}", key="sidebar_go_login", use_container_width=True):
-            st.session_state["logged_in"] = False
-            st.session_state["login_type"] = None
-            st.session_state["user_id"] = None
-            st.session_state["auth_mode"] = "login"
-            st.rerun()
-    elif _lt == "google":
-        if st.button(f"🚪 {t['sidebar_logout']}", key="sidebar_logout", use_container_width=True):
-            st.session_state["logged_in"] = False
-            st.session_state["login_type"] = None
-            st.session_state["user_id"] = None
-            st.session_state["auth_mode"] = "login"
-            st.rerun()
 
 # 3-2. 언어 선택 드롭다운: 로그인/체험 전(1페이지)에만 표시, 2페이지부터는 숨김
 if not st.session_state.get("logged_in", False):
@@ -732,6 +734,24 @@ if not st.session_state['logged_in']:
 
 # 5. 메인 화면 - 식단 스캐너
 if menu_key == "scanner":
+    # 메인 상단: 1페이지로 가기 버튼 (사이드바 접힌 상태에서도 보이도록)
+    _lt = st.session_state.get("login_type")
+    col_top1, col_top2 = st.columns([5, 1])
+    with col_top2:
+        if _lt == "guest":
+            if st.button(f"🔐 {t['sidebar_go_login']}", key="main_go_login", use_container_width=True):
+                st.session_state["logged_in"] = False
+                st.session_state["login_type"] = None
+                st.session_state["user_id"] = None
+                st.session_state["auth_mode"] = "login"
+                st.rerun()
+        elif _lt == "google":
+            if st.button(f"🚪 {t['sidebar_logout']}", key="main_logout", use_container_width=True):
+                st.session_state["logged_in"] = False
+                st.session_state["login_type"] = None
+                st.session_state["user_id"] = None
+                st.session_state["auth_mode"] = "login"
+                st.rerun()
     if 'app_stage' not in st.session_state:
         st.session_state['app_stage'] = 'main'
         
@@ -1193,6 +1213,24 @@ if menu_key == "scanner":
 
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
 elif menu_key == "history":
+    # 메인 상단: 1페이지로 가기 버튼
+    _lt_h = st.session_state.get("login_type")
+    c1, c2 = st.columns([5, 1])
+    with c2:
+        if _lt_h == "guest":
+            if st.button(f"🔐 {t['sidebar_go_login']}", key="history_go_login", use_container_width=True):
+                st.session_state["logged_in"] = False
+                st.session_state["login_type"] = None
+                st.session_state["user_id"] = None
+                st.session_state["auth_mode"] = "login"
+                st.rerun()
+        elif _lt_h == "google":
+            if st.button(f"🚪 {t['sidebar_logout']}", key="history_logout", use_container_width=True):
+                st.session_state["logged_in"] = False
+                st.session_state["login_type"] = None
+                st.session_state["user_id"] = None
+                st.session_state["auth_mode"] = "login"
+                st.rerun()
     st.title(f"📅 {t['history_menu']}")
     render_login_badge()
 
