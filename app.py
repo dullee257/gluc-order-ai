@@ -296,10 +296,9 @@ if _current_lang not in LANG_DICT:
     st.session_state["lang"] = _current_lang
 t = LANG_DICT[_current_lang]
 
-# 3. 사이드바 메뉴 (언어와 무관한 안정 키 사용 → 분석 후 rerun 시에도 스캐너/결과 화면 유지)
-with st.sidebar:
-    st.title(t.get("sidebar_title", "설정"))
-    # 로그인 타입 뱃지: 게스트는 주황색 경고, 계정 로그인은 초록 표시
+
+def render_login_badge():
+    """현재 로그인 타입(google/guest)에 따라 상단에 뱃지 표시."""
     _lt = st.session_state.get("login_type")
     if _lt == "guest":
         st.markdown(
@@ -311,6 +310,12 @@ with st.sidebar:
             f'<div style="background:#4CAF50;color:white;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;margin-bottom:8px;">✓ {t["login_badge_account"]}</div>',
             unsafe_allow_html=True,
         )
+
+
+# 3. 사이드바 메뉴 (언어와 무관한 안정 키 사용 → 분석 후 rerun 시에도 스캐너/결과 화면 유지)
+with st.sidebar:
+    st.title(t.get("sidebar_title", "설정"))
+    render_login_badge()
     st.divider()
     menu_key = st.radio(
         t.get("menu_label", "메뉴"),
@@ -729,6 +734,7 @@ if menu_key == "scanner":
                 <div style="font-size: clamp(14px, 4vw, 18px); font-weight: 500; color: #86cc85; margin-top: 1vh;">{title_parts[2]}</div>
             </div>
         """, unsafe_allow_html=True)
+        render_login_badge()
         
         # [무료 체험 일일 횟수 및 광고 리워드 로직]
         is_guest = st.session_state['user_id'] == 'guest_user_demo'
@@ -799,6 +805,7 @@ if menu_key == "scanner":
                 st.rerun()
 
     elif st.session_state['app_stage'] == 'analyze':
+        render_login_badge()
         # 2페이지: 업로드 완료 & 분석 대기 페이지
         if st.button(t["btn_back_main"], key="btn_back_main_1", use_container_width=True):
             st.session_state['app_stage'] = 'main'
@@ -964,6 +971,7 @@ if menu_key == "scanner":
                     st.error(get_text(st.session_state.get("lang", "KO"), "analysis_error_generic", msg=last_err_msg))
 
     elif st.session_state['app_stage'] == 'result':
+        render_login_badge()
         # 세션 손실(다중 워커/타임아웃 등) 시 분석 결과가 없으면 메인으로 복귀
         if st.session_state.get('current_analysis') is None:
             st.session_state['app_stage'] = 'main'
@@ -1169,6 +1177,7 @@ if menu_key == "scanner":
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
 elif menu_key == "history":
     st.title(f"📅 {t['history_menu']}")
+    render_login_badge()
 
     # 오늘 하루 요약 대시보드
     if st.session_state['daily_meals_count'] > 0:
