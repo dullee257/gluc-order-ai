@@ -278,48 +278,91 @@ if 'daily_meals_count' not in st.session_state:
     st.session_state['daily_meals_count'] = 0
 if 'user_goal' not in st.session_state:
     st.session_state['user_goal'] = '일반 관리'
+if 'lang' not in st.session_state:
+    st.session_state['lang'] = 'KO'
 
-# 다국어 텍스트 사전 정의
-texts = {
-    "KO": {
-        "title": "🥗 NutriSort AI",
-        "sidebar_title": "💡 NutriSort 관리",
-        "description": "📈|혈당 스파이크 방지|올바른 섭취 순서",
-        "uploader_label": "음식 스캔하기",
-        "analyze_btn": "혈당 관리 솔루션 및 섭취 순서 분석",
-        "save_btn": "💾 이 식단 기록 저장하기",
-        "scanner_menu": "식단 스캐너",
-        "history_menu": "나의 식단 기록",
-        "analysis_title": "섭취 순서",
-        "advice_title": "식단 분석",
-        "advice_prompt": "모든 답변은 맞춤법에 맞는 자연스러운 한글로 작성해 주세요. 오타와 잘못된 띄어쓰기를 사용하지 마세요.\n\n사진 속 음식을 분석하여 혈당 관리를 위한 조언을 다음 4단계 카테고리로 나누어 반드시 순서대로 작성해 주세요. 각 카테고리 앞에 번호와 제목을 적어 주세요.\n\n1. 사진 속 메뉴 확인\n- '사진 속 메뉴를 보니...'로 시작하여 사진의 음식에 대한 간략한 기본 분석을 진행해 주세요.\n- 실제로 사진에 잡곡밥, 채소 등 칭찬할 요소가 있을 때만 칭찬하고, 없으면 지어내지 마세요.\n\n2. 장소 유추 및 실전 메뉴 꿀팁\n- 음식(배경·로고 등)을 기반으로 식사 장소를 유추해 주세요.\n- [중요] 유추한 장소가 카페나 디저트 전문점처럼 채소·단백질 메뉴가 메인이 아닌 곳이라면, 굳이 채소 샐러드나 샌드위치를 억지로 추가 주문하라고 제안하지 마세요. 해당 장소에 적합한 가벼운 팁(예: 시럽 빼기, 우유 대신 오트밀크 변경 등)만 주세요.\n- 밥집·고깃집 등 추가 반찬 주문이 자연스러운 곳에서만 보완 음식을 적극 제안해 주세요.\n\n3. 권장 식사 순서\n- 2번 단계에서 실제로 추가를 제안한 음식이 있을 경우에만, 원래 상차림과 합쳐서 섭취 순서를 안내해 주세요.\n- 억지로 채소나 단백질을 먹으라는 문구를 쓰지 말고, 오직 지금 사진에 찍힌 음식(과 자연스러운 추가 메뉴)에 한해서만, 어떻게 순서대로 먹는 것이 혈당 관리에 좋은지 설명해 주세요. (커피만 있으면 커피 마시는 방법만 설명하세요.)\n\n4. 그밖에 부가 설명\n- 음식의 나트륨, 조리법 주의사항, 식후 10분 걷기 등 추가적인 혈당 조언을 자연스럽게 덧붙여 주세요.",
-        "save_msg": "저장되었습니다. '나의 기록'에서 확인하세요!",
-        "browse_text": "파일 찾기"
-    },
-    "EN": {
-        "title": "🥗 NutriSort AI",
-        "sidebar_title": "💡 NutriSort Admin",
-        "description": "Daily Glucose Status",
-        "uploader_label": "Scan Food",
-        "analyze_btn": "Sort Eating Order",
-        "save_btn": "💾 Save this record",
-        "scanner_menu": "Meal Scanner",
-        "history_menu": "My History",
-        "analysis_title": "Eating Order",
-        "advice_title": "Nutritional Analysis",
-        "advice_prompt": "Analyze the food in the photo and set the eating order for blood sugar management.",
-        "save_msg": "Successfully saved to 'My History'!",
-        "browse_text": "Browse files"
-    }
+# 다국어 메시지 (messages_ko, messages_en) — Cal AI 스타일 언어 전환용
+messages_ko = {
+    "title": "🥗 NutriSort AI",
+    "sidebar_title": "💡 NutriSort 관리",
+    "description": "📈|혈당 스파이크 방지|올바른 섭취 순서",
+    "uploader_label": "음식 스캔하기",
+    "analyze_btn": "혈당 관리 솔루션 및 섭취 순서 분석",
+    "save_btn": "💾 이 식단 기록 저장하기",
+    "scanner_menu": "식단 스캐너",
+    "history_menu": "나의 식단 기록",
+    "analysis_title": "섭취 순서",
+    "advice_title": "식단 분석",
+    "advice_prompt": "모든 답변은 맞춤법에 맞는 자연스러운 한글로 작성해 주세요. 오타와 잘못된 띄어쓰기를 사용하지 마세요.\n\n사진 속 음식을 분석하여 혈당 관리를 위한 조언을 다음 4단계 카테고리로 나누어 반드시 순서대로 작성해 주세요. 각 카테고리 앞에 번호와 제목을 적어 주세요.\n\n1. 사진 속 메뉴 확인\n- '사진 속 메뉴를 보니...'로 시작하여 사진의 음식에 대한 간략한 기본 분석을 진행해 주세요.\n- 실제로 사진에 잡곡밥, 채소 등 칭찬할 요소가 있을 때만 칭찬하고, 없으면 지어내지 마세요.\n\n2. 장소 유추 및 실전 메뉴 꿀팁\n- 음식(배경·로고 등)을 기반으로 식사 장소를 유추해 주세요.\n- [중요] 유추한 장소가 카페나 디저트 전문점처럼 채소·단백질 메뉴가 메인이 아닌 곳이라면, 굳이 채소 샐러드나 샌드위치를 억지로 추가 주문하라고 제안하지 마세요. 해당 장소에 적합한 가벼운 팁(예: 시럽 빼기, 우유 대신 오트밀크 변경 등)만 주세요.\n- 밥집·고깃집 등 추가 반찬 주문이 자연스러운 곳에서만 보완 음식을 적극 제안해 주세요.\n\n3. 권장 식사 순서\n- 2번 단계에서 실제로 추가를 제안한 음식이 있을 경우에만, 원래 상차림과 합쳐서 섭취 순서를 안내해 주세요.\n- 억지로 채소나 단백질을 먹으라는 문구를 쓰지 말고, 오직 지금 사진에 찍힌 음식(과 자연스러운 추가 메뉴)에 한해서만, 어떻게 순서대로 먹는 것이 혈당 관리에 좋은지 설명해 주세요. (커피만 있으면 커피 마시는 방법만 설명하세요.)\n\n4. 그밖에 부가 설명\n- 음식의 나트륨, 조리법 주의사항, 식후 10분 걷기 등 추가적인 혈당 조언을 자연스럽게 덧붙여 주세요.",
+    "save_msg": "저장되었습니다. '나의 기록'에서 확인하세요!",
+    "browse_text": "파일 찾기",
+    "lang_label_ko": "한국어",
+    "lang_label_en": "English",
+    "my_health_goal": "나의 건강 목표",
+    "goal_select": "목표 선택",
+    "today_carbs": "오늘 탄수화물",
+    "meals_analyzed": "식사 {n}회 분석",
+    "install_app_title": "앱처럼 사용하기",
+    "health_disclaimer_title": "건강 정보 이용 안내",
+    "goal_display": {"일반 관리": "일반 관리", "당뇨 관리": "당뇨 관리", "다이어트": "다이어트", "근력 강화": "근력 강화"},
+    "today_glucose_status": "오늘의 혈당 관리 현황",
+    "avg_blood_score": "평균 혈당 점수",
+    "carbs": "탄수화물",
+    "goal_target": "목표",
+    "analyzed_meals": "분석 식사",
+    "risk_safe": "안전",
+    "risk_caution": "주의",
+    "risk_danger": "위험",
+    "reset_today": "오늘 기록 초기화",
+    "no_history_msg": "저장된 식단 기록이 없습니다. 분석 후 '저장하기' 버튼을 눌러 보세요.",
+    "blood_score_label": "혈당",
+    "blood_score": "혈당 점수",
+    "avg_gi_label": "평균 GI",
 }
+messages_en = {
+    "title": "🥗 NutriSort AI",
+    "sidebar_title": "💡 NutriSort Admin",
+    "description": "Daily Glucose Status",
+    "uploader_label": "Scan Food",
+    "analyze_btn": "Sort Eating Order",
+    "save_btn": "💾 Save this record",
+    "scanner_menu": "Meal Scanner",
+    "history_menu": "My History",
+    "analysis_title": "Eating Order",
+    "advice_title": "Nutritional Analysis",
+    "advice_prompt": "Analyze the food in the photo and set the eating order for blood sugar management.",
+    "save_msg": "Successfully saved to 'My History'!",
+    "browse_text": "Browse files",
+    "lang_label_ko": "한국어",
+    "lang_label_en": "English",
+    "my_health_goal": "My Health Goal",
+    "goal_select": "Select goal",
+    "today_carbs": "Today's carbs",
+    "meals_analyzed": "{n} meals analyzed",
+    "install_app_title": "Use as app",
+    "health_disclaimer_title": "Health info notice",
+    "goal_display": {"일반 관리": "General", "당뇨 관리": "Diabetes", "다이어트": "Diet", "근력 강화": "Strength"},
+    "today_glucose_status": "Today's glucose status",
+    "avg_blood_score": "Avg. blood score",
+    "carbs": "Carbs",
+    "goal_target": "Goal",
+    "analyzed_meals": "Meals analyzed",
+    "risk_safe": "Safe",
+    "risk_caution": "Caution",
+    "risk_danger": "Risk",
+    "reset_today": "Reset today",
+    "no_history_msg": "No saved records. Tap 'Save' after analysis.",
+    "blood_score_label": "Blood",
+    "blood_score": "Blood score",
+    "avg_gi_label": "Avg. GI",
+}
+MESSAGES = {"KO": messages_ko, "EN": messages_en}
+t = MESSAGES[st.session_state["lang"]]
 
-# 3. 사이드바 메뉴 (기본 언어: 한글 KO)
+# 3. 사이드바 메뉴 (언어는 상단에서 선택, 세션에 유지)
 with st.sidebar:
-    st.title("설정")
-    lang = st.radio("언어 / Language", ["KO", "EN"], index=0, help="KO=한국어(기본), EN=English")
-    t = texts[lang]
+    st.title(t.get("sidebar_title", "설정"))
     st.divider()
-    st.title(t["sidebar_title"])
     menu = st.radio("메뉴", [t["scanner_menu"], t["history_menu"]])
     # Streamlit Cloud 잠자기 화면 안내 (최초 1회)
     if "sleep_notice_seen" not in st.session_state:
@@ -332,31 +375,43 @@ with st.sidebar:
     
     # === 혈당 관리 목표 설정 ===
     st.divider()
-    st.markdown("### 🎯 나의 건강 목표")
-    goal_options = ["일반 관리", "당뇨 관리", "다이어트", "근력 강화"]
+    st.markdown(f"### 🎯 {t['my_health_goal']}")
+    goal_options_ko = ["일반 관리", "당뇨 관리", "다이어트", "근력 강화"]
+    goal_options_en = ["General", "Diabetes", "Diet", "Strength"]
+    goal_options = goal_options_ko if st.session_state["lang"] == "KO" else goal_options_en
     current_goal = st.session_state.get("user_goal", "일반 관리")
+    if st.session_state["lang"] == "EN" and current_goal in goal_options_ko:
+        goal_map = {"일반 관리": "General", "당뇨 관리": "Diabetes", "다이어트": "Diet", "근력 강화": "Strength"}
+        current_goal = goal_map.get(current_goal, "General")
+    elif st.session_state["lang"] == "KO" and current_goal in goal_options_en:
+        rev_map = {"General": "일반 관리", "Diabetes": "당뇨 관리", "Diet": "다이어트", "Strength": "근력 강화"}
+        current_goal = rev_map.get(current_goal, "일반 관리")
     goal_index = goal_options.index(current_goal) if current_goal in goal_options else 0
-    goal = st.selectbox("목표 선택", goal_options, index=goal_index)
-    if goal != st.session_state['user_goal']:
-        st.session_state['user_goal'] = goal
+    goal = st.selectbox(t["goal_select"], goal_options, index=goal_index)
+    # 내부 저장은 항상 한글 키 (goal_carbs_map과 호환)
+    goal_ko_from_display = {"General": "일반 관리", "Diabetes": "당뇨 관리", "Diet": "다이어트", "Strength": "근력 강화"} if st.session_state["lang"] == "EN" else None
+    goal_to_save = goal_ko_from_display.get(goal, goal) if goal_ko_from_display else goal
+    if goal_to_save != st.session_state['user_goal']:
+        st.session_state['user_goal'] = goal_to_save
     goal_carbs_map = {"일반 관리": 250, "당뇨 관리": 130, "다이어트": 150, "근력 강화": 300}
     target_carbs = goal_carbs_map[st.session_state['user_goal']]
     if st.session_state['daily_meals_count'] > 0:
         carb_pct = min(100, int(st.session_state['daily_carbs'] / max(target_carbs,1) * 100))
         bar_color = '#4CAF50' if carb_pct < 80 else '#FFB300' if carb_pct < 100 else '#F44336'
+        meals_text = t["meals_analyzed"].replace("{n}", str(st.session_state['daily_meals_count']))
         st.markdown(f"""
         <div style="background:#f8f9fa;border-radius:10px;padding:12px;margin-top:6px;">
-            <div style="font-size:12px;color:#888;margin-bottom:3px;">오늘 탄수화물</div>
+            <div style="font-size:12px;color:#888;margin-bottom:3px;">{t['today_carbs']}</div>
             <div style="font-size:20px;font-weight:800;color:#333;">{st.session_state['daily_carbs']}g <span style="font-size:12px;color:#888;">/ {target_carbs}g</span></div>
             <div style="background:#e0e0e0;border-radius:4px;height:6px;margin-top:5px;">
                 <div style="background:{bar_color};width:{carb_pct}%;height:6px;border-radius:4px;"></div>
             </div>
-            <div style="font-size:11px;color:#888;margin-top:4px;">식사 {st.session_state['daily_meals_count']}회 분석</div>
+            <div style="font-size:11px;color:#888;margin-top:4px;">{meals_text}</div>
         </div>
         """, unsafe_allow_html=True)
     # === PWA 설치 (앱처럼 쓰기) 가이드 ===
     st.divider()
-    st.markdown("### 📱 앱처럼 사용하기")
+    st.markdown(f"### 📱 {t['install_app_title']}")
     st.info(
         "**[안드로이드]**\n\n"
         "우측 상단 메뉴(⋮) ➔ **'홈 화면에 추가'**\n\n"
@@ -365,12 +420,33 @@ with st.sidebar:
         "하단 공유 버튼(⍐) ➔ **'홈 화면에 추가'**"
     )
     # === 상용화: 건강 정보 면책 고지 (법적 권장) ===
-    with st.expander("⚠️ 건강 정보 이용 안내", expanded=False):
+    with st.expander(f"⚠️ {t['health_disclaimer_title']}", expanded=False):
         st.caption(
             "본 서비스는 의료 행위가 아니며, 진단·치료를 대체하지 않습니다. "
             "당뇨 등 질환 관리 시 반드시 의료진과 상담하세요. "
             "식단·영양 정보는 참고용이며, 개인 결과에 따라 차이가 있을 수 있습니다."
         )
+
+# 3-2. Cal AI 스타일 상단 언어 선택 (세션에 저장되어 새로고침 후에도 유지)
+st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+lang_col1, lang_col2, lang_col3 = st.columns([1, 2, 1])
+with lang_col2:
+    lang_options = ["KO", "EN"]
+    lang_labels = {"KO": "한국어", "EN": "English"}
+    current_idx = lang_options.index(st.session_state["lang"]) if st.session_state["lang"] in lang_options else 0
+    selected_lang = st.selectbox(
+        "Language",
+        options=lang_options,
+        format_func=lambda x: lang_labels[x],
+        index=current_idx,
+        key="lang_select_top",
+        label_visibility="collapsed",
+    )
+if selected_lang != st.session_state["lang"]:
+    st.session_state["lang"] = selected_lang
+    t = MESSAGES[st.session_state["lang"]]
+    st.rerun()
+st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
 
 # 4. 피그마 디자인 + 한글 표시 보장 (UTF-8·폰트)
 st.markdown(f"""
@@ -1186,26 +1262,26 @@ elif menu == t["history_menu"]:
         target_c = goal_carbs_map2.get(st.session_state['user_goal'], 250)
         ds = st.session_state['daily_blood_sugar_score']
         ds_color = "#4CAF50" if ds <= 40 else "#FFB300" if ds <= 65 else "#F44336"
-        ds_label = "안전" if ds <= 40 else "주의" if ds <= 65 else "위험"
+        ds_label = t["risk_safe"] if ds <= 40 else t["risk_caution"] if ds <= 65 else t["risk_danger"]
         carb_pct2 = min(100, int(st.session_state['daily_carbs'] / max(target_c, 1) * 100))
         st.markdown(f"""
         <div style="background:linear-gradient(135deg,#1e293b,#334155);border-radius:20px;padding:20px;margin-bottom:18px;color:white;">
-            <div style="font-size:13px;color:#94a3b8;margin-bottom:10px;">📊 오늘의 혈당 관리 현황</div>
+            <div style="font-size:13px;color:#94a3b8;margin-bottom:10px;">📊 {t['today_glucose_status']}</div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
                 <div style="text-align:center;">
                     <div style="font-size:26px;font-weight:900;color:{ds_color};">{ds}</div>
-                    <div style="font-size:10px;color:#94a3b8;">평균 혈당 점수</div>
+                    <div style="font-size:10px;color:#94a3b8;">{t['avg_blood_score']}</div>
                     <div style="font-size:12px;font-weight:700;color:{ds_color};">{ds_label}</div>
                 </div>
                 <div style="text-align:center;">
                     <div style="font-size:26px;font-weight:900;color:white;">{st.session_state['daily_carbs']}g</div>
-                    <div style="font-size:10px;color:#94a3b8;">탄수화물</div>
-                    <div style="font-size:11px;color:#94a3b8;">목표 {target_c}g</div>
+                    <div style="font-size:10px;color:#94a3b8;">{t['carbs']}</div>
+                    <div style="font-size:11px;color:#94a3b8;">{t['goal_target']} {target_c}g</div>
                 </div>
                 <div style="text-align:center;">
                     <div style="font-size:26px;font-weight:900;color:white;">{st.session_state['daily_meals_count']}</div>
-                    <div style="font-size:10px;color:#94a3b8;">분석 식사</div>
-                    <div style="font-size:11px;color:#94a3b8;">{st.session_state['user_goal']}</div>
+                    <div style="font-size:10px;color:#94a3b8;">{t['analyzed_meals']}</div>
+                    <div style="font-size:11px;color:#94a3b8;">{t.get('goal_display', {}).get(st.session_state['user_goal'], st.session_state['user_goal'])}</div>
                 </div>
             </div>
             <div style="background:rgba(255,255,255,0.15);border-radius:6px;height:7px;">
@@ -1213,7 +1289,7 @@ elif menu == t["history_menu"]:
             </div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("🔄 오늘 기록 초기화", use_container_width=True):
+        if st.button(f"🔄 {t['reset_today']}", use_container_width=True):
             st.session_state['daily_blood_sugar_score'] = 0
             st.session_state['daily_carbs'] = 0
             st.session_state['daily_protein'] = 0
@@ -1227,23 +1303,23 @@ elif menu == t["history_menu"]:
             rec_carbs = rec.get('total_carbs', 0)
             rec_gi = rec.get('avg_gi', 0)
             rc = "#4CAF50" if rec_score <= 40 else "#FFB300" if rec_score <= 65 else "#F44336"
-            rl = "안전" if rec_score <= 40 else "주의" if rec_score <= 65 else "위험"
-            with st.expander(f"🍴 {rec['date']}  |  혈당 {rec_score}점 ({rl})  |  탄수화물 {rec_carbs}g"):
+            rl = t["risk_safe"] if rec_score <= 40 else t["risk_caution"] if rec_score <= 65 else t["risk_danger"]
+            with st.expander(f"🍴 {rec['date']}  |  {t['blood_score_label']} {rec_score} ({rl})  |  {t['carbs']} {rec_carbs}g"):
                 if rec.get('image'):
                     st.image(rec['image'], use_container_width=True)
                 st.markdown(f"""
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0;">
                     <div style="background:{rc}11;border:1px solid {rc}33;border-radius:10px;padding:10px;text-align:center;">
                         <div style="font-size:18px;font-weight:900;color:{rc};">{rec_score}</div>
-                        <div style="font-size:10px;color:#888;">혈당 점수</div>
+                        <div style="font-size:10px;color:#888;">{t['blood_score']}</div>
                     </div>
                     <div style="background:#f8f9fa;border-radius:10px;padding:10px;text-align:center;">
                         <div style="font-size:18px;font-weight:900;color:#333;">{rec_carbs}g</div>
-                        <div style="font-size:10px;color:#888;">탄수화물</div>
+                        <div style="font-size:10px;color:#888;">{t['carbs']}</div>
                     </div>
                     <div style="background:#f8f9fa;border-radius:10px;padding:10px;text-align:center;">
                         <div style="font-size:18px;font-weight:900;color:#333;">{rec_gi}</div>
-                        <div style="font-size:10px;color:#888;">평균 GI</div>
+                        <div style="font-size:10px;color:#888;">{t['avg_gi_label']}</div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1261,4 +1337,4 @@ elif menu == t["history_menu"]:
                 st.divider()
                 st.info(rec['advice'])
     else:
-        st.info("저장된 식단 기록이 없습니다. 분석 후 '저장하기' 버튼을 눌러 보세요.")
+        st.info(t["no_history_msg"])
