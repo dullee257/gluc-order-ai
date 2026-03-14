@@ -760,13 +760,18 @@ if not st.session_state['logged_in']:
                     st.button(t["kakao_login_btn"], disabled=True, use_container_width=True)
                 with col3:
                     st.button(t.get("naver_login_btn", "네이버 로그인"), disabled=True, use_container_width=True)
-            # 펼친 직후 구글 등이 보이도록 자동 스크롤 (부모 문서 기준)
+            # 펼친 직후 구글 등이 보이도록 자동 스크롤 (한글/비한글 공통, DOM 준비 후 실행)
             st.components.v1.html("""
             <script>
             (function(){
-                var doc = window.parent.document;
-                var el = doc.getElementById("social-buttons-block");
-                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                function scrollToSocial() {
+                    try {
+                        var doc = window.parent.document;
+                        var el = doc.getElementById("social-buttons-block");
+                        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    } catch (e) {}
+                }
+                setTimeout(scrollToSocial, 280);
             })();
             </script>
             """, height=1)
