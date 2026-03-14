@@ -1,7 +1,16 @@
 import streamlit as st
+import os
+
+# 호스팅 이전 시 이 URL만 바꾸면 됨 (환경 변수 BASE_URL 또는 Streamlit 시크릿)
+try:
+    _base = os.environ.get("BASE_URL") or getattr(st.secrets, "get", lambda k, d=None: d)("BASE_URL", "https://nutrisort.streamlit.app")
+except Exception:
+    _base = os.environ.get("BASE_URL", "https://nutrisort.streamlit.app")
+BASE_URL = (_base or "https://nutrisort.streamlit.app").rstrip("/")
+
 # 1. 카톡 및 네이버 인앱 브라우저 탈출 스크립트 (화면 깨짐 및 양식 중복 제출 방지)
-st.components.v1.html(
-    """
+_base_host = BASE_URL.replace("https://", "").replace("http://", "").split("/")[0]
+_embed_script = """
     <script>
     // 1. 문서 객체 참조 (Streamlit Cloud의 CORS 에러 우회하기 위해 try-catch 적용)
     let doc = window.document;
@@ -16,18 +25,18 @@ st.components.v1.html(
     }
 
     var agent = navigator.userAgent.toLowerCase();
-    var targetUrl = 'https://nutrisort.streamlit.app';
+    var targetUrl = '__BASE_URL__';
     
     // 카카오톡 및 네이버 앱 탈출 스크립트 (안드로이드에서는 반드시 풀버전 크롬 브라우저로 열리게 강제)
     if (agent.indexOf('kakao') > -1) {
         if (agent.indexOf('android') > -1) {
-            win.top.location.href = 'intent://nutrisort.streamlit.app#Intent;scheme=https;package=com.android.chrome;end';
+            win.top.location.href = 'intent://__BASE_HOST__#Intent;scheme=https;package=com.android.chrome;end';
         } else {
             win.top.location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(targetUrl);
         }
     } else if (agent.indexOf('naver') > -1) {
         if (agent.indexOf('android') > -1) {
-            win.top.location.href = 'intent://nutrisort.streamlit.app#Intent;scheme=https;package=com.android.chrome;end';
+            win.top.location.href = 'intent://__BASE_HOST__#Intent;scheme=https;package=com.android.chrome;end';
         } else {
             if (win.location.href.indexOf('?') === -1) {
                 win.top.location.replace(targetUrl + '?reload=' + new Date().getTime());
@@ -168,7 +177,9 @@ st.components.v1.html(
 
 
     </script>
-    """,
+    """
+st.components.v1.html(
+    _embed_script.replace("__BASE_URL__", BASE_URL).replace("__BASE_HOST__", _base_host),
     height=0,
 )
 from google import genai
@@ -268,6 +279,14 @@ with st.sidebar:
     st.divider()
     st.title(t["sidebar_title"])
     menu = st.radio("Menu", [t["scanner_menu"], t["history_menu"]])
+    # Streamlit Cloud 잠자기 화면 안내 (최초 1회)
+    if "sleep_notice_seen" not in st.session_state:
+        st.session_state["sleep_notice_seen"] = True
+        st.info(
+            "💤 **처음 접속 시** '잠시 멈췄다' 화면이 나오면 "
+            "**'Yes, get this app back up!'** 버튼을 눌러 주세요. "
+            "서버가 깨어나면 앱이 정상적으로 열립니다."
+        )
     
     # === 혈당 관리 목표 설정 ===
     st.divider()
@@ -303,6 +322,13 @@ with st.sidebar:
         "**[아이폰(iOS)]**\n\n"
         "하단 공유 버튼(⍐) ➔ **'홈 화면에 추가'**"
     )
+    # === 상용화: 건강 정보 면책 고지 (법적 권장) ===
+    with st.expander("⚠️ 건강 정보 이용 안내", expanded=False):
+        st.caption(
+            "본 서비스는 의료 행위가 아니며, 진단·치료를 대체하지 않습니다. "
+            "당뇨 등 질환 관리 시 반드시 의료진과 상담하세요. "
+            "식단·영양 정보는 참고용이며, 개인 결과에 따라 차이가 있을 수 있습니다."
+        )
 
 # 4. 피그마 디자인 완벽 이식 및 광채 효과 CSS
 st.markdown(f"""
@@ -489,7 +515,7 @@ if not st.session_state['logged_in']:
             "code": code,
             "client_id": google_client_id,
             "client_secret": google_client_secret,
-            "redirect_uri": "https://nutrisort.streamlit.app",
+            "redirect_uri": BASE_URL,
             "grant_type": "authorization_code"
         }
         try:
@@ -576,7 +602,7 @@ if not st.session_state['logged_in']:
                 auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
                 params = {
                     "client_id": google_client_id,
-                    "redirect_uri": "https://nutrisort.streamlit.app/",
+                    "redirect_uri": BASE_URL + "/",
                     "response_type": "code",
                     "scope": "openid email profile",
                     "state": st.session_state.get("oauth_state", "oauth"),
@@ -593,7 +619,7 @@ if not st.session_state['logged_in']:
                 auth_html = f'''
                     <form action="https://accounts.google.com/o/oauth2/v2/auth" method="GET" target="_top" style="margin: 0; padding: 0;">
                         <input type="hidden" name="client_id" value="{google_client_id}">
-                        <input type="hidden" name="redirect_uri" value="https://nutrisort.streamlit.app">
+                        <input type="hidden" name="redirect_uri" value="{BASE_URL}">
                         <input type="hidden" name="response_type" value="code">
                         <input type="hidden" name="scope" value="openid email profile">
                         <input type="hidden" name="state" value="{oauth_state}">

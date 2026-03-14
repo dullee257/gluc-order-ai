@@ -1,0 +1,11 @@
+{
+  "name": "nutrisort-keepalive",
+  "private": true,
+  "description": "Streamlit 앱 자동 깨우기용 (GitHub Actions). 앱 실행은 app.py / Streamlit.",
+  "scripts": {
+    "wake": "node scripts/wake-streamlit.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.40.0"
+  }
+}

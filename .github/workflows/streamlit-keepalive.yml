@@ -1,0 +1,30 @@
+# Streamlit Community Cloud 앱이 잠들지 않도록 주기적으로 "깨우기" 버튼 클릭
+# 4시간마다 실행. 앱 URL은 기본 nutrisort.streamlit.app, 변경 시 Secrets에 STREAMLIT_APP_URL 설정
+name: Streamlit Keep-Alive
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'   # 4시간마다 (0시, 4시, 8시, 12시, 16시, 20시)
+  workflow_dispatch:       # 수동 실행 가능
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browsers (Chromium only, with system deps for CI)
+        run: npx playwright install --with-deps chromium
+
+      - name: Wake Streamlit app
+        env:
+          STREAMLIT_APP_URL: ${{ secrets.STREAMLIT_APP_URL }}
+        run: npm run wake

@@ -17,6 +17,9 @@ secrets.toml
 # MacOS
 .DS_Store
 
+# Node (잠자기 방지 스크립트용 - node_modules는 CI에서 npm install)
+node_modules/
+
 # 임시/테스트 파일 (커밋 제외)
 test_script.py
 4.jpg
