@@ -757,7 +757,7 @@ if menu_key == "scanner":
                 st.session_state["user_email"] = None
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
-    elif _lt == "google":
+        elif _lt == "google":
             if st.button(f"🚪 {t['sidebar_logout']}", key="main_logout", use_container_width=True):
                 st.session_state["logged_in"] = False
                 st.session_state["login_type"] = None
