@@ -270,6 +270,8 @@ if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 if 'user_id' not in st.session_state:
     st.session_state['user_id'] = None
+if 'user_email' not in st.session_state:
+    st.session_state['user_email'] = None  # 환영 문구용 (이메일 로그인/구글 로그인 시 저장)
 if 'login_type' not in st.session_state:
     st.session_state['login_type'] = None  # 'google' | 'guest'
 # 로그인된 상태인데 login_type이 비어 있으면 user_id로 보정 (2페이지 뱃지 표시)
@@ -306,8 +308,12 @@ def render_login_badge():
             unsafe_allow_html=True,
         )
     elif _lt == "google":
-        uid = st.session_state.get("user_id") or ""
-        display_name = (uid.split("@")[0] if "@" in uid else uid) or "User"
+        # 이메일 로그인은 user_id가 Firebase UID이므로, 표시용은 user_email 사용
+        email_for_display = st.session_state.get("user_email") or st.session_state.get("user_id") or ""
+        if "@" in str(email_for_display):
+            display_name = email_for_display.split("@")[0]
+        else:
+            display_name = t.get("welcome_fallback", "User")  # UID만 있을 때(구 세션) 일반 문구
         welcome_msg = get_text(st.session_state.get("lang", "KO"), "welcome_user", name=display_name)
         st.markdown(
             f'<div style="background:#4CAF50;color:white;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;margin-bottom:8px;">✓ {welcome_msg}</div>',
@@ -326,6 +332,7 @@ with st.sidebar:
             st.session_state["logged_in"] = False
             st.session_state["login_type"] = None
             st.session_state["user_id"] = None
+            st.session_state["user_email"] = None
             st.session_state["auth_mode"] = "login"
             st.rerun()
     elif _lt == "google":
@@ -333,6 +340,7 @@ with st.sidebar:
             st.session_state["logged_in"] = False
             st.session_state["login_type"] = None
             st.session_state["user_id"] = None
+            st.session_state["user_email"] = None
             st.session_state["auth_mode"] = "login"
             st.rerun()
     st.divider()
@@ -601,7 +609,9 @@ if not st.session_state['logged_in']:
                 if userinfo_res.status_code == 200:
                     userinfo = userinfo_res.json()
                     st.session_state["logged_in"] = True
-                    st.session_state["user_id"] = userinfo.get("email", "google_user")
+                    _email = userinfo.get("email", "google_user")
+                    st.session_state["user_id"] = _email
+                    st.session_state["user_email"] = _email
                     st.session_state["login_type"] = "google"
                     st.query_params.clear()
                     st.rerun()
@@ -663,6 +673,7 @@ if not st.session_state['logged_in']:
                     if success:
                         st.session_state['logged_in'] = True
                         st.session_state['user_id'] = res.get('localId', f"user_{email}")
+                        st.session_state['user_email'] = email
                         st.session_state['login_type'] = "google"
                         st.rerun()
                     else:
@@ -743,13 +754,15 @@ if menu_key == "scanner":
                 st.session_state["logged_in"] = False
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
+                st.session_state["user_email"] = None
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
-        elif _lt == "google":
+    elif _lt == "google":
             if st.button(f"🚪 {t['sidebar_logout']}", key="main_logout", use_container_width=True):
                 st.session_state["logged_in"] = False
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
+                st.session_state["user_email"] = None
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
     if 'app_stage' not in st.session_state:
@@ -811,6 +824,8 @@ if menu_key == "scanner":
             if st.button(t["btn_go_signup"], type="primary", use_container_width=True):
                 st.session_state['logged_in'] = False
                 st.session_state['login_type'] = None
+                st.session_state['user_id'] = None
+                st.session_state['user_email'] = None
                 st.session_state['auth_mode'] = 'signup'
                 st.rerun()
         else:
@@ -1162,6 +1177,8 @@ if menu_key == "scanner":
             if st.button(t["guest_save_go_login"], use_container_width=True, type="primary"):
                 st.session_state["logged_in"] = False
                 st.session_state["login_type"] = None
+                st.session_state["user_id"] = None
+                st.session_state["user_email"] = None
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
         else:
@@ -1222,6 +1239,7 @@ elif menu_key == "history":
                 st.session_state["logged_in"] = False
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
+                st.session_state["user_email"] = None
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
         elif _lt_h == "google":
@@ -1229,6 +1247,7 @@ elif menu_key == "history":
                 st.session_state["logged_in"] = False
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
+                st.session_state["user_email"] = None
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
     st.title(f"📅 {t['history_menu']}")
