@@ -12,6 +12,15 @@ if hasattr(sys.stderr, "reconfigure"):
 
 import streamlit as st
 
+# ※ 반드시 첫 번째 Streamlit 호출이어야 함 (그렇지 않으면 오류 발생)
+st.set_page_config(
+    page_title="혈당스캐너 - NutriSort",
+    page_icon="🩸",
+    layout="centered",
+    initial_sidebar_state="collapsed",
+    menu_items={"Get Help": None, "Report a bug": None, "About": None},
+)
+
 # --- Railway 등에서 환경 변수로 시크릿 읽기 (Streamlit Cloud는 st.secrets 유지) ---
 def _get_secret(key, default=None):
     v = os.environ.get(key)
@@ -249,20 +258,6 @@ def compress_image(img, max_size_kb=500):
         quality -= 10
         img = img.resize((int(img.width * 0.8), int(img.height * 0.8)), Image.Resampling.LANCZOS)
 
-# 1. 페이지 설정 (모바일 최적화를 위해 centered 레이아웃 권장)
-# 1. 페이지 설정 및 보안 옵션 적용
-st.set_page_config(
-    page_title="혈당스캐너 - NutriSort",
-    page_icon="🩸",
-    layout="centered",
-    initial_sidebar_state="collapsed",
-    menu_items={
-        'Get Help': None,
-        'Report a bug': None,
-        'About': None  # 'About'을 None으로 설정하거나 소스 링크를 제거합니다.
-    }
-)
-
 # 2. 세션 상태 초기화
 if 'history' not in st.session_state:
     st.session_state['history'] = []
@@ -339,9 +334,9 @@ with st.sidebar:
     st.divider()
     st.markdown("### 🎯 나의 건강 목표")
     goal_options = ["일반 관리", "당뇨 관리", "다이어트", "근력 강화"]
-    goal = st.selectbox("목표 선택", goal_options,
-        index=goal_options.index(st.session_state['user_goal'])
-    )
+    current_goal = st.session_state.get("user_goal", "일반 관리")
+    goal_index = goal_options.index(current_goal) if current_goal in goal_options else 0
+    goal = st.selectbox("목표 선택", goal_options, index=goal_index)
     if goal != st.session_state['user_goal']:
         st.session_state['user_goal'] = goal
     goal_carbs_map = {"일반 관리": 250, "당뇨 관리": 130, "다이어트": 150, "근력 강화": 300}
@@ -511,7 +506,6 @@ st.markdown(f"""
 
 # --- 🛑 사용자 로그인 및 접근 권한 체크 ---
 import requests
-import json
 
 def pyrebase_auth(email, password, mode="login"):
     """REST API를 활용한 Firebase 기본 이메일/패스워드 인증 로직"""
