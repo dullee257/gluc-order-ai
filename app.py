@@ -272,6 +272,9 @@ if 'user_id' not in st.session_state:
     st.session_state['user_id'] = None
 if 'login_type' not in st.session_state:
     st.session_state['login_type'] = None  # 'google' | 'guest'
+# 로그인된 상태인데 login_type이 비어 있으면 user_id로 보정 (2페이지 뱃지 표시)
+if st.session_state.get('logged_in') and not st.session_state.get('login_type'):
+    st.session_state['login_type'] = 'guest' if st.session_state.get('user_id') == 'guest_user_demo' else 'google'
 # Cal AI 스타일 하루 혈당 누적 추적
 if 'daily_blood_sugar_score' not in st.session_state:
     st.session_state['daily_blood_sugar_score'] = 0
