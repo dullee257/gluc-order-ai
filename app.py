@@ -4,6 +4,9 @@ import sys
 import os
 import json
 
+from translation import LANG_DICT, get_text, SUPPORTED_LANGS, LANG_LABELS, LANG_HTML_ATTR, GOAL_INTERNAL_KEYS
+from prompts import get_analysis_prompt
+
 # Railway 등 Linux 환경에서 한글 출력 깨짐 방지
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -281,121 +284,38 @@ if 'user_goal' not in st.session_state:
 if 'lang' not in st.session_state:
     st.session_state['lang'] = 'KO'
 
-# 다국어 메시지 (messages_ko, messages_en) — Cal AI 스타일 언어 전환용
-messages_ko = {
-    "title": "🥗 NutriSort AI",
-    "sidebar_title": "💡 NutriSort 관리",
-    "description": "📈|혈당 스파이크 방지|올바른 섭취 순서",
-    "uploader_label": "음식 스캔하기",
-    "analyze_btn": "혈당 관리 솔루션 및 섭취 순서 분석",
-    "save_btn": "💾 이 식단 기록 저장하기",
-    "scanner_menu": "식단 스캐너",
-    "history_menu": "나의 식단 기록",
-    "analysis_title": "섭취 순서",
-    "advice_title": "식단 분석",
-    "advice_prompt": "모든 답변은 맞춤법에 맞는 자연스러운 한글로 작성해 주세요. 오타와 잘못된 띄어쓰기를 사용하지 마세요.\n\n사진 속 음식을 분석하여 혈당 관리를 위한 조언을 다음 4단계 카테고리로 나누어 반드시 순서대로 작성해 주세요. 각 카테고리 앞에 번호와 제목을 적어 주세요.\n\n1. 사진 속 메뉴 확인\n- '사진 속 메뉴를 보니...'로 시작하여 사진의 음식에 대한 간략한 기본 분석을 진행해 주세요.\n- 실제로 사진에 잡곡밥, 채소 등 칭찬할 요소가 있을 때만 칭찬하고, 없으면 지어내지 마세요.\n\n2. 장소 유추 및 실전 메뉴 꿀팁\n- 음식(배경·로고 등)을 기반으로 식사 장소를 유추해 주세요.\n- [중요] 유추한 장소가 카페나 디저트 전문점처럼 채소·단백질 메뉴가 메인이 아닌 곳이라면, 굳이 채소 샐러드나 샌드위치를 억지로 추가 주문하라고 제안하지 마세요. 해당 장소에 적합한 가벼운 팁(예: 시럽 빼기, 우유 대신 오트밀크 변경 등)만 주세요.\n- 밥집·고깃집 등 추가 반찬 주문이 자연스러운 곳에서만 보완 음식을 적극 제안해 주세요.\n\n3. 권장 식사 순서\n- 2번 단계에서 실제로 추가를 제안한 음식이 있을 경우에만, 원래 상차림과 합쳐서 섭취 순서를 안내해 주세요.\n- 억지로 채소나 단백질을 먹으라는 문구를 쓰지 말고, 오직 지금 사진에 찍힌 음식(과 자연스러운 추가 메뉴)에 한해서만, 어떻게 순서대로 먹는 것이 혈당 관리에 좋은지 설명해 주세요. (커피만 있으면 커피 마시는 방법만 설명하세요.)\n\n4. 그밖에 부가 설명\n- 음식의 나트륨, 조리법 주의사항, 식후 10분 걷기 등 추가적인 혈당 조언을 자연스럽게 덧붙여 주세요.",
-    "save_msg": "저장되었습니다. '나의 기록'에서 확인하세요!",
-    "browse_text": "파일 찾기",
-    "lang_label_ko": "한국어",
-    "lang_label_en": "English",
-    "my_health_goal": "나의 건강 목표",
-    "goal_select": "목표 선택",
-    "today_carbs": "오늘 탄수화물",
-    "meals_analyzed": "식사 {n}회 분석",
-    "install_app_title": "앱처럼 사용하기",
-    "health_disclaimer_title": "건강 정보 이용 안내",
-    "goal_display": {"일반 관리": "일반 관리", "당뇨 관리": "당뇨 관리", "다이어트": "다이어트", "근력 강화": "근력 강화"},
-    "today_glucose_status": "오늘의 혈당 관리 현황",
-    "avg_blood_score": "평균 혈당 점수",
-    "carbs": "탄수화물",
-    "goal_target": "목표",
-    "analyzed_meals": "분석 식사",
-    "risk_safe": "안전",
-    "risk_caution": "주의",
-    "risk_danger": "위험",
-    "reset_today": "오늘 기록 초기화",
-    "no_history_msg": "저장된 식단 기록이 없습니다. 분석 후 '저장하기' 버튼을 눌러 보세요.",
-    "blood_score_label": "혈당",
-    "blood_score": "혈당 점수",
-    "avg_gi_label": "평균 GI",
-}
-messages_en = {
-    "title": "🥗 NutriSort AI",
-    "sidebar_title": "💡 NutriSort Admin",
-    "description": "Daily Glucose Status",
-    "uploader_label": "Scan Food",
-    "analyze_btn": "Sort Eating Order",
-    "save_btn": "💾 Save this record",
-    "scanner_menu": "Meal Scanner",
-    "history_menu": "My History",
-    "analysis_title": "Eating Order",
-    "advice_title": "Nutritional Analysis",
-    "advice_prompt": "Analyze the food in the photo and set the eating order for blood sugar management.",
-    "save_msg": "Successfully saved to 'My History'!",
-    "browse_text": "Browse files",
-    "lang_label_ko": "한국어",
-    "lang_label_en": "English",
-    "my_health_goal": "My Health Goal",
-    "goal_select": "Select goal",
-    "today_carbs": "Today's carbs",
-    "meals_analyzed": "{n} meals analyzed",
-    "install_app_title": "Use as app",
-    "health_disclaimer_title": "Health info notice",
-    "goal_display": {"일반 관리": "General", "당뇨 관리": "Diabetes", "다이어트": "Diet", "근력 강화": "Strength"},
-    "today_glucose_status": "Today's glucose status",
-    "avg_blood_score": "Avg. blood score",
-    "carbs": "Carbs",
-    "goal_target": "Goal",
-    "analyzed_meals": "Meals analyzed",
-    "risk_safe": "Safe",
-    "risk_caution": "Caution",
-    "risk_danger": "Risk",
-    "reset_today": "Reset today",
-    "no_history_msg": "No saved records. Tap 'Save' after analysis.",
-    "blood_score_label": "Blood",
-    "blood_score": "Blood score",
-    "avg_gi_label": "Avg. GI",
-}
-MESSAGES = {"KO": messages_ko, "EN": messages_en}
-t = MESSAGES[st.session_state["lang"]]
+# 다국어: translation.py의 LANG_DICT 사용 (언어 추가 시 SUPPORTED_LANGS만 확장)
+_current_lang = st.session_state.get("lang", "KO")
+if _current_lang not in LANG_DICT:
+    _current_lang = "KO"
+    st.session_state["lang"] = _current_lang
+t = LANG_DICT[_current_lang]
 
 # 3. 사이드바 메뉴 (언어와 무관한 안정 키 사용 → 분석 후 rerun 시에도 스캐너/결과 화면 유지)
 with st.sidebar:
     st.title(t.get("sidebar_title", "설정"))
     st.divider()
     menu_key = st.radio(
-        "메뉴",
+        t.get("menu_label", "메뉴"),
         options=["scanner", "history"],
         format_func=lambda x: t["scanner_menu"] if x == "scanner" else t["history_menu"],
         key="sidebar_menu",
     )
-    # Streamlit Cloud 잠자기 화면 안내 (최초 1회)
     if "sleep_notice_seen" not in st.session_state:
         st.session_state["sleep_notice_seen"] = True
-        st.info(
-            "💤 **처음 접속 시** '잠시 멈췄다' 화면이 나오면 "
-            "**'Yes, get this app back up!'** 버튼을 눌러 주세요. "
-            "서버가 깨어나면 앱이 정상적으로 열립니다."
-        )
+        st.info(t.get("sleep_notice", ""))
     
-    # === 혈당 관리 목표 설정 ===
+    # === 혈당 관리 목표 설정 (저장은 항상 GOAL_INTERNAL_KEYS 한글 키) ===
     st.divider()
     st.markdown(f"### 🎯 {t['my_health_goal']}")
-    goal_options_ko = ["일반 관리", "당뇨 관리", "다이어트", "근력 강화"]
-    goal_options_en = ["General", "Diabetes", "Diet", "Strength"]
-    goal_options = goal_options_ko if st.session_state["lang"] == "KO" else goal_options_en
-    current_goal = st.session_state.get("user_goal", "일반 관리")
-    if st.session_state["lang"] == "EN" and current_goal in goal_options_ko:
-        goal_map = {"일반 관리": "General", "당뇨 관리": "Diabetes", "다이어트": "Diet", "근력 강화": "Strength"}
-        current_goal = goal_map.get(current_goal, "General")
-    elif st.session_state["lang"] == "KO" and current_goal in goal_options_en:
-        rev_map = {"General": "일반 관리", "Diabetes": "당뇨 관리", "Diet": "다이어트", "Strength": "근력 강화"}
-        current_goal = rev_map.get(current_goal, "일반 관리")
-    goal_index = goal_options.index(current_goal) if current_goal in goal_options else 0
+    goal_display = t.get("goal_display", {})
+    goal_options = [goal_display.get(k, k) for k in GOAL_INTERNAL_KEYS]
+    current_internal = st.session_state.get("user_goal", "일반 관리")
+    current_display = goal_display.get(current_internal, current_internal)
+    goal_index = goal_options.index(current_display) if current_display in goal_options else 0
     goal = st.selectbox(t["goal_select"], goal_options, index=goal_index)
-    # 내부 저장은 항상 한글 키 (goal_carbs_map과 호환)
-    goal_ko_from_display = {"General": "일반 관리", "Diabetes": "당뇨 관리", "Diet": "다이어트", "Strength": "근력 강화"} if st.session_state["lang"] == "EN" else None
-    goal_to_save = goal_ko_from_display.get(goal, goal) if goal_ko_from_display else goal
+    goal_display_rev = {v: k for k, v in goal_display.items()}
+    goal_to_save = goal_display_rev.get(goal, current_internal)
     if goal_to_save != st.session_state['user_goal']:
         st.session_state['user_goal'] = goal_to_save
     goal_carbs_map = {"일반 관리": 250, "당뇨 관리": 130, "다이어트": 150, "근력 강화": 300}
@@ -417,41 +337,33 @@ with st.sidebar:
     # === PWA 설치 (앱처럼 쓰기) 가이드 ===
     st.divider()
     st.markdown(f"### 📱 {t['install_app_title']}")
-    st.info(
-        "**[안드로이드]**\n\n"
-        "우측 상단 메뉴(⋮) ➔ **'홈 화면에 추가'**\n\n"
-        "---\n"
-        "**[아이폰(iOS)]**\n\n"
-        "하단 공유 버튼(⍐) ➔ **'홈 화면에 추가'**"
-    )
+    st.info(t.get("install_app_sidebar", ""))
     # === 상용화: 건강 정보 면책 고지 (법적 권장) ===
     with st.expander(f"⚠️ {t['health_disclaimer_title']}", expanded=False):
-        st.caption(
-            "본 서비스는 의료 행위가 아니며, 진단·치료를 대체하지 않습니다. "
-            "당뇨 등 질환 관리 시 반드시 의료진과 상담하세요. "
-            "식단·영양 정보는 참고용이며, 개인 결과에 따라 차이가 있을 수 있습니다."
-        )
+        st.caption(t.get("health_disclaimer_body", ""))
 
 # 3-2. Cal AI 스타일 상단 언어 선택 (세션에 저장되어 새로고침 후에도 유지)
 st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
 lang_col1, lang_col2, lang_col3 = st.columns([1, 2, 1])
 with lang_col2:
-    lang_options = ["KO", "EN"]
-    lang_labels = {"KO": "한국어", "EN": "English"}
-    current_idx = lang_options.index(st.session_state["lang"]) if st.session_state["lang"] in lang_options else 0
+    current_idx = SUPPORTED_LANGS.index(st.session_state["lang"]) if st.session_state["lang"] in SUPPORTED_LANGS else 0
     selected_lang = st.selectbox(
         "Language",
-        options=lang_options,
-        format_func=lambda x: lang_labels[x],
+        options=SUPPORTED_LANGS,
+        format_func=lambda x: LANG_LABELS.get(x, x),
         index=current_idx,
         key="lang_select_top",
         label_visibility="collapsed",
     )
 if selected_lang != st.session_state["lang"]:
     st.session_state["lang"] = selected_lang
-    t = MESSAGES[st.session_state["lang"]]
+    t = LANG_DICT[st.session_state["lang"]]
     st.rerun()
 st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
+
+# 3-3. 브라우저 자동번역 방지: 선택된 언어로 HTML lang 속성 설정
+_lang_attr = LANG_HTML_ATTR.get(st.session_state.get("lang", "KO"), "ko")
+st.markdown(f'<script>try{{document.documentElement.lang="{_lang_attr}";}}catch(e){{}}</script>', unsafe_allow_html=True)
 
 # 4. 피그마 디자인 + 한글 표시 보장 (UTF-8·폰트)
 st.markdown(f"""
@@ -514,7 +426,7 @@ st.markdown(f"""
 
     /* 내부 텍스트: 화면이 작아지면 같이 작아짐 (최소 14px ~ 최대 20px) */
     [data-testid="stFileUploader"] section::after {{
-        content: "식단 스캔 시작"; 
+        content: "{t.get('uploader_placeholder', '식단 스캔 시작')}"; 
         font-size: clamp(14px, 4vw, 20px); 
         font-weight: 700;
         color: #333333;
@@ -653,22 +565,22 @@ if not st.session_state['logged_in']:
                     st.query_params.clear()
                     st.rerun()
                 else:
-                    st.error(f"🚨 구글 사용자 정보를 불러오지 못했습니다! 에러코드: {userinfo_res.status_code}")
+                    st.error(get_text(st.session_state.get("lang", "KO"), "google_oauth_err_userinfo", code=userinfo_res.status_code))
                     st.query_params.clear()
                     st.stop()
             else:
-                st.error(f"🚨 구글 로그인 인증 토큰 교환에 실패했습니다!\n에러 응답: {res.text}")
+                st.error(get_text(st.session_state.get("lang", "KO"), "google_oauth_err_token", msg=res.text))
                 st.query_params.clear()
                 st.stop()
         except Exception as e:
-            st.error(f"🚨 구글 로그인 서버와의 통신 중 오류가 발생했습니다!\n{str(e)}")
+            st.error(get_text(st.session_state.get("lang", "KO"), "google_oauth_err_network", err=str(e)))
             st.query_params.clear()
             st.stop()
 
-    st.markdown("""
+    st.markdown(f"""
         <div style="text-align: center; margin-top: 5vh; margin-bottom: 3vh;">
-            <div style="font-size: clamp(30px, 8vw, 40px); font-weight: 800; color: #333333; margin-bottom: 1vh;">🥗 NutriSort AI</div>
-            <div style="font-size: clamp(16px, 4vw, 20px); font-weight: 500; color: #86cc85;">로그인하고 나만의 식단 기록을 시작하세요</div>
+            <div style="font-size: clamp(30px, 8vw, 40px); font-weight: 800; color: #333333; margin-bottom: 1vh;">{t['title']}</div>
+            <div style="font-size: clamp(16px, 4vw, 20px); font-weight: 500; color: #86cc85;">{t['login_heading']}</div>
         </div>
     """, unsafe_allow_html=True)
     
@@ -678,31 +590,32 @@ if not st.session_state['logged_in']:
         
     c1, c2, c3 = st.columns(3)
     with c1:
-        if st.button("로그인", type="primary" if st.session_state['auth_mode'] == 'login' else "secondary", use_container_width=True):
+        if st.button(t["btn_login"], type="primary" if st.session_state['auth_mode'] == 'login' else "secondary", use_container_width=True):
             st.session_state['auth_mode'] = 'login'
             st.rerun()
     with c2:
-        if st.button("회원가입", type="primary" if st.session_state['auth_mode'] == 'signup' else "secondary", use_container_width=True):
+        if st.button(t["btn_signup"], type="primary" if st.session_state['auth_mode'] == 'signup' else "secondary", use_container_width=True):
             st.session_state['auth_mode'] = 'signup'
             st.rerun()
     with c3:
-        if st.button("체험하기", type="primary" if st.session_state['auth_mode'] == 'guest' else "secondary", use_container_width=True):
+        if st.button(t["btn_guest"], type="primary" if st.session_state['auth_mode'] == 'guest' else "secondary", use_container_width=True):
             st.session_state['auth_mode'] = 'guest'
             st.rerun()
             
     st.markdown("<br>", unsafe_allow_html=True)
     
     if st.session_state['auth_mode'] in ['login', 'signup']:
-        mode_text = "로그인" if st.session_state['auth_mode'] == 'login' else "회원가입"
+        mode_text = t["btn_login"] if st.session_state['auth_mode'] == 'login' else t["btn_signup"]
+        submit_label = t["auth_submit_login"] if st.session_state['auth_mode'] == 'login' else t["auth_submit_signup"]
         with st.form("auth_form_modern"):
             st.markdown(f"#### 🔒 {mode_text}")
-            email = st.text_input("이메일 (Email)", placeholder="example@email.com")
-            pwd = st.text_input("비밀번호 (Password)", type="password", placeholder="6자리 이상 입력")
-            submitted = st.form_submit_button(f"{mode_text}하기", type="primary", use_container_width=True)
+            email = st.text_input(t["auth_email_label"], placeholder=t["auth_email_placeholder"])
+            pwd = st.text_input(t["auth_pwd_label"], type="password", placeholder=t["auth_pwd_placeholder"])
+            submitted = st.form_submit_button(submit_label, type="primary", use_container_width=True)
             
             if submitted:
                 if not email or not pwd:
-                    st.error("이메일과 비밀번호를 모두 입력해주세요.")
+                    st.error(t["err_email_pwd_empty"])
                 else:
                     success, res = pyrebase_auth(email, pwd, "login" if st.session_state['auth_mode'] == 'login' else "signup")
                     
@@ -712,13 +625,13 @@ if not st.session_state['logged_in']:
                         st.rerun()
                     else:
                         if "EMAIL_EXISTS" in res:
-                            st.error("이미 식단 앱에 가입된 이메일입니다. 로그인해주세요.")
+                            st.error(t["err_email_exists"])
                         elif "INVALID_LOGIN_CREDENTIALS" in res or "INVALID_PASSWORD" in res or "EMAIL_NOT_FOUND" in res:
-                            st.error("이메일 또는 비밀번호가 잘못되었습니다.")
+                            st.error(t["err_invalid_credentials"])
                         else:
-                            st.error(f"{mode_text} 실패: {res}")
+                            st.error(get_text(st.session_state.get("lang", "KO"), "err_auth_failed", msg=str(res)))
                 
-        st.markdown("<br> <div style='text-align:center; color:#888; font-size:14px;'>또는 소셜 계정으로 계속하기</div> <br>", unsafe_allow_html=True)
+        st.markdown(f"<br> <div style='text-align:center; color:#888; font-size:14px;'>{t['or_social']}</div> <br>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
         with col1:
             if google_client_id:
@@ -749,45 +662,31 @@ if not st.session_state['logged_in']:
                         <input type="hidden" name="access_type" value="offline">
                         <input type="hidden" name="prompt" value="consent">
                         <button type="submit" style="display: flex; align-items: center; justify-content: center; height: 43px; width: 100%; border: 1px solid #dcdcdc; border-radius: 8px; font-weight: 600; font-size: 15.5px; background-color: white; color: #333333; cursor: pointer; text-decoration: none; transition: background-color 0.2s;">
-                            🟢 구글로 로그인
+                            {t['google_login_btn']}
                         </button>
                     </form>
                     <div style="text-align:center; font-size:11px; color:#999; margin-top:5px; line-height:1.2;">
-                        * 만약 에러 시, 화면 우측 상단 ⋮ 메뉴에서<br>'기본 브라우저에서 열기'를 눌러주세요.
+                        {t['oauth_open_in_browser']}
                     </div>
                 '''
                 st.components.v1.html(auth_html, height=80)
             else:
-                st.button("🟢 구글 로그인", disabled=True, use_container_width=True, help="secrets에 설정이 필요합니다.")
+                st.button(t["google_login_btn"], disabled=True, use_container_width=True, help=t["google_login_disabled_help"])
                 
         with col2:
-            st.button("🟡 카카오 로그인", disabled=True, use_container_width=True)
+            st.button(t["kakao_login_btn"], disabled=True, use_container_width=True)
             
     elif st.session_state['auth_mode'] == 'guest':
-        st.info(
-            "🚀 **비회원 체험 모드 안내**\n\n"
-            "체험 모드에서는 본인의 현재 모바일 기기에만 임시 데이터가 기록되며, "
-            "추후 브라우저 캐시가 삭제되면 기록이 지워질 수 있습니다."
-        )
+        st.info(f"{t['guest_info_title']}\n\n{t['guest_info_body']}")
         
-        if st.button("🚀 위 내용을 확인했으며, 게스트로 입장합니다", type="primary", use_container_width=True):
+        if st.button(t["guest_confirm_btn"], type="primary", use_container_width=True):
             st.session_state['logged_in'] = True
             st.session_state['user_id'] = "guest_user_demo"
             st.rerun()
 
     st.markdown("<br><br>", unsafe_allow_html=True)
-    with st.expander("📲 스마트폰 배경화면에 앱으로 설치하기", expanded=False):
-        st.markdown("""
-            **NutriSort AI**는 설치형 웹앱(PWA)입니다. 아래 방법에 따라 스마트폰 홈 화면에 아이콘을 추가하시면, 매번 브라우저를 켤 필요 없이 진짜 앱처럼 **전체 화면(가로모드 고정 등)**으로 쾌적하게 이용하실 수 있습니다!
-            
-            🍎 **아이폰 (Safari)**
-            1. 화면 화면 하단의 **[공유하기(네모와 위쪽 화살표)]** 아이콘 터치
-            2. 메뉴를 조금 올려서 **[홈 화면에 추가]** 터치
-            
-            🤖 **안드로이드 (Chrome / 삼성 인터넷)**
-            1. 화면 우측 상단(또는 하단)의 **[⋮] (메뉴)** 아이콘 터치
-            2. **[홈 화면에 추가]** 또는 **[앱 설치]** 터치
-        """)
+    with st.expander(t["install_guide_title"], expanded=False):
+        st.markdown(t["install_guide_body"].replace("\n", "\n\n"))
 
     st.stop()  # 로그인되지 않은 사용자는 식단 분석 로직을 볼 수 없음
 
@@ -799,7 +698,7 @@ if menu_key == "scanner":
         
     API_KEY = _get_secret("GEMINI_API_KEY")
     if not API_KEY:
-        st.error("GEMINI_API_KEY가 설정되지 않았습니다. 환경 변수 또는 시크릿을 확인해 주세요.")
+        st.error(t["gemini_key_error"])
         st.stop()
     client = genai.Client(api_key=API_KEY)
 
@@ -826,8 +725,8 @@ if menu_key == "scanner":
         total_remaining = (2 + st.session_state['guest_bonus_count']) - st.session_state['guest_usage_count']
         
         if is_guest and total_remaining <= 0:
-            st.warning("⚠️ **무료 체험 횟수(2회)를 모두 소진하셨습니다.**")
-            st.info("💡 **광고를 보면 1회 무료 분석을 추가로 드립니다!**")
+            st.warning(t["guest_trial_exhausted"])
+            st.info(t["guest_ad_bonus"])
             
             # --- [Google AdSense 보상형 광고 시뮬레이션 버튼] ---
             # 실제 배포 시에는 구글 애드몹/애드센스 리워드형 태그로 교체 가능합니다.
@@ -842,20 +741,20 @@ if menu_key == "scanner":
                 """, unsafe_allow_html=True)
             with col_ad2:
                 st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True) # 줄맞춤
-                if st.button("🎁 광고 보고 1회 충전", use_container_width=True):
+                if st.button(t["btn_ad_charge"], use_container_width=True):
                     # 광고를 보면 보너스 횟수를 1 부여하고 화면 리로드
                     st.session_state['guest_bonus_count'] += 1
                     st.rerun()
             
             st.markdown("<br><hr>", unsafe_allow_html=True)
-            st.markdown("**기다리지 않고 바로 계속 분석하시겠어요?**")
-            if st.button("🔐 회원가입 / 로그인 화면으로 이동", type="primary", use_container_width=True):
+            st.markdown(f"**{t['guest_continue_question']}**")
+            if st.button(t["btn_go_signup"], type="primary", use_container_width=True):
                 st.session_state['logged_in'] = False
                 st.session_state['auth_mode'] = 'signup'
                 st.rerun()
         else:
             if is_guest:
-                st.info(f"💡 현재 **무료 체험 모드**입니다. (남은 횟수: {total_remaining}회)")
+                st.info(get_text(st.session_state.get("lang", "KO"), "guest_remaining", n=total_remaining))
                 
             if 'uploader_key' not in st.session_state:
                 st.session_state['uploader_key'] = 0
@@ -883,7 +782,7 @@ if menu_key == "scanner":
 
     elif st.session_state['app_stage'] == 'analyze':
         # 2페이지: 업로드 완료 & 분석 대기 페이지
-        if st.button("⬅️ 메인으로 가기", key="btn_back_main_1", use_container_width=True):
+        if st.button(t["btn_back_main"], key="btn_back_main_1", use_container_width=True):
             st.session_state['app_stage'] = 'main'
             st.session_state['current_img'] = None
             st.session_state['uploader_key'] += 1 # 강제로 새 업로더 생성(초기화)
@@ -945,38 +844,14 @@ if menu_key == "scanner":
             success = False
             last_err_msg = ""
             is_503 = False
-            
+            _lang = st.session_state.get("lang", "KO")
+            food_prompt, advice_prompt = get_analysis_prompt(_lang)
+
             for attempt in range(max_retries):
                 try:
-                    # Cal AI 스타일 혈당 분석 프롬프트 (GI + 탄수화물 + 단백질)
-                    if lang == "KO":
-                        prompt = """사진 속 음식들을 혈당 관리 관점에서 분석해줘.
-각 음식을 아래 형식으로 정확히 반환해 (헤더 없이 데이터만, 한 줄에 하나):
-음식이름|GI수치|탄수화물g|단백질g|혈당신호|섭취순서
-
-규칙:
-- GI수치: 0~100 정수 (혈당지수)
-- 탄수화물g: 해당 음식 예상 섭취량 기준 정수
-- 단백질g: 해당 음식 예상 섭취량 기준 정수
-- 혈당신호: 초록/노랑/빨강 중 하나
-- 섭취순서: 1부터 시작
-
-예시:
-나물반찬|22|8|3|초록|1
-잡곡밥|55|45|5|노랑|2
-삼겹살|28|0|22|초록|3"""
-                    else:
-                        prompt = """Analyze foods in the photo for blood sugar management.
-Return each food in this exact format (data only, one line each):
-FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
-- GI: integer 0-100
-- Carbs_g and Protein_g: estimated grams (integer)
-- Signal: Green/Yellow/Red
-- EatingOrder: integer from 1"""
-
                     response = client.models.generate_content(
                         model="gemini-flash-latest",
-                        contents=[prompt, st.session_state['current_img']]
+                        contents=[food_prompt, st.session_state['current_img']]
                     )
 
                     # 결과 파싱 (새 형식: name|GI|carbs|protein|color|order)
@@ -1012,10 +887,10 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
                         total_carbs = sum(i[2] for i in items)
                         total_protein = sum(i[3] for i in items)
 
-                        # 소견 분석
+                        # 소견 분석 (선택 언어로 응답하도록 prompts.get_advice_prompt 사용)
                         advice_res = client.models.generate_content(
                             model="gemini-flash-latest",
-                            contents=[t["advice_prompt"], st.session_state['current_img']]
+                            contents=[advice_prompt, st.session_state['current_img']]
                         )
 
                         # 하루 누적 업데이트
@@ -1042,7 +917,7 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
                         st.rerun()
                     else:
                         loading_placeholder.empty()
-                        st.warning("분석에 실패했습니다. 올바른 음식 사진인지 확인해 보세요.")
+                        st.warning(t["analysis_failed"])
                         success = True
                         break
                         
@@ -1066,9 +941,9 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
                     st.session_state['guest_usage_count'] -= 1
                     
                 if is_503:
-                    st.error("접속자가 많아 AI 서버가 잠시 지연되고 있습니다. 2~3초 뒤에 다시 스캔 버튼을 눌러 주세요.")
+                    st.error(t["server_busy"])
                 else:
-                    st.error(f"분석 오류가 발생했습니다. 잠시 후 다시 시도해 주세요. ({last_err_msg})")
+                    st.error(get_text(st.session_state.get("lang", "KO"), "analysis_error_generic", msg=last_err_msg))
 
     elif st.session_state['app_stage'] == 'result':
         # 세션 손실(다중 워커/타임아웃 등) 시 분석 결과가 없으면 메인으로 복귀
@@ -1077,10 +952,10 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
             st.session_state['current_img'] = None
             if 'uploader_key' in st.session_state:
                 st.session_state['uploader_key'] += 1
-            st.warning("세션이 초기화되었습니다. 다시 사진을 올려 분석해 주세요.")
+            st.warning(t["session_reset_msg"])
             st.rerun()
 
-        if st.button("⬅️ 메인으로 돌아가기 (다시하기)", key="btn_back_main_2", use_container_width=True):
+        if st.button(t["btn_back_main_2"], key="btn_back_main_2", use_container_width=True):
             st.session_state['app_stage'] = 'main'
             st.session_state['current_img'] = None
             st.session_state['current_analysis'] = None
@@ -1095,11 +970,11 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
         avg_gi = res.get('avg_gi', score)
 
         if score <= 40:
-            risk_label, risk_color = "혈당 안전 🟢", "#4CAF50"
+            risk_label, risk_color = f"{t['risk_safe']} 🟢", "#4CAF50"
         elif score <= 65:
-            risk_label, risk_color = "주의 필요 🟡", "#FFB300"
+            risk_label, risk_color = f"{t['risk_caution']} 🟡", "#FFB300"
         else:
-            risk_label, risk_color = "혈당 위험 🔴", "#F44336"
+            risk_label, risk_color = f"{t['risk_danger']} 🔴", "#F44336"
 
         # ── 1. 이미지 + 원형 혈당 스코어 (Cal AI 핵심 UI) ──
         col_img, col_score = st.columns([1, 1])
@@ -1108,7 +983,7 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
         with col_score:
             st.markdown(f"""
             <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;padding:8px;">
-                <div style="font-size:12px;color:#888;font-weight:600;letter-spacing:1px;margin-bottom:6px;">혈당 점수</div>
+                <div style="font-size:12px;color:#888;font-weight:600;letter-spacing:1px;margin-bottom:6px;">{t['blood_score_circle']}</div>
                 <div style="width:110px;height:110px;border-radius:50%;
                     background:conic-gradient({risk_color} {score}%, #f0f0f0 {score}%);
                     display:flex;justify-content:center;align-items:center;
@@ -1130,41 +1005,41 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
             <div style="background:white;border-radius:14px;padding:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #f0f0f0;">
                 <div style="font-size:18px;">🍚</div>
                 <div style="font-size:21px;font-weight:900;color:#333;margin:3px 0;">{total_carbs}g</div>
-                <div style="font-size:10px;color:#888;">탄수화물</div>
+                <div style="font-size:10px;color:#888;">{t['carbs']}</div>
             </div>
             <div style="background:white;border-radius:14px;padding:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #f0f0f0;">
                 <div style="font-size:18px;">🩸</div>
                 <div style="font-size:21px;font-weight:900;color:{risk_color};margin:3px 0;">{avg_gi}</div>
-                <div style="font-size:10px;color:#888;">평균 GI</div>
+                <div style="font-size:10px;color:#888;">{t['avg_gi_label']}</div>
             </div>
             <div style="background:white;border-radius:14px;padding:13px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #f0f0f0;">
                 <div style="font-size:18px;">💪</div>
                 <div style="font-size:21px;font-weight:900;color:#333;margin:3px 0;">{total_protein}g</div>
-                <div style="font-size:10px;color:#888;">단백질</div>
+                <div style="font-size:10px;color:#888;">{t['protein']}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
         # ── 3. 혈당 스파이크 예측 바 ──
-        spike_label = "낮음 🙂" if score <= 40 else "보통 😐" if score <= 65 else "높음 😰"
+        spike_label = t["spike_low"] if score <= 40 else t["spike_mid"] if score <= 65 else t["spike_high"]
         st.markdown(f"""
         <div style="background:white;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #f0f0f0;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
-                <div style="font-weight:700;font-size:14px;color:#333;">⚡ 혈당 스파이크 예측</div>
+                <div style="font-weight:700;font-size:14px;color:#333;">{t['spike_prediction']}</div>
                 <div style="font-weight:700;font-size:14px;color:{risk_color};">{spike_label}</div>
             </div>
             <div style="background:#f0f0f0;border-radius:8px;height:10px;overflow:hidden;">
                 <div style="background:linear-gradient(90deg,#4CAF50,#FFB300,#F44336);width:{score}%;height:10px;border-radius:8px;"></div>
             </div>
             <div style="display:flex;justify-content:space-between;margin-top:4px;">
-                <div style="font-size:10px;color:#aaa;">안전 (0)</div>
-                <div style="font-size:10px;color:#aaa;">위험 (100)</div>
+                <div style="font-size:10px;color:#aaa;">{t['safe_end']}</div>
+                <div style="font-size:10px;color:#aaa;">{t['danger_end']}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
         # ── 4. 음식별 혈당 분석 카드 (GI 바 포함) ──
-        st.markdown("""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">음식별 혈당 분석</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">{t['food_analysis_section']}</div></div>""", unsafe_allow_html=True)
 
         cards_html = ""
         for idx, item in enumerate(res['sorted_items'], 1):
@@ -1174,11 +1049,11 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
             protein = item[3] if len(item) > 3 and isinstance(item[3], int) else 0
             color_str = str(item[4]) if len(item) > 4 else '노랑'
             if any(x in color_str for x in ["초록", "Green"]):
-                tc, bg, bc, gl = "#4CAF50", "#F1F8E9", "#C5E1A5", "낮음"
+                tc, bg, bc, gl = "#4CAF50", "#F1F8E9", "#C5E1A5", t["gi_level_low"]
             elif any(x in color_str for x in ["노랑", "주황", "Yellow", "Orange"]):
-                tc, bg, bc, gl = "#FFB300", "#FFFDE7", "#FFF59D", "보통"
+                tc, bg, bc, gl = "#FFB300", "#FFFDE7", "#FFF59D", t["gi_level_mid"]
             else:
-                tc, bg, bc, gl = "#F44336", "#FFEBEE", "#EF9A9A", "높음"
+                tc, bg, bc, gl = "#F44336", "#FFEBEE", "#EF9A9A", t["gi_level_high"]
             gi_w = min(100, gi)
             cards_html += f"""
             <div style="background:{bg};border:1px solid {bc};border-radius:14px;padding:13px;margin-bottom:9px;">
@@ -1196,14 +1071,14 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
                     <div style="background:{tc};width:{gi_w}%;height:5px;border-radius:5px;"></div>
                 </div>
                 <div style="display:flex;gap:14px;">
-                    <div style="font-size:12px;color:#555;">🍚 탄수화물 <b>{carbs}g</b></div>
-                    <div style="font-size:12px;color:#555;">💪 단백질 <b>{protein}g</b></div>
+                    <div style="font-size:12px;color:#555;">🍚 {t['carbs_short']} <b>{carbs}g</b></div>
+                    <div style="font-size:12px;color:#555;">💪 {t['protein_short']} <b>{protein}g</b></div>
                 </div>
             </div>"""
         st.markdown(cards_html, unsafe_allow_html=True)
 
         # ── 5. 권장 섭취 순서 태그 ──
-        st.markdown("""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">🥗 권장 섭취 순서</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">{t['recommended_order_section']}</div></div>""", unsafe_allow_html=True)
         tags_html = '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;">'
         for idx, item in enumerate(res['sorted_items'], 1):
             name = str(item[0]).replace('*', '').strip()
@@ -1214,7 +1089,7 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
         st.markdown(tags_html, unsafe_allow_html=True)
 
         # ── 6. AI 소견 ──
-        st.markdown("""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">🤖 혈당 관리 AI 소견</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">{t['ai_advice_section']}</div></div>""", unsafe_allow_html=True)
         st.info(res['advice'])
 
         # ── 7. 저장 버튼 ──
