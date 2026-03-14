@@ -1,5 +1,42 @@
 import streamlit as st
 import os
+import json
+
+# --- Railway 등에서 환경 변수로 시크릿 읽기 (Streamlit Cloud는 st.secrets 유지) ---
+def _get_secret(key, default=None):
+    v = os.environ.get(key)
+    if v:
+        return v
+    try:
+        return getattr(st.secrets, "get", lambda k, d=None: d)(key, default)
+    except Exception:
+        return default
+
+def _get_firebase_config():
+    try:
+        if getattr(st.secrets, "get", None) and st.secrets.get("firebase"):
+            return st.secrets["firebase"]
+    except Exception:
+        pass
+    cfg = {
+        "api_key": os.environ.get("FIREBASE_API_KEY", ""),
+        "google_oauth_client_id": os.environ.get("FIREBASE_GOOGLE_OAUTH_CLIENT_ID", ""),
+        "google_client_secret": os.environ.get("FIREBASE_GOOGLE_CLIENT_SECRET", ""),
+    }
+    cred_json = os.environ.get("FIREBASE_CREDENTIALS_JSON")
+    if cred_json:
+        try:
+            cfg.update(json.loads(cred_json))
+        except Exception:
+            pass
+    else:
+        for key in ["type", "project_id", "private_key_id", "private_key", "client_email", "client_id", "auth_uri", "token_uri", "auth_provider_x509_cert_url", "client_x509_cert_url", "universe_domain"]:
+            val = os.environ.get("FIREBASE_" + key.upper())
+            if val and key == "private_key":
+                val = val.replace("\\n", "\n")
+            if val:
+                cfg[key] = val
+    return cfg
 
 # 호스팅 이전 시 이 URL만 바꾸면 됨 (환경 변수 BASE_URL 또는 Streamlit 시크릿)
 try:
@@ -462,14 +499,13 @@ import json
 def pyrebase_auth(email, password, mode="login"):
     """REST API를 활용한 Firebase 기본 이메일/패스워드 인증 로직"""
     try:
-        if "firebase" not in st.secrets:
-            return False, "Firebase secrets 설정이 존재하지 않습니다."
-        api_key = st.secrets["firebase"].get("api_key", "")
+        firebase_cfg = _get_firebase_config()
+        api_key = firebase_cfg.get("api_key", "")
     except Exception:
-        return False, "secrets.toml 파일을 읽는 중 오류가 발생했습니다."
+        return False, "Firebase 설정을 읽는 중 오류가 발생했습니다."
         
     if not api_key:
-        return False, "Firebase Web API Key가 secrets.toml에 없습니다."
+        return False, "Firebase Web API Key가 설정에 없습니다."
         
     if mode == "signup":
         url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
@@ -495,14 +531,9 @@ if not st.session_state['logged_in']:
     if "oauth_state" not in st.session_state:
         st.session_state["oauth_state"] = str(uuid.uuid4())
         
-    google_client_id = ""
-    google_client_secret = ""
-    try:
-        if "firebase" in st.secrets:
-            google_client_id = st.secrets["firebase"].get("google_oauth_client_id", "")
-            google_client_secret = st.secrets["firebase"].get("google_client_secret", "")
-    except Exception:
-        pass
+    firebase_cfg = _get_firebase_config()
+    google_client_id = firebase_cfg.get("google_oauth_client_id", "")
+    google_client_secret = firebase_cfg.get("google_client_secret", "")
         
     # --- [구글 소셜 로그인 리다이렉트 처리 콜백 로직] ---
     if "code" in st.query_params:
@@ -674,7 +705,10 @@ if menu == t["scanner_menu"]:
     if 'app_stage' not in st.session_state:
         st.session_state['app_stage'] = 'main'
         
-    API_KEY = st.secrets["GEMINI_API_KEY"]
+    API_KEY = _get_secret("GEMINI_API_KEY")
+    if not API_KEY:
+        st.error("GEMINI_API_KEY가 설정되지 않았습니다. 환경 변수 또는 시크릿을 확인해 주세요.")
+        st.stop()
     client = genai.Client(api_key=API_KEY)
 
     if st.session_state['app_stage'] == 'main':
@@ -1099,7 +1133,7 @@ FoodName|GI|Carbs_g|Protein_g|Signal|EatingOrder
                         "auth_provider_x509_cert_url", "client_x509_cert_url",
                         "universe_domain"
                     ]
-                    key_dict = {k: v for k, v in st.secrets["firebase"].items() if k in _FIREBASE_ADMIN_KEYS}
+                    key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
                     cred = credentials.Certificate(key_dict)
                     firebase_admin.initialize_app(cred)
                 db = firestore.client()

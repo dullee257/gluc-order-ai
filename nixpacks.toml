@@ -1,0 +1,8 @@
+# Railway(Nixpacks) 빌드 설정: Python 3.12 + Streamlit 시작 명령
+# Python 3.13은 호환성 이슈로 3.12 사용
+[providers.python]
+version = "3.12"
+
+[start]
+# Railway가 주입하는 PORT 사용 (끝에 슬래시 없이)
+cmd = "streamlit run app.py --server.port $PORT --server.address 0.0.0.0"
