@@ -1,6 +1,16 @@
-import streamlit as st
+# -*- coding: utf-8 -*-
+"""NutriSort AI - 한글 기본, UTF-8 소스·출력 통일."""
+import sys
 import os
 import json
+
+# Railway 등 Linux 환경에서 한글 출력 깨짐 방지
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
+import streamlit as st
 
 # --- Railway 등에서 환경 변수로 시크릿 읽기 (Streamlit Cloud는 st.secrets 유지) ---
 def _get_secret(key, default=None):
@@ -308,10 +318,10 @@ texts = {
     }
 }
 
-# 3. 사이드바 메뉴
+# 3. 사이드바 메뉴 (기본 언어: 한글 KO)
 with st.sidebar:
-    st.title("Settings")
-    lang = st.radio("Language / 언어 선택", ["KO", "EN"])
+    st.title("설정")
+    lang = st.radio("언어 / Language", ["KO", "EN"], index=0, help="KO=한국어(기본), EN=English")
     t = texts[lang]
     st.divider()
     st.title(t["sidebar_title"])
@@ -367,9 +377,16 @@ with st.sidebar:
             "식단·영양 정보는 참고용이며, 개인 결과에 따라 차이가 있을 수 있습니다."
         )
 
-# 4. 피그마 디자인 완벽 이식 및 광채 효과 CSS
+# 4. 피그마 디자인 + 한글 표시 보장 (UTF-8·폰트)
 st.markdown(f"""
 <style>
+    /* 한글 표시: Noto Sans KR 로드 후 전역 적용 (한글 깨짐 방지) */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+    .stApp, .stApp .stMarkdown, .stApp p, .stApp span, .stApp label, .stApp div[data-testid], 
+    [data-testid="stFileUploader"] section::after {{
+        font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", "Nanum Gothic", sans-serif !important;
+    }}
+
     .stApp {{ background-color: #f8f9fa; }}
 
     [data-testid="stFileUploader"] {{
