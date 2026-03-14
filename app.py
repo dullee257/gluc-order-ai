@@ -697,10 +697,15 @@ if not st.session_state['logged_in']:
                         else:
                             st.error(get_text(st.session_state.get("lang", "KO"), "err_auth_failed", msg=str(res)))
                 
-        # 소셜 로그인: 버튼(확장) 클릭 시 구글·카카오·네이버 등 표시
-        with st.expander(t.get("btn_social_login", "🔐 소셜 계정으로 로그인하기"), expanded=False):
+        # 소셜 로그인: 한글(KO)일 때만 카카오·네이버 표시, 그 외 언어는 구글만
+        _lang = st.session_state.get("lang", "KO")
+        _show_kakao_naver = _lang == "KO"
+        with st.expander(t.get("btn_social_login", "소셜 계정으로 로그인하기"), expanded=False):
             st.caption(t["or_social"])
-            col1, col2, col3 = st.columns(3)
+            if _show_kakao_naver:
+                col1, col2, col3 = st.columns(3)
+            else:
+                col1 = st.columns(1)[0]
             with col1:
                 if google_client_id:
                     auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -735,10 +740,11 @@ if not st.session_state['logged_in']:
                     st.components.v1.html(auth_html, height=80)
                 else:
                     st.button(t["google_login_btn"], disabled=True, use_container_width=True, help=t["google_login_disabled_help"])
-            with col2:
-                st.button(t["kakao_login_btn"], disabled=True, use_container_width=True)
-            with col3:
-                st.button(t.get("naver_login_btn", "🟢 네이버 로그인"), disabled=True, use_container_width=True)
+            if _show_kakao_naver:
+                with col2:
+                    st.button(t["kakao_login_btn"], disabled=True, use_container_width=True)
+                with col3:
+                    st.button(t.get("naver_login_btn", "네이버 로그인"), disabled=True, use_container_width=True)
             
     elif st.session_state['auth_mode'] == 'guest':
         st.info(f"{t['guest_info_title']}\n\n{t['guest_info_body']}", icon="🚀")
