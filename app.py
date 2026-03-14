@@ -366,6 +366,8 @@ _lang_attr = LANG_HTML_ATTR.get(st.session_state.get("lang", "KO"), "ko")
 st.markdown(f'<script>try{{document.documentElement.lang="{_lang_attr}";}}catch(e){{}}</script>', unsafe_allow_html=True)
 
 # 4. 피그마 디자인 + 한글 표시 보장 (UTF-8·폰트)
+# 업로더 placeholder: CSS content 내 따옴표·백슬래시 이스케이프 (글자 오류 방지)
+_uploader_ph = (t.get("uploader_placeholder") or "식단 스캔 시작").replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
 st.markdown(f"""
 <style>
     /* 한글 표시: Noto Sans KR 로드 후 전역 적용 (한글 깨짐 방지) */
@@ -426,7 +428,7 @@ st.markdown(f"""
 
     /* 내부 텍스트: 화면이 작아지면 같이 작아짐 (최소 14px ~ 최대 20px) */
     [data-testid="stFileUploader"] section::after {{
-        content: "{t.get('uploader_placeholder', '식단 스캔 시작')}"; 
+        content: "{_uploader_ph}"; 
         font-size: clamp(14px, 4vw, 20px); 
         font-weight: 700;
         color: #333333;
