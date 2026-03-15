@@ -867,7 +867,10 @@ def _load_my_history_from_firestore():
             key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
             cred = credentials.Certificate(key_dict)
             _opts = {}
-            if key_dict.get("project_id"):
+            _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
+            if _bucket:
+                _opts["storageBucket"] = _bucket
+            elif key_dict.get("project_id"):
                 _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
             firebase_admin.initialize_app(cred, _opts)
         db = firestore.client()
@@ -1074,7 +1077,10 @@ if menu_key == "scanner":
                     key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
                     cred = credentials.Certificate(key_dict)
                     _opts = {}
-                    if key_dict.get("project_id"):
+                    _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
+                    if _bucket:
+                        _opts["storageBucket"] = _bucket
+                    elif key_dict.get("project_id"):
                         _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
                     firebase_admin.initialize_app(cred, _opts)
                 db = firestore.client()
@@ -1489,7 +1495,10 @@ if menu_key == "scanner":
                             key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
                             cred = credentials.Certificate(key_dict)
                             _opts = {}
-                            if key_dict.get("project_id"):
+                            _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
+                            if _bucket:
+                                _opts["storageBucket"] = _bucket
+                            elif key_dict.get("project_id"):
                                 _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
                             firebase_admin.initialize_app(cred, _opts)
                         db = firestore.client()

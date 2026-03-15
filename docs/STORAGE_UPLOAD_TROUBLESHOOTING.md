@@ -12,10 +12,24 @@ Railway / Firebase / GitHub 환경에서 **식단 저장 시 사진이 Firebase 
 | **Railway 환경 변수** | `FIREBASE_CREDENTIALS_JSON`에 서비스 계정 JSON을 넣을 때 **`private_key` 안의 줄바꿈**이 `\n` 문자열로 들어가면 인증 실패. | JSON 파싱 후 `private_key.replace("\\n", "\n")` 처리 (코드 반영됨). 또는 JSON 한 줄로 넣을 때 실제 줄바꿈 유지. |
 | **세션/워커** | Streamlit이 **다중 워커**이거나 **재시작**되면, 저장 버튼을 누를 때 **다른 프로세스**에서 실행되어 `current_analysis` / `raw_img`가 비어 있을 수 있음. | 단일 워커·세션 유지. 또는 분석 직후 곧바로 저장 유도. |
 | **Firebase Storage 규칙** | 서비스 계정으로 업로드하는 경우 보통 규칙과 무관. 다만 **버킷 자체가 비활성**이면 실패. | Firebase 콘솔 → Storage 활성화·규칙 확인. |
+| **404 The specified bucket does not exist** | Firebase 프로젝트에 따라 기본 버킷 이름이 **project_id.appspot.com**이 아니라 **project_id.firebasestorage.app**인 경우가 있음. 코드 기본값은 appspot.com. | Railway(및 로컬)에 **FIREBASE_STORAGE_BUCKET** 환경 변수 설정. Firebase 콘솔 Storage 상단에 표시된 버킷 이름 그대로 넣기. 예: `gluc-order-ai.firebasestorage.app` |
 
 ---
 
-## 2. Railway 점검
+## 2. 404 "The specified bucket does not exist" 해결
+
+Firebase 콘솔 Storage에 표시되는 버킷이 **project_id.firebasestorage.app** 형태일 수 있습니다. 이 경우 코드 기본값(project_id.appspot.com)으로는 404가 납니다.
+
+**해결:** Railway(및 필요 시 로컬)에 환경 변수 추가:
+
+- **이름:** `FIREBASE_STORAGE_BUCKET`
+- **값:** Firebase 콘솔 → Storage → 상단에 보이는 버킷 이름 그대로 (예: `gluc-order-ai.firebasestorage.app`)
+
+저장 후 재배포하고 식단 저장을 다시 시도하세요.
+
+---
+
+## 3. Railway 점검
 
 - **환경 변수**
   - `FIREBASE_CREDENTIALS_JSON`: Firebase 콘솔에서 받은 **서비스 계정 JSON 전체**가 들어가 있는지 확인.
@@ -29,7 +43,7 @@ Railway / Firebase / GitHub 환경에서 **식단 저장 시 사진이 Firebase 
 
 ---
 
-## 3. Firebase 점검
+## 4. Firebase 점검
 
 - **Storage 활성화**  
   Firebase 콘솔 → **Storage** → “시작하기” 후 버킷 생성 여부.
@@ -47,7 +61,7 @@ Railway / Firebase / GitHub 환경에서 **식단 저장 시 사진이 Firebase 
 
 ---
 
-## 4. GitHub(코드) 점검
+## 5. GitHub(코드) 점검
 
 - **`initialize_app(cred)`**  
   반드시 **옵션으로 `storageBucket`** 이 들어가 있어야 함.  
@@ -63,7 +77,7 @@ Railway / Firebase / GitHub 환경에서 **식단 저장 시 사진이 Firebase 
 
 ---
 
-## 5. 적용된 코드 수정 요약
+## 6. 적용된 코드 수정 요약
 
 1. **`storageBucket` 지정**  
    `firebase_admin.initialize_app(cred)` 호출부 세 곳 모두에  
@@ -75,7 +89,7 @@ Railway / Firebase / GitHub 환경에서 **식단 저장 시 사진이 Firebase 
 
 ---
 
-## 6. 여전히 null일 때 확인 순서
+## 7. 여전히 null일 때 확인 순서
 
 1. **Railway 로그**에서 저장 시 `[Storage]` 예외 메시지 확인.  
 2. **Firebase 콘솔** → Storage → **파일** 탭에서 `users/{uid}/meals/` 아래에 파일이 생기는지 확인.  
