@@ -850,29 +850,33 @@ def _delete_history_record(uid, doc_id):
     """Firestore 문서(users/{uid}/history/{doc_id}) 및 Storage 이미지(users/{uid}/meals/{doc_id}.jpg) 삭제. 성공 시 True."""
     if not uid or not doc_id:
         return False
+    uid = str(uid)
+    doc_id = str(doc_id)
     try:
-        from firebase_admin import firestore, storage
+        from firebase_admin import firestore, storage, credentials
         import firebase_admin
-        from firebase_admin import credentials
+        _FIREBASE_ADMIN_KEYS = [
+            "type", "project_id", "private_key_id", "private_key",
+            "client_email", "client_id", "auth_uri", "token_uri",
+            "auth_provider_x509_cert_url", "client_x509_cert_url",
+            "universe_domain"
+        ]
+        key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
         if not firebase_admin._apps:
-            _FIREBASE_ADMIN_KEYS = [
-                "type", "project_id", "private_key_id", "private_key",
-                "client_email", "client_id", "auth_uri", "token_uri",
-                "auth_provider_x509_cert_url", "client_x509_cert_url",
-                "universe_domain"
-            ]
-            key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
-            cred = credentials.Certificate(key_dict)
             _opts = {}
             _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
             if _bucket:
                 _opts["storageBucket"] = _bucket
             elif key_dict.get("project_id"):
                 _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
-            firebase_admin.initialize_app(cred, _opts)
+            firebase_admin.initialize_app(credentials.Certificate(key_dict), _opts)
         db = firestore.client()
-        db.collection("users").document(uid).collection("history").document(doc_id).delete()
-        _uid_safe = str(uid).replace("/", "_").replace("\\", "_")
+        ref = db.collection("users").document(uid).collection("history").document(doc_id)
+        # 배치로 삭제 후 commit()하여 삭제가 확실히 반영되도록 함
+        batch = db.batch()
+        batch.delete(ref)
+        batch.commit()
+        _uid_safe = uid.replace("/", "_").replace("\\", "_")
         path = f"users/{_uid_safe}/meals/{doc_id}.jpg"
         try:
             bucket = storage.bucket()
