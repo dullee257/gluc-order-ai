@@ -846,6 +846,47 @@ def _normalize_image_url(url, bucket_name=None):
     return url
 
 
+def _delete_history_record(uid, doc_id):
+    """Firestore 문서(users/{uid}/history/{doc_id}) 및 Storage 이미지(users/{uid}/meals/{doc_id}.jpg) 삭제. 성공 시 True."""
+    if not uid or not doc_id:
+        return False
+    try:
+        from firebase_admin import firestore, storage
+        import firebase_admin
+        from firebase_admin import credentials
+        if not firebase_admin._apps:
+            _FIREBASE_ADMIN_KEYS = [
+                "type", "project_id", "private_key_id", "private_key",
+                "client_email", "client_id", "auth_uri", "token_uri",
+                "auth_provider_x509_cert_url", "client_x509_cert_url",
+                "universe_domain"
+            ]
+            key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
+            cred = credentials.Certificate(key_dict)
+            _opts = {}
+            _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
+            if _bucket:
+                _opts["storageBucket"] = _bucket
+            elif key_dict.get("project_id"):
+                _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
+            firebase_admin.initialize_app(cred, _opts)
+        db = firestore.client()
+        db.collection("users").document(uid).collection("history").document(doc_id).delete()
+        _uid_safe = str(uid).replace("/", "_").replace("\\", "_")
+        path = f"users/{_uid_safe}/meals/{doc_id}.jpg"
+        try:
+            bucket = storage.bucket()
+            blob = bucket.blob(path)
+            blob.delete()
+        except Exception as storage_err:
+            sys.stderr.write(f"[Storage 삭제] {type(storage_err).__name__}: {storage_err}\n")
+        return True
+    except Exception as e:
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.write(f"[기록 삭제] {type(e).__name__}: {e}\n")
+        return False
+
+
 # 4-2. 로그인 성공 직후 Firestore에서 해당 uid 기록 불러오기 (새로고침 후 재로그인 시에도 표시)
 def _load_my_history_from_firestore():
     uid = st.session_state.get("user_id")
@@ -898,6 +939,7 @@ def _load_my_history_from_firestore():
         else:
             sorted_lists = items
         loaded.append({
+            "doc_id": d.id,
             "date": data.get("date", ""),
             "image": None,
             "image_url": image_url,
@@ -1579,6 +1621,7 @@ if menu_key == "scanner":
                         st.toast(f"DB 저장 에러: {str(e)}")
                     else:
                         st.session_state["history"].append({
+                            "doc_id": doc_id,
                             "date": save_date,
                             "image": res["raw_img"],
                             "image_url": image_url,
@@ -1727,5 +1770,14 @@ elif menu_key == "history":
                     </div>""", unsafe_allow_html=True)
                 st.divider()
                 st.info(rec['advice'])
+                _doc_id = rec.get("doc_id")
+                if _doc_id and st.button(t.get("delete_record", "🗑️ 기록 삭제"), key=f"hist_del_{i}", type="secondary"):
+                    _uid = st.session_state.get("user_id")
+                    if _uid and _delete_history_record(_uid, _doc_id):
+                        st.session_state["history"] = [h for h in st.session_state["history"] if h.get("doc_id") != _doc_id]
+                        st.toast(t.get("delete_record_done", "기록과 이미지가 삭제되었습니다."))
+                        st.rerun()
+                    else:
+                        st.toast(t.get("delete_record_failed", "삭제에 실패했습니다."))
     else:
         st.info(t["no_history_msg"])
