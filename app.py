@@ -249,9 +249,57 @@ st.components.v1.html(
 )
 from google import genai
 from PIL import Image
-from datetime import datetime
+from datetime import datetime, timezone
 import io
 import base64
+
+# 언어별 타임존·로케일 (저장 시간 및 표시 형식 현지화)
+LANG_TIMEZONE = {
+    "KO": "Asia/Seoul",
+    "JA": "Asia/Tokyo",
+    "ZH": "Asia/Shanghai",
+    "HI": "Asia/Kolkata",
+    "EN": "UTC",
+}
+LANG_BABEL_LOCALE = {
+    "KO": "ko_KR",
+    "JA": "ja_JP",
+    "ZH": "zh_CN",
+    "HI": "hi_IN",
+    "EN": "en_US",
+}
+
+
+def _format_record_date(date_str, saved_at_utc=None, lang="KO"):
+    """선택 언어의 타임존과 로케일에 맞춰 기록 날짜/시간을 포맷. (pytz + babel)"""
+    if not date_str and not saved_at_utc:
+        return ""
+    try:
+        import pytz
+        from babel.dates import format_datetime
+        tz_name = LANG_TIMEZONE.get(lang) or "UTC"
+        locale_name = LANG_BABEL_LOCALE.get(lang) or "en_US"
+        tz = pytz.timezone(tz_name)
+        dt = None
+        if saved_at_utc:
+            try:
+                s = str(saved_at_utc).strip().replace("Z", "+00:00")
+                dt_utc = datetime.fromisoformat(s)
+                if dt_utc.tzinfo is None:
+                    dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+                dt = dt_utc.astimezone(tz)
+            except Exception:
+                pass
+        if dt is None and date_str:
+            try:
+                dt_naive = datetime.strptime(date_str.strip()[:16], "%Y-%m-%d %H:%M")
+                dt = pytz.utc.localize(dt_naive).astimezone(tz)
+            except Exception:
+                return date_str
+        return format_datetime(dt, format="medium", locale=locale_name) if dt else (date_str or str(saved_at_utc or ""))
+    except Exception as e:
+        sys.stderr.write(f"[날짜 포맷] {lang} {date_str!r}: {e}\n")
+        return date_str or (str(saved_at_utc) if saved_at_utc else "")
 
 def compress_image(img, max_size_kb=500, max_edge=1024):
     """이미지가 서버에 로드된 직후 500KB 이하로 브라우저 표시 및 전송 전에 최적화. 모바일 대용량 사진은 먼저 리사이즈해 인코딩 시간 단축."""
@@ -949,7 +997,10 @@ def _load_my_history_from_firestore():
         except Exception:
             pass
         ref = db.collection("users").document(uid).collection("history").stream()
-        docs = sorted(list(ref), key=lambda d: d.to_dict().get("date", ""), reverse=True)
+        def _sort_key(d):
+            data = d.to_dict()
+            return data.get("saved_at_utc") or data.get("date", "")
+        docs = sorted(list(ref), key=_sort_key, reverse=True)
     except Exception as e:
         err_lower = str(e).lower()
         if "permission" in err_lower or "denied" in err_lower:
@@ -969,6 +1020,7 @@ def _load_my_history_from_firestore():
         loaded.append({
             "doc_id": d.id,
             "date": data.get("date", ""),
+            "saved_at_utc": data.get("saved_at_utc"),
             "image": None,
             "image_url": image_url,
             "sorted_items": sorted_lists,
@@ -1545,7 +1597,17 @@ if menu_key == "scanner":
                 st.rerun()
         else:
             if st.button(t["save_btn"], use_container_width=True):
-                save_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+                _lang = st.session_state.get("lang", "KO")
+                try:
+                    import pytz
+                    tz = pytz.timezone(LANG_TIMEZONE.get(_lang) or "UTC")
+                    now_utc = datetime.now(timezone.utc)
+                    save_date_utc = now_utc.isoformat()
+                    save_date = now_utc.astimezone(tz).strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    now_utc = datetime.now(timezone.utc)
+                    save_date_utc = now_utc.isoformat()
+                    save_date = now_utc.strftime("%Y-%m-%d %H:%M")
                 uid = st.session_state.get("user_id")  # 현재 로그인한 사용자 uid (필수, user_logs 문서에 포함)
                 if not uid:
                     st.toast("로그인된 사용자 정보가 없습니다.")
@@ -1617,6 +1679,7 @@ if menu_key == "scanner":
                             })
                         new_db_record = {
                             "date": str(save_date),
+                            "saved_at_utc": save_date_utc,
                             "sorted_items": sorted_items_safe,
                             "advice": str(res.get("advice", "")),
                             "blood_sugar_score": _num(res.get("blood_sugar_score")),
@@ -1626,12 +1689,12 @@ if menu_key == "scanner":
                             "image_url": image_url if image_url is not None else None,
                         }
                         doc_ref.set(new_db_record)
-                        from datetime import timezone
                         now_utc = datetime.now(timezone.utc)
                         db.collection("user_logs").add({
                             "user_id": str(uid),
                             "history_doc_id": doc_id,
                             "date": str(save_date),
+                            "saved_at_utc": save_date_utc,
                             "timestamp": now_utc,
                             "sorted_items": sorted_items_safe,
                             "advice": new_db_record["advice"],
@@ -1652,6 +1715,7 @@ if menu_key == "scanner":
                         st.session_state["history"].append({
                             "doc_id": doc_id,
                             "date": save_date,
+                            "saved_at_utc": save_date_utc,
                             "image": res["raw_img"],
                             "image_url": image_url,
                             "sorted_items": res["sorted_items"],
@@ -1749,7 +1813,8 @@ elif menu_key == "history":
             _key = f"hist_open_{i}"
             if _key not in st.session_state:
                 st.session_state[_key] = False
-            _date = rec.get('date', '')
+            _lang = st.session_state.get("lang", "KO")
+            _date = _format_record_date(rec.get("date", ""), rec.get("saved_at_utc"), _lang)
             _btn_label = f"🍴 {_date}  ·  혈당 {rec_score} ({rl})  ·  탄수화물 {rec_carbs}g"
             if st.button(_btn_label, key=_key + "_btn", use_container_width=True, type="secondary"):
                 st.session_state[_key] = not st.session_state[_key]
