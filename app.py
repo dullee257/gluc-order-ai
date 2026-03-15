@@ -1395,13 +1395,26 @@ if menu_key == "scanner":
                             except Exception as storage_err:
                                 traceback.print_exc(file=sys.stderr)
                                 sys.stderr.write(f"[Storage] {type(storage_err).__name__}: {storage_err}\n")
-                    # Firestore 필드: 필수·타입 준수 (date, sorted_items, advice, 숫자 필드, image_url)
-                    sorted_items_serial = []
+                    # Firestore는 중첩 배열 불가 → [[...]] 를 객체 리스트 [{"name", "gi", ...}, ...] 로 평탄화
+                    sorted_items_safe = []
                     for item in res.get("sorted_items", []):
-                        sorted_items_serial.append([str(x) for x in item])
+                        if not item:
+                            continue
+                        name = str(item[0]).strip() if len(item) > 0 else ""
+                        gi = _num(item[1]) if len(item) > 1 else 0
+                        carbs = _num(item[2]) if len(item) > 2 else 0
+                        protein = _num(item[3]) if len(item) > 3 else 0
+                        color = str(item[4]).strip() if len(item) > 4 else ""
+                        sorted_items_safe.append({
+                            "name": name,
+                            "gi": gi,
+                            "carbs": carbs,
+                            "protein": protein,
+                            "color": color,
+                        })
                     new_db_record = {
                         "date": str(save_date),
-                        "sorted_items": sorted_items_serial,
+                        "sorted_items": sorted_items_safe,
                         "advice": str(res.get("advice", "")),
                         "blood_sugar_score": _num(res.get("blood_sugar_score")),
                         "total_carbs": _num(res.get("total_carbs")),
@@ -1417,7 +1430,7 @@ if menu_key == "scanner":
                         "user_id": str(uid),
                         "date": str(save_date),
                         "timestamp": now_utc,
-                        "sorted_items": new_db_record["sorted_items"],
+                        "sorted_items": sorted_items_safe,
                         "advice": new_db_record["advice"],
                         "blood_sugar_score": new_db_record["blood_sugar_score"],
                         "total_carbs": new_db_record["total_carbs"],
