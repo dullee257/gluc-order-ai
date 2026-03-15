@@ -963,6 +963,147 @@ def _delete_history_record(uid, doc_id):
     return True, None
 
 
+def _get_firestore_db():
+    """Firestore 클라이언트 반환 (필요 시 초기화)."""
+    from firebase_admin import firestore, credentials
+    import firebase_admin
+    if not firebase_admin._apps:
+        _FIREBASE_ADMIN_KEYS = [
+            "type", "project_id", "private_key_id", "private_key",
+            "client_email", "client_id", "auth_uri", "token_uri",
+            "auth_provider_x509_cert_url", "client_x509_cert_url",
+            "universe_domain"
+        ]
+        key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
+        cred = credentials.Certificate(key_dict)
+        _opts = {}
+        _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
+        if _bucket:
+            _opts["storageBucket"] = _bucket
+        elif key_dict.get("project_id"):
+            _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
+        firebase_admin.initialize_app(cred, _opts)
+    return firestore.client()
+
+
+def _save_glucose(uid, type_, value, note=None):
+    """users/{uid}/glucose 컬렉션에 공복/식후 혈당 저장. type_ in ('fasting','postprandial')."""
+    if not uid or type_ not in ("fasting", "postprandial"):
+        return False
+    try:
+        db = _get_firestore_db()
+        now = datetime.now(timezone.utc)
+        db.collection("users").document(str(uid)).collection("glucose").add({
+            "type": type_,
+            "value": int(round(float(value))),
+            "timestamp": now,
+            "note": (str(note).strip() or None),
+        })
+        return True
+    except Exception as e:
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.write(f"[glucose 저장] {e}\n")
+        return False
+
+
+def _get_glucose_and_meals(uid, start, end):
+    """기간 내 users/{uid}/glucose 및 user_logs 조회. 반환: (glucose_list, meals_list)."""
+    try:
+        db = _get_firestore_db()
+        uid = str(uid)
+        glucose_ref = db.collection("users").document(uid).collection("glucose").where("timestamp", ">=", start).where("timestamp", "<=", end)
+        glucose_docs = list(glucose_ref.stream())
+        glucose_list = []
+        for d in glucose_docs:
+            data = d.to_dict()
+            ts = data.get("timestamp")
+            if hasattr(ts, "isoformat"):
+                ts = ts
+            glucose_list.append({
+                "timestamp": ts,
+                "type": data.get("type", ""),
+                "value": data.get("value", 0),
+            })
+        logs_ref = db.collection("user_logs").where("user_id", "==", uid).where("timestamp", ">=", start).where("timestamp", "<=", end)
+        logs_docs = list(logs_ref.stream())
+        meals_list = []
+        for d in logs_docs:
+            data = d.to_dict()
+            ts = data.get("timestamp")
+            meals_list.append({
+                "timestamp": ts,
+                "date": data.get("date", ""),
+                "total_carbs": data.get("total_carbs", 0),
+                "blood_sugar_score": data.get("blood_sugar_score", 0),
+                "total_protein": data.get("total_protein", 0),
+            })
+        return glucose_list, meals_list
+    except Exception as e:
+        sys.stderr.write(f"[glucose/meals 조회] {e}\n")
+        return [], []
+
+
+def _warn_similar_food_glucose(uid, food_names, total_carbs):
+    """과거 비슷한 음식(이름/탄수화물) 섭취 후 혈당이 높았던 기록이 있으면 경고 문구 반환, 없으면 None."""
+    if not uid or not food_names and total_carbs is None:
+        return None
+    try:
+        db = _get_firestore_db()
+        uid = str(uid)
+        from datetime import timedelta
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(days=90)
+        logs_ref = db.collection("user_logs").where("user_id", "==", uid).where("timestamp", ">=", start).where("timestamp", "<=", end)
+        logs = list(logs_ref.stream())
+        food_set = {str(n).strip().lower() for n in (food_names or []) if n}
+        carbs_low = (total_carbs or 0) * 0.7
+        carbs_high = (total_carbs or 0) * 1.3 if total_carbs else 9999
+        high_glucose_threshold = 140
+        similar_meal_times = []
+        for d in logs:
+            data = d.to_dict()
+            ts = data.get("timestamp")
+            if not hasattr(ts, "isoformat"):
+                continue
+            log_carbs = data.get("total_carbs") or 0
+            items = data.get("sorted_items") or []
+            names = []
+            for it in items:
+                if isinstance(it, dict):
+                    names.append(str(it.get("name", "")).strip())
+                elif isinstance(it, (list, tuple)) and it:
+                    names.append(str(it[0]).strip())
+            log_names = {n.lower() for n in names if n}
+            match = False
+            if food_set and log_names and (food_set & log_names):
+                match = True
+            if total_carbs is not None and carbs_low <= log_carbs <= carbs_high:
+                match = True
+            if match:
+                similar_meal_times.append(ts)
+        if not similar_meal_times:
+            return None
+        glucose_ref = db.collection("users").document(uid).collection("glucose").where("timestamp", ">=", start).where("timestamp", "<=", end)
+        glucose_docs = list(glucose_ref.stream())
+        for g in glucose_docs:
+            gdata = g.to_dict()
+            gts = gdata.get("timestamp")
+            gval = gdata.get("value") or 0
+            if not hasattr(gts, "isoformat") or gval < high_glucose_threshold:
+                continue
+            for meal_ts in similar_meal_times:
+                try:
+                    delta_sec = (gts - meal_ts).total_seconds()
+                except Exception:
+                    continue
+                if 30 * 60 <= delta_sec <= 3 * 3600:
+                    return True
+        return None
+    except Exception as e:
+        sys.stderr.write(f"[유사 음식 경고] {e}\n")
+        return None
+
+
 # 4-2. 로그인 성공 직후 Firestore에서 해당 uid 기록 불러오기 (새로고침 후 재로그인 시에도 표시)
 def _load_my_history_from_firestore():
     uid = st.session_state.get("user_id")
@@ -1172,80 +1313,71 @@ if menu_key == "scanner":
                 st.session_state['app_stage'] = 'analyze'
                 st.rerun()
 
-        # 나의 혈당 관리 리포트 (로그인 사용자만, 메인 화면 하단)
+        # 나의 혈당 관리 리포트: st.tabs Daily/Weekly/Monthly + glucose 저장 + Plotly (glucose + user_logs)
         if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
             st.markdown("---")
             st.markdown(f"### 📊 {t.get('report_section_title', '나의 혈당 관리 리포트')}")
-            _period_labels = {"today": t.get("report_filter_today", "오늘"), "week": t.get("report_filter_week", "주간"), "month": t.get("report_filter_month", "월간")}
-            report_period = st.radio(
-                "기간",
-                options=["today", "week", "month"],
-                format_func=lambda x: _period_labels.get(x, x),
-                key="report_period",
-                horizontal=True,
-                label_visibility="collapsed",
-            )
-            try:
-                from firebase_admin import firestore
-                import firebase_admin
-                from firebase_admin import credentials
-                if not firebase_admin._apps:
-                    _FIREBASE_ADMIN_KEYS = [
-                        "type", "project_id", "private_key_id", "private_key",
-                        "client_email", "client_id", "auth_uri", "token_uri",
-                        "auth_provider_x509_cert_url", "client_x509_cert_url",
-                        "universe_domain"
-                    ]
-                    key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
-                    cred = credentials.Certificate(key_dict)
-                    _opts = {}
-                    _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
-                    if _bucket:
-                        _opts["storageBucket"] = _bucket
-                    elif key_dict.get("project_id"):
-                        _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
-                    firebase_admin.initialize_app(cred, _opts)
-                db = firestore.client()
-                now = datetime.now()
-                if report_period == "today":
-                    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-                elif report_period == "week":
-                    from datetime import timedelta
-                    start = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+            tab_d, tab_w, tab_m = st.tabs([
+                t.get("glucose_tab_daily", "Daily"),
+                t.get("glucose_tab_weekly", "Weekly"),
+                t.get("glucose_tab_monthly", "Monthly"),
+            ])
+            from datetime import timedelta
+            now = datetime.now(timezone.utc)
+            uid_r = st.session_state["user_id"]
+
+            def _render_glucose_tab(start, end, tab_scope_key):
+                with st.form(key=f"glucose_form_{tab_scope_key}"):
+                    g_type = st.radio(t.get("glucose_value_mg", "혈당 (mg/dL)"), options=["fasting", "postprandial"], format_func=lambda x: t.get("glucose_fasting", "공복 혈당") if x == "fasting" else t.get("glucose_postprandial", "식후 혈당"), horizontal=True, label_visibility="collapsed")
+                    g_val = st.number_input("mg/dL", min_value=40, max_value=400, value=100, step=1, key=f"g_val_{tab_scope_key}")
+                    if st.form_submit_button(t.get("glucose_save", "저장")):
+                        if _save_glucose(uid_r, g_type, g_val):
+                            st.toast(t.get("glucose_saved", "혈당이 저장되었습니다."))
+                            st.rerun()
+                glucose_list, meals_list = _get_glucose_and_meals(uid_r, start, end)
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric(t.get("report_meals_count", "식단 수"), len(meals_list))
+                with c2:
+                    avg_c = sum(m.get("total_carbs", 0) for m in meals_list) / len(meals_list) if meals_list else 0
+                    st.metric(t.get("report_avg_carbs", "평균 탄수화물"), f"{avg_c:.0f}g")
+                with c3:
+                    avg_g = sum(g.get("value", 0) for g in glucose_list) / len(glucose_list) if glucose_list else 0
+                    st.metric(t.get("glucose_value_mg", "혈당 (mg/dL)") + " avg", f"{avg_g:.0f}" if glucose_list else "-")
+                if glucose_list or meals_list:
+                    import plotly.graph_objects as go
+                    from plotly.subplots import make_subplots
+                    fig = make_subplots(specs=[[{"secondary_y": True}]])
+                    if glucose_list:
+                        g_times = [g["timestamp"] for g in glucose_list]
+                        g_vals = [g["value"] for g in glucose_list]
+                        fig.add_trace(go.Scatter(x=g_times, y=g_vals, name=t.get("glucose_value_mg", "혈당"), mode="lines+markers", line=dict(color="#e74c3c")), secondary_y=False)
+                    if meals_list:
+                        m_times = [m["timestamp"] for m in meals_list]
+                        m_carbs = [m.get("total_carbs", 0) for m in meals_list]
+                        fig.add_trace(go.Bar(x=m_times, y=m_carbs, name=t.get("report_avg_carbs", "탄수화물") + " (g)", marker_color="#86cc85"), secondary_y=True)
+                    fig.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=280, xaxis_tickangle=-45)
+                    fig.update_yaxes(title_text=t.get("glucose_value_mg", "혈당 (mg/dL)"), secondary_y=False)
+                    fig.update_yaxes(title_text=t.get("report_avg_carbs", "탄수화물") + " (g)", secondary_y=True)
+                    st.plotly_chart(fig, use_container_width=True)
                 else:
-                    from datetime import timedelta
-                    start = (now.replace(day=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-                ref = db.collection("user_logs").where("user_id", "==", st.session_state["user_id"]).where("timestamp", ">=", start)
-                docs = list(ref.stream())
-                docs = sorted(docs, key=lambda d: (d.to_dict().get("timestamp") or datetime.min), reverse=True)
-                if not docs:
                     st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
-                else:
-                    import plotly.express as px
-                    import pandas as pd
-                    rows = []
-                    for d in docs:
-                        data = d.to_dict()
-                        rows.append({
-                            "date": data.get("date", ""),
-                            "carbs": data.get("total_carbs", 0),
-                            "score": data.get("blood_sugar_score", 0),
-                            "protein": data.get("total_protein", 0),
-                        })
-                    df = pd.DataFrame(rows)
-                    c1, c2, c3 = st.columns(3)
-                    with c1:
-                        st.metric(t.get("report_meals_count", "식단 수"), len(df))
-                    with c2:
-                        st.metric(t.get("report_avg_carbs", "평균 탄수화물"), f"{df['carbs'].mean():.0f}g")
-                    with c3:
-                        st.metric(t.get("report_avg_score", "평균 혈당 점수"), f"{df['score'].mean():.0f}")
-                    if len(df) >= 2:
-                        fig = px.bar(df, x="date", y="carbs", title="", color_discrete_sequence=["#86cc85"])
-                        fig.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=220, xaxis_tickangle=-45)
-                        st.plotly_chart(fig, use_container_width=True)
-            except Exception as _e:
-                st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
+
+            with tab_d:
+                start_d = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                if start_d.tzinfo is None:
+                    start_d = start_d.replace(tzinfo=timezone.utc)
+                _render_glucose_tab(start_d, now, "daily")
+            with tab_w:
+                start_w = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+                if start_w.tzinfo is None:
+                    start_w = start_w.replace(tzinfo=timezone.utc)
+                _render_glucose_tab(start_w, now, "weekly")
+            with tab_m:
+                start_m = (now.replace(day=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                if start_m.tzinfo is None:
+                    start_m = start_m.replace(tzinfo=timezone.utc)
+                _render_glucose_tab(start_m, now, "monthly")
 
     elif st.session_state['app_stage'] == 'analyze':
         # 2페이지: 업로드 완료 & 분석 대기 페이지
@@ -1447,6 +1579,10 @@ if menu_key == "scanner":
         total_carbs = res.get('total_carbs', 0)
         total_protein = res.get('total_protein', 0)
         avg_gi = res.get('avg_gi', score)
+        if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
+            _food_names = [str(it[0]).strip() for it in (res.get("sorted_items") or []) if it and len(it) > 0]
+            if _warn_similar_food_glucose(st.session_state.get("user_id"), _food_names, total_carbs):
+                st.warning(t.get("similar_food_warning", "과거 비슷한 식사 후 혈당이 높았던 기록이 있습니다. 섭취량·순서를 조절해 보세요."))
 
         if score <= 40:
             risk_label, risk_color = f"{t['risk_safe']} 🟢", "#4CAF50"
