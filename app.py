@@ -316,6 +316,8 @@ if 'daily_protein' not in st.session_state:
     st.session_state['daily_protein'] = 0
 if 'daily_meals_count' not in st.session_state:
     st.session_state['daily_meals_count'] = 0
+if "history_loaded_uid" not in st.session_state:
+    st.session_state["history_loaded_uid"] = None
 if 'user_goal' not in st.session_state:
     st.session_state['user_goal'] = '일반 관리'
 if 'lang' not in st.session_state:
@@ -363,6 +365,8 @@ with st.sidebar:
             st.session_state["login_type"] = None
             st.session_state["user_id"] = None
             st.session_state["user_email"] = None
+            st.session_state["history_loaded_uid"] = None
+            st.session_state["history"] = []
             st.session_state["auth_mode"] = "login"
             st.rerun()
     elif _lt == "google":
@@ -371,6 +375,8 @@ with st.sidebar:
             st.session_state["login_type"] = None
             st.session_state["user_id"] = None
             st.session_state["user_email"] = None
+            st.session_state["history_loaded_uid"] = None
+            st.session_state["history"] = []
             st.session_state["auth_mode"] = "login"
             st.rerun()
     st.divider()
@@ -822,6 +828,62 @@ if not st.session_state['logged_in']:
     st.stop()  # 로그인되지 않은 사용자는 식단 분석 로직을 볼 수 없음
 
 
+# 4-2. 로그인 성공 직후 Firestore에서 해당 uid 기록 불러오기 (새로고침 후 재로그인 시에도 표시)
+def _load_my_history_from_firestore():
+    uid = st.session_state.get("user_id")
+    if not uid or st.session_state.get("login_type") != "google":
+        return
+    if st.session_state.get("history_loaded_uid") == uid:
+        return
+    try:
+        from firebase_admin import firestore
+        import firebase_admin
+        from firebase_admin import credentials
+        if not firebase_admin._apps:
+            _FIREBASE_ADMIN_KEYS = [
+                "type", "project_id", "private_key_id", "private_key",
+                "client_email", "client_id", "auth_uri", "token_uri",
+                "auth_provider_x509_cert_url", "client_x509_cert_url",
+                "universe_domain"
+            ]
+            key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
+            cred = credentials.Certificate(key_dict)
+            firebase_admin.initialize_app(cred)
+        db = firestore.client()
+        ref = db.collection("users").document(uid).collection("history").stream()
+        docs = sorted(list(ref), key=lambda d: d.to_dict().get("date", ""), reverse=True)
+    except Exception as e:
+        err_lower = str(e).lower()
+        if "permission" in err_lower or "denied" in err_lower:
+            sys.stderr.write(f"[Firestore 불러오기] Permission Denied 가능성: {e}\n")
+            traceback.print_exc(file=sys.stderr)
+        return
+    loaded = []
+    for d in docs:
+        data = d.to_dict()
+        items = data.get("sorted_items", [])
+        if items and isinstance(items[0], dict):
+            sorted_lists = [[item.get("name",""), item.get("gi",0), item.get("carbs",0), item.get("protein",0), item.get("color","")] for item in items]
+        else:
+            sorted_lists = items
+        loaded.append({
+            "date": data.get("date", ""),
+            "image": None,
+            "image_url": data.get("image_url"),
+            "sorted_items": sorted_lists,
+            "advice": data.get("advice", ""),
+            "blood_sugar_score": data.get("blood_sugar_score", 0),
+            "total_carbs": data.get("total_carbs", 0),
+            "total_protein": data.get("total_protein", 0),
+            "avg_gi": data.get("avg_gi", 0),
+        })
+    st.session_state["history"] = loaded
+    st.session_state["history_loaded_uid"] = uid
+
+
+if st.session_state.get("logged_in") and st.session_state.get("login_type") == "google":
+    _load_my_history_from_firestore()
+
 # 5. 메인 화면 - 식단 스캔 / 나의 기록 전환 (사이드바 없이도 항상 노출)
 # 위젯 키(sidebar_menu)는 직접 설정 불가 → nav_menu 사용 후 menu_key 반영
 _nav1, _nav2 = st.columns(2)
@@ -851,6 +913,8 @@ if menu_key == "scanner":
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
                 st.session_state["user_email"] = None
+                st.session_state["history_loaded_uid"] = None
+                st.session_state["history"] = []
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
         elif _lt == "google":
@@ -859,6 +923,8 @@ if menu_key == "scanner":
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
                 st.session_state["user_email"] = None
+                st.session_state["history_loaded_uid"] = None
+                st.session_state["history"] = []
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
     if 'app_stage' not in st.session_state:
@@ -921,6 +987,8 @@ if menu_key == "scanner":
                 st.session_state['login_type'] = None
                 st.session_state['user_id'] = None
                 st.session_state['user_email'] = None
+                st.session_state["history_loaded_uid"] = None
+                st.session_state["history"] = []
                 st.session_state['auth_mode'] = 'signup'
                 st.rerun()
         else:
@@ -1364,116 +1432,121 @@ if menu_key == "scanner":
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
                 st.session_state["user_email"] = None
+                st.session_state["history_loaded_uid"] = None
+                st.session_state["history"] = []
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
         else:
             if st.button(t["save_btn"], use_container_width=True):
                 save_date = datetime.now().strftime("%Y-%m-%d %H:%M")
-                uid = st.session_state['user_id']
-                image_url = None
-                try:
-                    from firebase_admin import firestore, storage
-                    import firebase_admin
-                    from firebase_admin import credentials
-                    if not firebase_admin._apps:
-                        _FIREBASE_ADMIN_KEYS = [
-                            "type", "project_id", "private_key_id", "private_key",
-                            "client_email", "client_id", "auth_uri", "token_uri",
-                            "auth_provider_x509_cert_url", "client_x509_cert_url",
-                            "universe_domain"
-                        ]
-                        key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
-                        cred = credentials.Certificate(key_dict)
-                        firebase_admin.initialize_app(cred)
-                    db = firestore.client()
-                    doc_ref = db.collection("users").document(uid).collection("history").document()
-                    doc_id = doc_ref.id
-                    # Firestore 호환: 숫자는 native int/float (numpy 등 제거)
-                    def _num(v):
-                        if v is None:
-                            return 0
-                        try:
-                            return int(v) if isinstance(v, (int, float)) or hasattr(v, "__int__") else int(float(v))
-                        except (TypeError, ValueError):
-                            return 0
-
-                    # Storage 업로드: 1024px·quality 80 압축본, 형식 검증 후 업로드
-                    raw_pil = res.get("raw_img")
-                    if raw_pil is not None:
-                        _, img_bytes = compress_image_for_storage(raw_pil, max_width=1024, quality=80)
-                        if img_bytes and isinstance(img_bytes, bytes) and len(img_bytes) > 0:
+                uid = st.session_state.get("user_id")  # 현재 로그인한 사용자 uid (필수, user_logs 문서에 포함)
+                if not uid:
+                    st.toast("로그인된 사용자 정보가 없습니다.")
+                else:
+                    image_url = None
+                    try:
+                        from firebase_admin import firestore, storage
+                        import firebase_admin
+                        from firebase_admin import credentials
+                        if not firebase_admin._apps:
+                            _FIREBASE_ADMIN_KEYS = [
+                                "type", "project_id", "private_key_id", "private_key",
+                                "client_email", "client_id", "auth_uri", "token_uri",
+                                "auth_provider_x509_cert_url", "client_x509_cert_url",
+                                "universe_domain"
+                            ]
+                            key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
+                            cred = credentials.Certificate(key_dict)
+                            firebase_admin.initialize_app(cred)
+                        db = firestore.client()
+                        doc_ref = db.collection("users").document(uid).collection("history").document()
+                        doc_id = doc_ref.id
+                        def _num(v):
+                            if v is None:
+                                return 0
                             try:
-                                bucket = storage.bucket()
-                                _uid_safe = str(uid).replace("/", "_").replace("\\", "_") if uid else "unknown"
-                                path = f"users/{_uid_safe}/meals/{doc_id}.jpg"
-                                blob = bucket.blob(path)
-                                blob.upload_from_string(img_bytes, content_type="image/jpeg")
-                                blob.make_public()
-                                image_url = blob.public_url
-                            except Exception as storage_err:
-                                traceback.print_exc(file=sys.stderr)
-                                sys.stderr.write(f"[Storage] {type(storage_err).__name__}: {storage_err}\n")
-                    # Firestore는 중첩 배열 불가 → [[...]] 를 객체 리스트 [{"name", "gi", ...}, ...] 로 평탄화
-                    sorted_items_safe = []
-                    for item in res.get("sorted_items", []):
-                        if not item:
-                            continue
-                        name = str(item[0]).strip() if len(item) > 0 else ""
-                        gi = _num(item[1]) if len(item) > 1 else 0
-                        carbs = _num(item[2]) if len(item) > 2 else 0
-                        protein = _num(item[3]) if len(item) > 3 else 0
-                        color = str(item[4]).strip() if len(item) > 4 else ""
-                        sorted_items_safe.append({
-                            "name": name,
-                            "gi": gi,
-                            "carbs": carbs,
-                            "protein": protein,
-                            "color": color,
+                                return int(v) if isinstance(v, (int, float)) or hasattr(v, "__int__") else int(float(v))
+                            except (TypeError, ValueError):
+                                return 0
+                        raw_pil = res.get("raw_img")
+                        if raw_pil is not None:
+                            _, img_bytes = compress_image_for_storage(raw_pil, max_width=1024, quality=80)
+                            if img_bytes and isinstance(img_bytes, bytes) and len(img_bytes) > 0:
+                                try:
+                                    bucket = storage.bucket()
+                                    _uid_safe = str(uid).replace("/", "_").replace("\\", "_") if uid else "unknown"
+                                    path = f"users/{_uid_safe}/meals/{doc_id}.jpg"
+                                    blob = bucket.blob(path)
+                                    blob.upload_from_string(img_bytes, content_type="image/jpeg")
+                                    blob.make_public()
+                                    image_url = blob.public_url
+                                except Exception as storage_err:
+                                    traceback.print_exc(file=sys.stderr)
+                                    sys.stderr.write(f"[Storage] {type(storage_err).__name__}: {storage_err}\n")
+                        sorted_items_safe = []
+                        for item in res.get("sorted_items", []):
+                            if not item:
+                                continue
+                            name = str(item[0]).strip() if len(item) > 0 else ""
+                            gi = _num(item[1]) if len(item) > 1 else 0
+                            carbs = _num(item[2]) if len(item) > 2 else 0
+                            protein = _num(item[3]) if len(item) > 3 else 0
+                            color = str(item[4]).strip() if len(item) > 4 else ""
+                            sorted_items_safe.append({
+                                "name": name,
+                                "gi": gi,
+                                "carbs": carbs,
+                                "protein": protein,
+                                "color": color,
+                            })
+                        new_db_record = {
+                            "date": str(save_date),
+                            "sorted_items": sorted_items_safe,
+                            "advice": str(res.get("advice", "")),
+                            "blood_sugar_score": _num(res.get("blood_sugar_score")),
+                            "total_carbs": _num(res.get("total_carbs")),
+                            "total_protein": _num(res.get("total_protein")),
+                            "avg_gi": _num(res.get("avg_gi")),
+                            "image_url": image_url if image_url is not None else None,
+                        }
+                        doc_ref.set(new_db_record)
+                        from datetime import timezone
+                        now_utc = datetime.now(timezone.utc)
+                        db.collection("user_logs").add({
+                            "user_id": str(uid),
+                            "date": str(save_date),
+                            "timestamp": now_utc,
+                            "sorted_items": sorted_items_safe,
+                            "advice": new_db_record["advice"],
+                            "blood_sugar_score": new_db_record["blood_sugar_score"],
+                            "total_carbs": new_db_record["total_carbs"],
+                            "total_protein": new_db_record["total_protein"],
+                            "avg_gi": new_db_record["avg_gi"],
+                            "image_url": new_db_record["image_url"],
                         })
-                    new_db_record = {
-                        "date": str(save_date),
-                        "sorted_items": sorted_items_safe,
-                        "advice": str(res.get("advice", "")),
-                        "blood_sugar_score": _num(res.get("blood_sugar_score")),
-                        "total_carbs": _num(res.get("total_carbs")),
-                        "total_protein": _num(res.get("total_protein")),
-                        "avg_gi": _num(res.get("avg_gi")),
-                        "image_url": image_url if image_url is not None else None,
-                    }
-                    doc_ref.set(new_db_record)
-                    # user_logs: timestamp는 Firestore가 허용하는 datetime
-                    from datetime import timezone
-                    now_utc = datetime.now(timezone.utc)
-                    db.collection("user_logs").add({
-                        "user_id": str(uid),
-                        "date": str(save_date),
-                        "timestamp": now_utc,
-                        "sorted_items": sorted_items_safe,
-                        "advice": new_db_record["advice"],
-                        "blood_sugar_score": new_db_record["blood_sugar_score"],
-                        "total_carbs": new_db_record["total_carbs"],
-                        "total_protein": new_db_record["total_protein"],
-                        "avg_gi": new_db_record["avg_gi"],
-                        "image_url": new_db_record["image_url"],
-                    })
-                except Exception as e:
-                    traceback.print_exc(file=sys.stderr)
-                    sys.stderr.write(f"[DB 저장] {type(e).__name__}: {e}\n")
-                    st.toast(f"DB 저장 에러: {str(e)}")
-
-                st.session_state["history"].append({
-                    "date": save_date,
-                    "image": res["raw_img"],
-                    "image_url": image_url,
-                    "sorted_items": res["sorted_items"],
-                    "advice": res["advice"],
-                    "blood_sugar_score": res.get("blood_sugar_score", 0),
-                    "total_carbs": res.get("total_carbs", 0),
-                    "total_protein": res.get("total_protein", 0),
-                    "avg_gi": res.get("avg_gi", 0),
-                })
-                st.balloons()
-                st.success(t["save_msg"])
+                    except Exception as e:
+                        traceback.print_exc(file=sys.stderr)
+                        sys.stderr.write(f"[DB 저장] {type(e).__name__}: {e}\n")
+                        err_lower = str(e).lower()
+                        if "permission" in err_lower or "denied" in err_lower:
+                            sys.stderr.write("[Firestore] Permission Denied 가능성. Rules 확인 필요.\n")
+                        st.toast(f"DB 저장 에러: {str(e)}")
+                    else:
+                        st.session_state["history"].append({
+                            "date": save_date,
+                            "image": res["raw_img"],
+                            "image_url": image_url,
+                            "sorted_items": res["sorted_items"],
+                            "advice": res["advice"],
+                            "blood_sugar_score": res.get("blood_sugar_score", 0),
+                            "total_carbs": res.get("total_carbs", 0),
+                            "total_protein": res.get("total_protein", 0),
+                            "avg_gi": res.get("avg_gi", 0),
+                        })
+                        st.balloons()
+                        st.success(t["save_msg"])
+                        st.session_state["nav_menu"] = "history"
+                        st.rerun()
 
 
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
@@ -1490,6 +1563,8 @@ elif menu_key == "history":
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
                 st.session_state["user_email"] = None
+                st.session_state["history_loaded_uid"] = None
+                st.session_state["history"] = []
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
         elif _lt_h == "google":
@@ -1498,6 +1573,8 @@ elif menu_key == "history":
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
                 st.session_state["user_email"] = None
+                st.session_state["history_loaded_uid"] = None
+                st.session_state["history"] = []
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
     st.title(f"📅 {t['history_menu']}")
@@ -1582,9 +1659,14 @@ elif menu_key == "history":
                 </div>
                 """, unsafe_allow_html=True)
                 for item in rec['sorted_items']:
-                    name = str(item[0]).replace('*', '').strip() if item else ''
-                    color_str = str(item[4]) if len(item) > 4 else (str(item[1]) if len(item) > 1 else '노랑')
-                    gi_val = item[1] if len(item) > 1 and isinstance(item[1], int) else '-'
+                    if isinstance(item, dict):
+                        name = str(item.get("name", "")).replace("*", "").strip()
+                        color_str = str(item.get("color", ""))
+                        gi_val = item.get("gi", "-")
+                    else:
+                        name = str(item[0]).replace('*', '').strip() if item else ''
+                        color_str = str(item[4]) if len(item) > 4 else (str(item[1]) if len(item) > 1 else '노랑')
+                        gi_val = item[1] if len(item) > 1 and isinstance(item[1], int) else '-'
                     ic = "#4CAF50" if any(x in color_str for x in ["초록","Green"]) else "#FFB300" if any(x in color_str for x in ["노랑","Yellow"]) else "#F44336"
                     st.markdown(f"""
                     <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;">
