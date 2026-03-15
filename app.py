@@ -853,8 +853,6 @@ def _delete_history_record(uid, doc_id):
     uid = str(uid)
     doc_id = str(doc_id)
     try:
-        from firebase_admin import firestore, storage, credentials
-        import firebase_admin
         _FIREBASE_ADMIN_KEYS = [
             "type", "project_id", "private_key_id", "private_key",
             "client_email", "client_id", "auth_uri", "token_uri",
@@ -862,20 +860,27 @@ def _delete_history_record(uid, doc_id):
             "universe_domain"
         ]
         key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
+        if not key_dict.get("project_id"):
+            sys.stderr.write("[기록 삭제] project_id 없음\n")
+            return False
+        # Firestore 삭제: google.cloud.firestore 네이티브 클라이언트 사용 (firebase_admin 래퍼 미반영 이슈 회피)
+        from google.cloud import firestore as gcf
+        from google.oauth2 import service_account
+        creds = service_account.Credentials.from_service_account_info(key_dict)
+        fs_client = gcf.Client(project=key_dict["project_id"], credentials=creds)
+        ref = fs_client.collection("users").document(uid).collection("history").document(doc_id)
+        ref.delete()
+        # Storage 이미지 삭제 (firebase_admin 사용)
+        import firebase_admin
+        from firebase_admin import storage, credentials
         if not firebase_admin._apps:
             _opts = {}
             _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
             if _bucket:
                 _opts["storageBucket"] = _bucket
-            elif key_dict.get("project_id"):
+            else:
                 _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
             firebase_admin.initialize_app(credentials.Certificate(key_dict), _opts)
-        db = firestore.client()
-        ref = db.collection("users").document(uid).collection("history").document(doc_id)
-        # 배치로 삭제 후 commit()하여 삭제가 확실히 반영되도록 함
-        batch = db.batch()
-        batch.delete(ref)
-        batch.commit()
         _uid_safe = uid.replace("/", "_").replace("\\", "_")
         path = f"users/{_uid_safe}/meals/{doc_id}.jpg"
         try:
