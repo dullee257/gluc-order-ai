@@ -248,20 +248,26 @@ from datetime import datetime
 import io
 import base64
 
-def compress_image(img, max_size_kb=500):
-    """이미지가 서버에 로드된 직후 500KB 이하로 브라우저 표시 및 전송 전에 최적화(압축)하는 함수"""
-    quality = 90
+def compress_image(img, max_size_kb=500, max_edge=1024):
+    """이미지가 서버에 로드된 직후 500KB 이하로 브라우저 표시 및 전송 전에 최적화. 모바일 대용량 사진은 먼저 리사이즈해 인코딩 시간 단축."""
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
+    w, h = img.size
+    # 1단계: 한 번에 최대 길이로 리사이즈 → 반복 인코딩 부담 감소 (모바일 지연 해소)
+    if w > max_edge or h > max_edge:
+        ratio = min(max_edge / w, max_edge / h)
+        nw, nh = max(1, int(w * ratio)), max(1, int(h * ratio))
+        img = img.resize((nw, nh), Image.Resampling.LANCZOS)
+    quality = 88
     while True:
         output = io.BytesIO()
         img.save(output, format="JPEG", quality=quality)
         size_kb = len(output.getvalue()) / 1024
-        if size_kb <= max_size_kb or quality <= 20:
+        if size_kb <= max_size_kb or quality <= 25:
             output.seek(0)
             return Image.open(output)
-        quality -= 10
-        img = img.resize((int(img.width * 0.8), int(img.height * 0.8)), Image.Resampling.LANCZOS)
+        quality -= 12
+        img = img.resize((max(1, int(img.width * 0.85)), max(1, int(img.height * 0.85))), Image.Resampling.LANCZOS)
 
 
 def compress_image_for_storage(img, max_width=1024, quality=80):
