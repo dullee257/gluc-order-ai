@@ -374,11 +374,14 @@ with st.sidebar:
             st.session_state["auth_mode"] = "login"
             st.rerun()
     st.divider()
+    def _clear_nav_menu():
+        st.session_state.pop("nav_menu", None)
     menu_key = st.radio(
         t.get("menu_label", "메뉴"),
         options=["scanner", "history"],
         format_func=lambda x: t["scanner_menu"] if x == "scanner" else t["history_menu"],
         key="sidebar_menu",
+        on_change=_clear_nav_menu,
     )
     if "sleep_notice_seen" not in st.session_state:
         st.session_state["sleep_notice_seen"] = True
@@ -820,15 +823,18 @@ if not st.session_state['logged_in']:
 
 
 # 5. 메인 화면 - 식단 스캔 / 나의 기록 전환 (사이드바 없이도 항상 노출)
+# 위젯 키(sidebar_menu)는 직접 설정 불가 → nav_menu 사용 후 menu_key 반영
 _nav1, _nav2 = st.columns(2)
 with _nav1:
     if st.button(t.get("scanner_menu", "식단 스캐너"), key="nav_scanner", use_container_width=True, type="primary" if menu_key == "scanner" else "secondary"):
-        st.session_state["sidebar_menu"] = "scanner"
+        st.session_state["nav_menu"] = "scanner"
         st.rerun()
 with _nav2:
     if st.button(t.get("history_menu", "나의 식단 기록"), key="nav_history", use_container_width=True, type="primary" if menu_key == "history" else "secondary"):
-        st.session_state["sidebar_menu"] = "history"
+        st.session_state["nav_menu"] = "history"
         st.rerun()
+if st.session_state.get("nav_menu"):
+    menu_key = st.session_state["nav_menu"]
 st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
 
 # 5-1. 식단 스캐너
