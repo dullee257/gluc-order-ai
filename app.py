@@ -847,30 +847,45 @@ def _normalize_image_url(url, bucket_name=None):
 
 
 def _delete_history_record(uid, doc_id):
-    """Firestore 문서(users/{uid}/history/{doc_id}) 및 Storage 이미지(users/{uid}/meals/{doc_id}.jpg) 삭제. 성공 시 True."""
+    """Firestore(history + user_logs) 문서 및 Storage 이미지 삭제. 성공 시 (True, None), 실패 시 (False, '단계명')."""
     if not uid or not doc_id:
-        return False
+        sys.stderr.write("[기록 삭제] uid 또는 doc_id 없음\n")
+        return False, None
     uid = str(uid)
     doc_id = str(doc_id)
+    _FIREBASE_ADMIN_KEYS = [
+        "type", "project_id", "private_key_id", "private_key",
+        "client_email", "client_id", "auth_uri", "token_uri",
+        "auth_provider_x509_cert_url", "client_x509_cert_url",
+        "universe_domain"
+    ]
+    key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
+    if not key_dict.get("project_id"):
+        sys.stderr.write("[기록 삭제] project_id 없음\n")
+        return False, None
     try:
-        _FIREBASE_ADMIN_KEYS = [
-            "type", "project_id", "private_key_id", "private_key",
-            "client_email", "client_id", "auth_uri", "token_uri",
-            "auth_provider_x509_cert_url", "client_x509_cert_url",
-            "universe_domain"
-        ]
-        key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
-        if not key_dict.get("project_id"):
-            sys.stderr.write("[기록 삭제] project_id 없음\n")
-            return False
-        # Firestore 삭제: google.cloud.firestore 네이티브 클라이언트 사용 (firebase_admin 래퍼 미반영 이슈 회피)
         from google.cloud import firestore as gcf
         from google.oauth2 import service_account
         creds = service_account.Credentials.from_service_account_info(key_dict)
         fs_client = gcf.Client(project=key_dict["project_id"], credentials=creds)
+    except Exception as e:
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.write(f"[기록 삭제] Firestore 클라이언트 초기화 실패: {e}\n")
+        return False, "Firestore(초기화)"
+
+    # 1) Firestore users/{uid}/history/{doc_id} 문서 삭제 (doc_id는 해당 컬렉션의 문서 ID와 일치)
+    try:
         ref = fs_client.collection("users").document(uid).collection("history").document(doc_id)
         ref.delete()
-        # Storage 이미지 삭제 (firebase_admin 사용)
+    except Exception as e:
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.write(f"[기록 삭제] Firestore(history) 단계 실패 doc_id={doc_id!r}: {e}\n")
+        return False, "Firestore(history)"
+
+    # 2) Storage 이미지 삭제
+    _uid_safe = uid.replace("/", "_").replace("\\", "_")
+    _storage_path = f"users/{_uid_safe}/meals/{doc_id}.jpg"
+    try:
         import firebase_admin
         from firebase_admin import storage, credentials
         if not firebase_admin._apps:
@@ -881,19 +896,23 @@ def _delete_history_record(uid, doc_id):
             else:
                 _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
             firebase_admin.initialize_app(credentials.Certificate(key_dict), _opts)
-        _uid_safe = uid.replace("/", "_").replace("\\", "_")
-        path = f"users/{_uid_safe}/meals/{doc_id}.jpg"
-        try:
-            bucket = storage.bucket()
-            blob = bucket.blob(path)
-            blob.delete()
-        except Exception as storage_err:
-            sys.stderr.write(f"[Storage 삭제] {type(storage_err).__name__}: {storage_err}\n")
-        return True
+        bucket = storage.bucket()
+        blob = bucket.blob(_storage_path)
+        blob.delete()
+    except Exception as e:
+        sys.stderr.write(f"[기록 삭제] Storage 단계 실패 path={_storage_path!r}: {type(e).__name__}: {e}\n")
+
+    # 3) Firestore user_logs 컬렉션에서 history_doc_id가 doc_id인 문서 삭제
+    try:
+        q = fs_client.collection("user_logs").where("history_doc_id", "==", doc_id).where("user_id", "==", uid).stream()
+        for doc in q:
+            doc.reference.delete()
     except Exception as e:
         traceback.print_exc(file=sys.stderr)
-        sys.stderr.write(f"[기록 삭제] {type(e).__name__}: {e}\n")
-        return False
+        sys.stderr.write(f"[기록 삭제] Firestore(user_logs) 단계 실패 doc_id={doc_id!r}: {e}\n")
+        return False, "Firestore(user_logs)"
+
+    return True, None
 
 
 # 4-2. 로그인 성공 직후 Firestore에서 해당 uid 기록 불러오기 (새로고침 후 재로그인 시에도 표시)
@@ -1611,6 +1630,7 @@ if menu_key == "scanner":
                         now_utc = datetime.now(timezone.utc)
                         db.collection("user_logs").add({
                             "user_id": str(uid),
+                            "history_doc_id": doc_id,
                             "date": str(save_date),
                             "timestamp": now_utc,
                             "sorted_items": sorted_items_safe,
@@ -1782,10 +1802,14 @@ elif menu_key == "history":
                 _doc_id = rec.get("doc_id")
                 if _doc_id and st.button(t.get("delete_record", "🗑️ 기록 삭제"), key=f"hist_del_{i}", type="secondary"):
                     _uid = st.session_state.get("user_id")
-                    if _uid and _delete_history_record(_uid, _doc_id):
-                        st.session_state["history"] = [h for h in st.session_state["history"] if h.get("doc_id") != _doc_id]
-                        st.toast(t.get("delete_record_done", "기록과 이미지가 삭제되었습니다."))
-                        st.rerun()
+                    if _uid:
+                        ok, failed_step = _delete_history_record(_uid, _doc_id)
+                        if ok:
+                            st.session_state["history"] = [h for h in st.session_state["history"] if h.get("doc_id") != _doc_id]
+                            st.success(t.get("delete_record_full", "기록이 완전히 삭제되었습니다."))
+                            st.rerun()
+                        else:
+                            st.error(t.get("delete_record_failed", "삭제에 실패했습니다.") + (f" ({failed_step})" if failed_step else ""))
                     else:
                         st.toast(t.get("delete_record_failed", "삭제에 실패했습니다."))
     else:
