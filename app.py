@@ -4,6 +4,7 @@ import sys
 import os
 import json
 import traceback
+import urllib.parse
 
 from translation import LANG_DICT, get_text, SUPPORTED_LANGS, LANG_LABELS, LANG_HTML_ATTR, GOAL_INTERNAL_KEYS
 from prompts import get_analysis_prompt
@@ -828,6 +829,19 @@ if not st.session_state['logged_in']:
     st.stop()  # 로그인되지 않은 사용자는 식단 분석 로직을 볼 수 없음
 
 
+def _normalize_image_url(url, bucket_name=None):
+    """상대 경로 또는 Storage 경로를 완전한 공개 URL로 변환. 이미 http(s)로 시작하면 그대로 반환."""
+    if not url or not isinstance(url, str) or not url.strip():
+        return None
+    url = url.strip()
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+    if bucket_name:
+        path_encoded = urllib.parse.quote(url, safe="/")
+        return f"https://storage.googleapis.com/{bucket_name}/{path_encoded}"
+    return url
+
+
 # 4-2. 로그인 성공 직후 Firestore에서 해당 uid 기록 불러오기 (새로고침 후 재로그인 시에도 표시)
 def _load_my_history_from_firestore():
     uid = st.session_state.get("user_id")
@@ -836,7 +850,7 @@ def _load_my_history_from_firestore():
     if st.session_state.get("history_loaded_uid") == uid:
         return
     try:
-        from firebase_admin import firestore
+        from firebase_admin import firestore, storage
         import firebase_admin
         from firebase_admin import credentials
         if not firebase_admin._apps:
@@ -850,6 +864,11 @@ def _load_my_history_from_firestore():
             cred = credentials.Certificate(key_dict)
             firebase_admin.initialize_app(cred)
         db = firestore.client()
+        bucket_name = None
+        try:
+            bucket_name = storage.bucket().name
+        except Exception:
+            pass
         ref = db.collection("users").document(uid).collection("history").stream()
         docs = sorted(list(ref), key=lambda d: d.to_dict().get("date", ""), reverse=True)
     except Exception as e:
@@ -861,6 +880,8 @@ def _load_my_history_from_firestore():
     loaded = []
     for d in docs:
         data = d.to_dict()
+        raw_url = data.get("image_url")
+        image_url = _normalize_image_url(raw_url, bucket_name) if raw_url else None
         items = data.get("sorted_items", [])
         if items and isinstance(items[0], dict):
             sorted_lists = [[item.get("name",""), item.get("gi",0), item.get("carbs",0), item.get("protein",0), item.get("color","")] for item in items]
@@ -869,7 +890,7 @@ def _load_my_history_from_firestore():
         loaded.append({
             "date": data.get("date", ""),
             "image": None,
-            "image_url": data.get("image_url"),
+            "image_url": image_url,
             "sorted_items": sorted_lists,
             "advice": data.get("advice", ""),
             "blood_sugar_score": data.get("blood_sugar_score", 0),
@@ -1478,8 +1499,10 @@ if menu_key == "scanner":
                                     path = f"users/{_uid_safe}/meals/{doc_id}.jpg"
                                     blob = bucket.blob(path)
                                     blob.upload_from_string(img_bytes, content_type="image/jpeg")
-                                    blob.make_public()
-                                    image_url = blob.public_url
+                                    blob.make_public()  # Storage 규칙: 읽기 allow read 또는 공개 링크 허용 필요
+                                    image_url = blob.public_url  # 완전한 공개 URL → Firestore image_url 필드에 저장
+                                    if image_url and not image_url.startswith("http"):
+                                        image_url = _normalize_image_url(image_url, bucket.name)
                                 except Exception as storage_err:
                                     traceback.print_exc(file=sys.stderr)
                                     sys.stderr.write(f"[Storage] {type(storage_err).__name__}: {storage_err}\n")
@@ -1638,10 +1661,15 @@ elif menu_key == "history":
                 st.rerun()
             if st.session_state[_key]:
                 st.markdown(f"**{_date}** · {t['blood_score_label']} **{rec_score}** ({rl}) · {t['carbs']} **{rec_carbs}g**")
-                if rec.get('image_url'):
-                    st.image(rec['image_url'], use_container_width=True)
-                elif rec.get('image'):
-                    st.image(rec['image'], use_container_width=True)
+                _img_url = rec.get("image_url")
+                if _img_url and isinstance(_img_url, str) and _img_url.strip():
+                    try:
+                        st.image(_img_url, use_container_width=True)
+                    except Exception as img_err:
+                        sys.stderr.write(f"[이미지 로드] URL 표시 실패 (Storage 권한 또는 CORS 확인): {img_err}\n")
+                        st.caption("(이미지를 불러올 수 없습니다. Storage 읽기 권한을 확인해 주세요.)")
+                elif rec.get("image"):
+                    st.image(rec["image"], use_container_width=True)
                 st.markdown(f"""
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0;">
                     <div style="background:{rc}11;border:1px solid {rc}33;border-radius:10px;padding:10px;text-align:center;">
