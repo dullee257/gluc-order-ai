@@ -50,7 +50,11 @@ def _get_firebase_config():
     cred_json = os.environ.get("FIREBASE_CREDENTIALS_JSON")
     if cred_json:
         try:
-            cfg.update(json.loads(cred_json))
+            parsed = json.loads(cred_json)
+            # Railway 등에서 env로 넣을 때 private_key 내 \\n이 문자열로 들어올 수 있음
+            if isinstance(parsed.get("private_key"), str):
+                parsed["private_key"] = parsed["private_key"].replace("\\n", "\n")
+            cfg.update(parsed)
         except Exception:
             pass
     else:
@@ -862,7 +866,10 @@ def _load_my_history_from_firestore():
             ]
             key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
             cred = credentials.Certificate(key_dict)
-            firebase_admin.initialize_app(cred)
+            _opts = {}
+            if key_dict.get("project_id"):
+                _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
+            firebase_admin.initialize_app(cred, _opts)
         db = firestore.client()
         bucket_name = None
         try:
@@ -1066,7 +1073,10 @@ if menu_key == "scanner":
                     ]
                     key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
                     cred = credentials.Certificate(key_dict)
-                    firebase_admin.initialize_app(cred)
+                    _opts = {}
+                    if key_dict.get("project_id"):
+                        _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
+                    firebase_admin.initialize_app(cred, _opts)
                 db = firestore.client()
                 now = datetime.now()
                 if report_period == "today":
@@ -1478,7 +1488,10 @@ if menu_key == "scanner":
                             ]
                             key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
                             cred = credentials.Certificate(key_dict)
-                            firebase_admin.initialize_app(cred)
+                            _opts = {}
+                            if key_dict.get("project_id"):
+                                _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
+                            firebase_admin.initialize_app(cred, _opts)
                         db = firestore.client()
                         doc_ref = db.collection("users").document(uid).collection("history").document()
                         doc_id = doc_ref.id
