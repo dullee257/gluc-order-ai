@@ -819,7 +819,19 @@ if not st.session_state['logged_in']:
     st.stop()  # 로그인되지 않은 사용자는 식단 분석 로직을 볼 수 없음
 
 
-# 5. 메인 화면 - 식단 스캐너
+# 5. 메인 화면 - 식단 스캔 / 나의 기록 전환 (사이드바 없이도 항상 노출)
+_nav1, _nav2 = st.columns(2)
+with _nav1:
+    if st.button(t.get("scanner_menu", "식단 스캐너"), key="nav_scanner", use_container_width=True, type="primary" if menu_key == "scanner" else "secondary"):
+        st.session_state["sidebar_menu"] = "scanner"
+        st.rerun()
+with _nav2:
+    if st.button(t.get("history_menu", "나의 식단 기록"), key="nav_history", use_container_width=True, type="primary" if menu_key == "history" else "secondary"):
+        st.session_state["sidebar_menu"] = "history"
+        st.rerun()
+st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+
+# 5-1. 식단 스캐너
 if menu_key == "scanner":
     # 환영 문구를 로그아웃 버튼 위에 표시
     render_login_badge()
