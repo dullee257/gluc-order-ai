@@ -1500,9 +1500,10 @@ if menu_key == "scanner":
                                     blob = bucket.blob(path)
                                     blob.upload_from_string(img_bytes, content_type="image/jpeg")
                                     blob.make_public()  # Storage 규칙: 읽기 allow read 또는 공개 링크 허용 필요
-                                    image_url = blob.public_url  # 완전한 공개 URL → Firestore image_url 필드에 저장
-                                    if image_url and not image_url.startswith("http"):
-                                        image_url = _normalize_image_url(image_url, bucket.name)
+                                    image_url = getattr(blob, "public_url", None) or ""
+                                    if not (image_url and str(image_url).strip().startswith("http")):
+                                        # public_url이 비어있거나 절대 URL이 아니면 bucket+path로 완전 URL 구성
+                                        image_url = _normalize_image_url(path, bucket.name)
                                 except Exception as storage_err:
                                     traceback.print_exc(file=sys.stderr)
                                     sys.stderr.write(f"[Storage] {type(storage_err).__name__}: {storage_err}\n")
