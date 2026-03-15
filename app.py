@@ -986,17 +986,22 @@ def _get_firestore_db():
     return firestore.client()
 
 
-def _save_glucose(uid, type_, value, note=None):
-    """users/{uid}/glucose 컬렉션에 공복/식후 혈당 저장. type_ in ('fasting','postprandial')."""
+def _save_glucose(uid, type_, value, note=None, timestamp=None):
+    """users/{uid}/glucose 컬렉션에 공복/식후 혈당 저장. type_ in ('fasting','postprandial'). timestamp가 있으면 해당 시각으로 저장, 없으면 UTC now."""
     if not uid or type_ not in ("fasting", "postprandial"):
         return False
     try:
         db = _get_firestore_db()
-        now = datetime.now(timezone.utc)
+        ts = timestamp if timestamp is not None else datetime.now(timezone.utc)
+        if hasattr(ts, "astimezone") and ts.tzinfo is None:
+            import pytz
+            ts = pytz.timezone("Asia/Seoul").localize(ts).astimezone(timezone.utc)
+        elif hasattr(ts, "astimezone") and getattr(ts.tzinfo, "key", None) != "UTC":
+            ts = ts.astimezone(timezone.utc)
         db.collection("users").document(str(uid)).collection("glucose").add({
             "type": type_,
             "value": int(round(float(value))),
-            "timestamp": now,
+            "timestamp": ts,
             "note": (str(note).strip() or None),
         })
         return True
@@ -1328,10 +1333,25 @@ if menu_key == "scanner":
 
             def _render_glucose_tab(start, end, tab_scope_key):
                 with st.form(key=f"glucose_form_{tab_scope_key}"):
-                    g_type = st.radio(t.get("glucose_value_mg", "혈당 (mg/dL)"), options=["fasting", "postprandial"], format_func=lambda x: t.get("glucose_fasting", "공복 혈당") if x == "fasting" else t.get("glucose_postprandial", "식후 혈당"), horizontal=True, label_visibility="collapsed")
+                    import pytz
+                    seoul = pytz.timezone("Asia/Seoul")
+                    now_korea = datetime.now(seoul)
+                    default_date = now_korea.date()
+                    default_time = now_korea.time().replace(second=0, microsecond=0)
+                    col_date, col_time, col_type = st.columns(3)
+                    with col_date:
+                        g_date = st.date_input("날짜", value=default_date, key=f"g_date_{tab_scope_key}")
+                    with col_time:
+                        g_time = st.time_input("시간", value=default_time, key=f"g_time_{tab_scope_key}")
+                    with col_type:
+                        g_type = st.radio("유형", options=["fasting", "postprandial"], format_func=lambda x: t.get("glucose_fasting", "공복 혈당") if x == "fasting" else t.get("glucose_postprandial", "식후 혈당"), key=f"g_type_{tab_scope_key}")
                     g_val = st.number_input("mg/dL", min_value=40, max_value=400, value=100, step=1, key=f"g_val_{tab_scope_key}")
                     if st.form_submit_button(t.get("glucose_save", "저장")):
-                        if _save_glucose(uid_r, g_type, g_val):
+                        dt_seoul = datetime.combine(g_date, g_time)
+                        if dt_seoul.tzinfo is None:
+                            dt_seoul = seoul.localize(dt_seoul)
+                        ts_utc = dt_seoul.astimezone(timezone.utc)
+                        if _save_glucose(uid_r, g_type, g_val, timestamp=ts_utc):
                             st.toast(t.get("glucose_saved", "혈당이 저장되었습니다."))
                             st.rerun()
                 glucose_list, meals_list = _get_glucose_and_meals(uid_r, start, end)
