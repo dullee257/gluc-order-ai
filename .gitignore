@@ -24,3 +24,6 @@ node_modules/
 test_script.py
 4.jpg
 main.;py
+
+# Firebase 서비스 계정 키 (로컬 전용, 절대 커밋 금지)
+serviceAccountKey.json

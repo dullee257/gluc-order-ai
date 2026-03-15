@@ -106,7 +106,66 @@ gsutil cors set storage-cors.json gs://BUCKET_NAME
 
 ---
 
-## 4. 적용 확인
+## 4. 로컬에서 Python 스크립트로 CORS 설정 (serviceAccountKey.json 사용)
+
+인증 에러 없이 로컬에서 CORS를 적용하려면, Firebase 서비스 계정 키로 `serviceAccountKey.json`을 만든 뒤 해당 파일을 사용해 스크립트를 실행합니다.
+
+### 4-1. serviceAccountKey.json 생성
+
+**방법 A – Firebase에서 받은 JSON 파일로 생성**
+
+1. Firebase 콘솔 → 프로젝트 설정 → 서비스 계정 → **키 추가** → JSON 다운로드.
+2. `FIREBASE_CREDENTIALS_JSON`에 **다운로드한 JSON 파일 경로**를 넣고 스크립트를 실행하면, 해당 파일을 읽어 `serviceAccountKey.json`을 만듭니다.
+
+   **PowerShell:**
+   ```powershell
+   cd e:\suger
+   $env:FIREBASE_CREDENTIALS_JSON = "C:\경로\다운로드한키.json"
+   python scripts/write_service_account_key.py
+   ```
+   (경로가 실제 파일을 가리키면 스크립트가 그 파일을 읽어서 프로젝트 루트에 `serviceAccountKey.json`을 생성합니다.)
+
+   **CMD:**
+   ```cmd
+   cd e:\suger
+   set FIREBASE_CREDENTIALS_JSON=C:\경로\다운로드한키.json
+   python scripts/write_service_account_key.py
+   ```
+
+   JSON 전체를 한 줄 문자열로 환경 변수에 넣어도 됩니다.
+
+**방법 B – .streamlit/secrets.toml 에 [firebase] 가 있을 때**
+
+```bash
+pip install tomli
+python scripts/write_service_account_key.py --from-secrets
+```
+
+생성된 파일은 프로젝트 루트의 **`serviceAccountKey.json`** 이며, **절대 Git에 커밋하지 마세요.** (`.gitignore`에 이미 포함됨)
+
+### 4-2. CORS 스크립트 실행
+
+**PowerShell:**
+```powershell
+cd e:\suger
+$env:GOOGLE_APPLICATION_CREDENTIALS = (Resolve-Path "serviceAccountKey.json").Path
+$env:BUCKET_NAME = "gluc-order-ai.appspot.com"
+python scripts/set_storage_cors.py
+```
+
+**CMD:**
+```cmd
+cd e:\suger
+set GOOGLE_APPLICATION_CREDENTIALS=e:\suger\serviceAccountKey.json
+set BUCKET_NAME=gluc-order-ai.appspot.com
+python scripts/set_storage_cors.py
+```
+
+버킷 이름은 Firebase 콘솔의 Storage에서 확인한 값으로 바꾸면 됩니다 (일반적으로 `프로젝트ID.appspot.com`).
+
+---
+
+## 5. 적용 확인
 
 - CORS 설정은 적용 후 곧바로 반영됩니다.
 - Streamlit 앱에서 **새로고침** 후 식단 기록의 이미지가 로드되는지 확인합니다.
@@ -114,13 +173,13 @@ gsutil cors set storage-cors.json gs://BUCKET_NAME
 
 ---
 
-## 5. 요약
+## 6. 요약
 
 | 단계 | 내용 |
 |------|------|
 | 1 | Firebase/Cloud Console에서 Storage **버킷 이름** 확인 |
 | 2 | `storage-cors.json`에 Streamlit 앱 **origin**(로컬/배포 URL) 작성 |
-| 3 | `gcloud storage buckets update gs://BUCKET_NAME --cors-file=storage-cors.json` 실행 |
+| 3 | `gcloud storage buckets update gs://BUCKET_NAME --cors-file=storage-cors.json` 실행 또는 **Python 스크립트** (`scripts/set_storage_cors.py`) + `serviceAccountKey.json` 사용 |
 | 4 | 앱에서 이미지 로드 및 Network/Console로 확인 |
 
 이렇게 설정하면 Streamlit 웹 앱에서 Firebase Storage 이미지를 CORS 문제 없이 불러올 수 있습니다.
