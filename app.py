@@ -1543,7 +1543,7 @@ elif menu_key == "history":
             st.rerun()
         st.markdown("---")
 
-    # expander 화살표와 라벨 겹침 방지: 라벨은 짧게, 상세는 내부에 표시
+    # st.expander 화살표(_arrow_right) 겹침 제거: 버튼 토글로 대체
     if st.session_state['history']:
         for i, rec in enumerate(reversed(st.session_state['history'])):
             rec_score = rec.get('blood_sugar_score', 0)
@@ -1551,9 +1551,16 @@ elif menu_key == "history":
             rec_gi = rec.get('avg_gi', 0)
             rc = "#4CAF50" if rec_score <= 40 else "#FFB300" if rec_score <= 65 else "#F44336"
             rl = t["risk_safe"] if rec_score <= 40 else t["risk_caution"] if rec_score <= 65 else t["risk_danger"]
-            short_label = f"🍴 {rec.get('date', '')}"
-            with st.expander(short_label, expanded=False):
-                st.markdown(f"**{rec.get('date', '')}** · {t['blood_score_label']} **{rec_score}** ({rl}) · {t['carbs']} **{rec_carbs}g**")
+            _key = f"hist_open_{i}"
+            if _key not in st.session_state:
+                st.session_state[_key] = False
+            _date = rec.get('date', '')
+            _btn_label = f"🍴 {_date}  ·  혈당 {rec_score} ({rl})  ·  탄수화물 {rec_carbs}g"
+            if st.button(_btn_label, key=_key + "_btn", use_container_width=True, type="secondary"):
+                st.session_state[_key] = not st.session_state[_key]
+                st.rerun()
+            if st.session_state[_key]:
+                st.markdown(f"**{_date}** · {t['blood_score_label']} **{rec_score}** ({rl}) · {t['carbs']} **{rec_carbs}g**")
                 if rec.get('image_url'):
                     st.image(rec['image_url'], use_container_width=True)
                 elif rec.get('image'):
