@@ -772,23 +772,25 @@ if not st.session_state['logged_in']:
         with st.form("auth_form_modern"):
             st.markdown(f"#### 🔒 {mode_text}")
             email = st.text_input(t["auth_email_label"], placeholder=t["auth_email_placeholder"])
+            # 이메일 도움말: 형식이 틀릴 때만 빨간 안내 문구
+            email_valid = bool(email and ("@" in email))
+            if email and not email_valid:
+                st.caption("🔴 올바른 이메일 형식을 입력해 주세요.")
+
             pwd = st.text_input(t["auth_pwd_label"], type="password", placeholder=t["auth_pwd_placeholder"])
 
-            # 기본 입력 검증: 이메일 형식 & 비밀번호 비어있지 않음
-            email_valid = bool(email and re.match(r"[^@]+@[^@]+\.[^@]+", email))
-            can_submit = email_valid and bool(pwd)
-
+            # 검증 조건과 상관없이 버튼은 항상 활성화 (테스트/UX용)
             submitted = st.form_submit_button(
                 submit_label,
                 type="primary",
                 use_container_width=True,
-                disabled=not can_submit,
+                disabled=False,
             )
 
             if submitted:
-                # 2차 방어적 검증
-                if not can_submit:
-                    st.error(t["err_email_pwd_empty"])
+                # 1차 검증: 형식이 틀리면 경고 후 중단
+                if not email_valid or not pwd:
+                    st.error("형식이 틀렸습니다. 이메일과 비밀번호를 다시 확인해 주세요.")
                 else:
                     with st.spinner("인증 중..."):
                         success, res = pyrebase_auth(
