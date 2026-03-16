@@ -1011,6 +1011,40 @@ def _save_glucose(uid, type_, value, note=None, timestamp=None):
         return False
 
 
+@st.cache_data(ttl=120)
+def get_today_summary(uid, date_key):
+    """오늘(한국 날짜) 기준 평균 혈당, 탄수화물 합계, 식단 수. date_key 예: '2025-03-15'. 캐시로 Firestore 조회 최소화."""
+    if not uid:
+        return {"avg_glucose": None, "total_carbs": 0, "meal_count": 0}
+    try:
+        import pytz
+        seoul = pytz.timezone("Asia/Seoul")
+        from datetime import timedelta
+        y, m, d = [int(x) for x in date_key.split("-")]
+        start_seoul = seoul.localize(datetime(y, m, d, 0, 0, 0))
+        end_seoul = start_seoul + timedelta(days=1)
+        start_utc = start_seoul.astimezone(timezone.utc)
+        end_utc = end_seoul.astimezone(timezone.utc)
+        glucose_list, meals_list = _get_glucose_and_meals(uid, start_utc, end_utc)
+        avg_g = sum(g.get("value", 0) for g in glucose_list) / len(glucose_list) if glucose_list else None
+        total_c = sum(m.get("total_carbs", 0) for m in meals_list)
+        return {"avg_glucose": round(avg_g) if avg_g is not None else None, "total_carbs": total_c, "meal_count": len(meals_list)}
+    except Exception as e:
+        sys.stderr.write(f"[get_today_summary] {e}\n")
+        return {"avg_glucose": None, "total_carbs": 0, "meal_count": 0}
+
+
+@st.cache_data(ttl=90)
+def get_glucose_meals_cached(uid, start_iso, end_iso):
+    """기간별 glucose+meals 캐시. start_iso/end_iso 예: '2025-03-15T00:00:00+00:00'."""
+    try:
+        start = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
+        end = datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
+        return _get_glucose_and_meals(uid, start, end)
+    except Exception:
+        return [], []
+
+
 def _get_glucose_and_meals(uid, start, end):
     """기간 내 users/{uid}/glucose 및 user_logs 조회. 반환: (glucose_list, meals_list)."""
     try:
@@ -1293,18 +1327,68 @@ if menu_key == "scanner":
         else:
             if is_guest:
                 st.info(get_text(st.session_state.get("lang", "KO"), "guest_remaining", n=total_remaining))
-                
+
+            # ── 대시보드 우선: CSS + 오늘 요약 카드 + 액션 버튼 ──
+            st.markdown("""
+                <style>
+                .dashboard-card { border-radius: 15px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); padding: 1rem 1.1rem; text-align: center; margin-bottom: 10px; }
+                .dashboard-card .val { font-size: 1.5rem; font-weight: 800; }
+                .dashboard-card .lbl { font-size: 0.75rem; color: #666; margin-top: 4px; }
+                .action-btn-block button { border-radius: 15px !important; box-shadow: 0 4px 14px rgba(0,0,0,0.12) !important; min-height: 56px !important; font-size: 1.05rem !important; }
+                </style>
+            """, unsafe_allow_html=True)
+
+            if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
+                import pytz
+                _seoul = pytz.timezone("Asia/Seoul")
+                _date_key = datetime.now(_seoul).strftime("%Y-%m-%d")
+                _sum = get_today_summary(st.session_state["user_id"], _date_key)
+                _avg_g = _sum.get("avg_glucose")
+                _total_c = _sum.get("total_carbs", 0)
+                _meal_n = _sum.get("meal_count", 0)
+                if _avg_g is not None:
+                    if _avg_g < 100:
+                        _card_bg = "linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)"
+                    elif _avg_g <= 140:
+                        _card_bg = "linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%)"
+                    else:
+                        _card_bg = "linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)"
+                else:
+                    _card_bg = "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)"
+                _g_val_str = f"{_avg_g}" if _avg_g is not None else "-"
+                card1 = f'<div class="dashboard-card" style="background: {_card_bg};"><div class="val">{_g_val_str}</div><div class="lbl">{t.get("dashboard_avg_glucose", "오늘의 평균 혈당")}</div></div>'
+                card2 = f'<div class="dashboard-card" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);"><div class="val">{_total_c}g</div><div class="lbl">{t.get("dashboard_total_carbs", "섭취 탄수화물 총량")}</div></div>'
+                card3 = f'<div class="dashboard-card" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);"><div class="val">{_meal_n}</div><div class="lbl">{t.get("dashboard_meal_count", "식단 기록 수")}</div></div>'
+                sc1, sc2, sc3 = st.columns(3)
+                with sc1:
+                    st.markdown(card1, unsafe_allow_html=True)
+                with sc2:
+                    st.markdown(card2, unsafe_allow_html=True)
+                with sc3:
+                    st.markdown(card3, unsafe_allow_html=True)
+                st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
+
+            b1, b2 = st.columns(2)
+            with b1:
+                st.markdown('<div class="action-btn-block">', unsafe_allow_html=True)
+                if st.button(t.get("btn_scan_diet", "📸 식단 분석 시작"), key="main_btn_scan", use_container_width=True, type="primary"):
+                    st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+            with b2:
+                if st.button(t.get("btn_input_glucose", "🩸 혈당 수치 입력"), key="main_btn_glucose", use_container_width=True):
+                    st.session_state["open_glucose"] = True
+                    st.rerun()
+            st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
             if 'uploader_key' not in st.session_state:
                 st.session_state['uploader_key'] = 0
-                
-            # 2️⃣ 업로드 위젯 (외부 라벨을 완전히 숨김) - key를 동적으로 주어 이전 파일 잔여물 제거
+            # 2️⃣ 업로드 위젯 (식단 분석)
             uploaded_file = st.file_uploader(
-                "label_hidden", 
+                "label_hidden",
                 type=["jpg", "png", "jpeg"],
                 label_visibility="collapsed",
                 key=f"uploader_{st.session_state['uploader_key']}"
             )
-            
             if uploaded_file:
                 if is_guest:
                     st.session_state['guest_usage_count'] += 1
@@ -1321,6 +1405,25 @@ if menu_key == "scanner":
         # 나의 혈당 관리 리포트: st.tabs Daily/Weekly/Monthly + glucose 저장 + Plotly (glucose + user_logs)
         if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
             st.markdown("---")
+            uid_r = st.session_state["user_id"]
+            if st.session_state.get("open_glucose"):
+                with st.expander(t.get("btn_input_glucose", "🩸 혈당 수치 입력"), expanded=True):
+                    with st.form(key="glucose_form_quick"):
+                        import pytz
+                        _seoul = pytz.timezone("Asia/Seoul")
+                        _now_kr = datetime.now(_seoul)
+                        _g_date = st.date_input("날짜", value=_now_kr.date(), key="g_date_quick")
+                        _g_time = st.time_input("시간", value=_now_kr.time().replace(second=0, microsecond=0), key="g_time_quick")
+                        _g_type = st.radio("유형", options=["fasting", "postprandial"], format_func=lambda x: t.get("glucose_fasting", "공복 혈당") if x == "fasting" else t.get("glucose_postprandial", "식후 혈당"), key="g_type_quick")
+                        _g_val = st.number_input("mg/dL", min_value=40, max_value=400, value=100, step=1, key="g_val_quick")
+                        if st.form_submit_button(t.get("glucose_save", "저장")):
+                            _dt = _seoul.localize(datetime.combine(_g_date, _g_time))
+                            if _save_glucose(uid_r, _g_type, _g_val, timestamp=_dt.astimezone(timezone.utc)):
+                                st.session_state["open_glucose"] = False
+                                st.toast(t.get("glucose_saved", "혈당이 저장되었습니다."))
+                                get_today_summary.clear()
+                                get_glucose_meals_cached.clear()
+                                st.rerun()
             st.markdown(f"### 📊 {t.get('report_section_title', '나의 혈당 관리 리포트')}")
             tab_d, tab_w, tab_m = st.tabs([
                 t.get("glucose_tab_daily", "Daily"),
@@ -1329,7 +1432,6 @@ if menu_key == "scanner":
             ])
             from datetime import timedelta
             now = datetime.now(timezone.utc)
-            uid_r = st.session_state["user_id"]
 
             def _render_glucose_tab(start, end, tab_scope_key):
                 with st.form(key=f"glucose_form_{tab_scope_key}"):
@@ -1354,7 +1456,7 @@ if menu_key == "scanner":
                         if _save_glucose(uid_r, g_type, g_val, timestamp=ts_utc):
                             st.toast(t.get("glucose_saved", "혈당이 저장되었습니다."))
                             st.rerun()
-                glucose_list, meals_list = _get_glucose_and_meals(uid_r, start, end)
+                glucose_list, meals_list = get_glucose_meals_cached(uid_r, start.isoformat(), end.isoformat())
                 c1, c2, c3 = st.columns(3)
                 with c1:
                     st.metric(t.get("report_meals_count", "식단 수"), len(meals_list))
@@ -1376,10 +1478,10 @@ if menu_key == "scanner":
                         m_times = [m["timestamp"] for m in meals_list]
                         m_carbs = [m.get("total_carbs", 0) for m in meals_list]
                         fig.add_trace(go.Bar(x=m_times, y=m_carbs, name=t.get("report_avg_carbs", "탄수화물") + " (g)", marker_color="#86cc85"), secondary_y=True)
-                    fig.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=280, xaxis_tickangle=-45)
+                    fig.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=260, xaxis_tickangle=-45, autosize=True)
                     fig.update_yaxes(title_text=t.get("glucose_value_mg", "혈당 (mg/dL)"), secondary_y=False)
                     fig.update_yaxes(title_text=t.get("report_avg_carbs", "탄수화물") + " (g)", secondary_y=True)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, use_container_width=True, config=dict(responsive=True, displayModeBar=True))
                 else:
                     st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
 
