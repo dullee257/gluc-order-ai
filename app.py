@@ -1035,6 +1035,7 @@ def _save_glucose(uid, type_, value, note=None, timestamp=None):
     if not uid or type_ not in ("fasting", "postprandial"):
         return False
     try:
+        print("저장 시도 중...")  # 임시 디버깅 로그
         db = _get_firestore_db()
         ts = timestamp if timestamp is not None else datetime.now(timezone.utc)
         if hasattr(ts, "astimezone") and ts.tzinfo is None:
@@ -1061,6 +1062,11 @@ def _save_glucose(uid, type_, value, note=None, timestamp=None):
     except Exception as e:
         traceback.print_exc(file=sys.stderr)
         sys.stderr.write(f"[glucose 저장] {e}\n")
+        # 화면에도 에러 경고 표시 (임시 디버깅용)
+        try:
+            st.warning(f"혈당 저장 중 오류가 발생했습니다: {e}")
+        except Exception:
+            pass
         return False
 
 
@@ -1468,12 +1474,17 @@ if menu_key == "scanner":
                             ok = False
                             st.error(f"저장 실패: {e}")
                         if ok:
-                            st.success("성공적으로 저장되었습니다!")
                             get_today_summary.clear()
                             get_glucose_meals_cached.clear()
-                            st.session_state["open_glucose"] = False
-                            st.session_state["current_page"] = "main"
-                            st.rerun()
+                            st.session_state["glucose_saved_portal"] = True
+            # 저장 성공 후: 메인으로 이동 버튼 (폼 밖에서 독립적으로 작동)
+            if st.session_state.get("glucose_saved_portal"):
+                st.success("성공적으로 저장되었습니다!")
+                if st.button("확인 후 메인으로 이동", key="btn_glucose_back_main", use_container_width=True):
+                    st.session_state["open_glucose"] = False
+                    st.session_state["current_page"] = "main"
+                    st.session_state["glucose_saved_portal"] = False
+                    st.rerun()
             else:
                 st.info(t.get("login_heading", "로그인 후 혈당을 기록할 수 있습니다."))
 
@@ -1517,10 +1528,16 @@ if menu_key == "scanner":
                                 ok = False
                                 st.error(f"저장 실패: {e}")
                             if ok:
-                                st.success("성공적으로 저장되었습니다!")
                                 get_today_summary.clear()
                                 get_glucose_meals_cached.clear()
-                                st.rerun()
+                                st.session_state[f"glucose_saved_report_{tab_scope_key}"] = True
+                    # 저장 성공 후: 메인으로 이동 버튼 (폼 밖에서 독립적으로 작동)
+                    if st.session_state.get(f"glucose_saved_report_{tab_scope_key}"):
+                        st.success("성공적으로 저장되었습니다!")
+                        if st.button("확인 후 메인으로 이동", key=f"btn_glucose_back_main_{tab_scope_key}", use_container_width=True):
+                            st.session_state["current_page"] = "main"
+                            st.session_state[f"glucose_saved_report_{tab_scope_key}"] = False
+                            st.rerun()
                     glucose_list, meals_list = get_glucose_meals_cached(uid_r, start.isoformat(), end.isoformat())
                     c1, c2, c3 = st.columns(3)
                     with c1:
