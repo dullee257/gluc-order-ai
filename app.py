@@ -5,6 +5,7 @@ import os
 import json
 import traceback
 import urllib.parse
+import re
 
 from translation import LANG_DICT, get_text, SUPPORTED_LANGS, LANG_LABELS, LANG_HTML_ATTR, GOAL_INTERNAL_KEYS
 from prompts import get_analysis_prompt
@@ -641,32 +642,37 @@ st.markdown(f"""
 import requests
 
 def pyrebase_auth(email, password, mode="login"):
-    """REST API를 활용한 Firebase 기본 이메일/패스워드 인증 로직"""
+    """REST API를 활용한 Firebase 기본 이메일/패스워드 인증 로직.
+
+    성공 시 (True, data), 실패 시 (False, {"code": "...", "raw": any}) 형태로 반환한다.
+    """
     try:
         firebase_cfg = _get_firebase_config()
         api_key = firebase_cfg.get("api_key", "")
-    except Exception:
-        return False, "Firebase 설정을 읽는 중 오류가 발생했습니다."
-        
+    except Exception as e:
+        return False, {"code": "CONFIG_READ_ERROR", "raw": str(e)}
+
     if not api_key:
-        return False, "Firebase Web API Key가 설정에 없습니다."
-        
+        return False, {"code": "MISSING_API_KEY", "raw": "Firebase Web API Key가 설정에 없습니다."}
+
     if mode == "signup":
         url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
     else:
         url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
-        
+
     payload = json.dumps({"email": email, "password": password, "returnSecureToken": True})
-    headers = {'content-type': 'application/json'}
-    
+    headers = {"content-type": "application/json"}
+
     try:
         res = requests.post(url, data=payload, headers=headers)
         data = res.json()
         if "error" in data:
-            return False, data["error"]["message"]
+            err = data.get("error", {})
+            code = str(err.get("message", "UNKNOWN"))
+            return False, {"code": code, "raw": err}
         return True, data
     except Exception as e:
-        return False, str(e)
+        return False, {"code": "EXCEPTION", "raw": str(e)}
 
 if not st.session_state['logged_in']:
     import urllib.parse
@@ -767,14 +773,30 @@ if not st.session_state['logged_in']:
             st.markdown(f"#### 🔒 {mode_text}")
             email = st.text_input(t["auth_email_label"], placeholder=t["auth_email_placeholder"])
             pwd = st.text_input(t["auth_pwd_label"], type="password", placeholder=t["auth_pwd_placeholder"])
-            submitted = st.form_submit_button(submit_label, type="primary", use_container_width=True)
-            
+
+            # 기본 입력 검증: 이메일 형식 & 비밀번호 비어있지 않음
+            email_valid = bool(email and re.match(r"[^@]+@[^@]+\.[^@]+", email))
+            can_submit = email_valid and bool(pwd)
+
+            submitted = st.form_submit_button(
+                submit_label,
+                type="primary",
+                use_container_width=True,
+                disabled=not can_submit,
+            )
+
             if submitted:
-                if not email or not pwd:
+                # 2차 방어적 검증
+                if not can_submit:
                     st.error(t["err_email_pwd_empty"])
                 else:
-                    success, res = pyrebase_auth(email, pwd, "login" if st.session_state['auth_mode'] == 'login' else "signup")
-                    
+                    with st.spinner("인증 중..."):
+                        success, res = pyrebase_auth(
+                            email,
+                            pwd,
+                            "login" if st.session_state['auth_mode'] == 'login' else "signup",
+                        )
+
                     if success:
                         st.session_state['logged_in'] = True
                         st.session_state['user_id'] = res.get('localId', f"user_{email}")
@@ -782,12 +804,32 @@ if not st.session_state['logged_in']:
                         st.session_state['login_type'] = "google"
                         st.rerun()
                     else:
-                        if "EMAIL_EXISTS" in res:
+                        # 에러 코드 가시화
+                        code = str((res or {}).get("code", "UNKNOWN"))
+                        upper_code = code.upper()
+
+                        if "EMAIL_EXISTS" in upper_code:
                             st.error(t["err_email_exists"])
-                        elif "INVALID_LOGIN_CREDENTIALS" in res or "INVALID_PASSWORD" in res or "EMAIL_NOT_FOUND" in res:
+                        elif (
+                            "INVALID_LOGIN_CREDENTIALS" in upper_code
+                            or "INVALID_PASSWORD" in upper_code
+                            or "EMAIL_NOT_FOUND" in upper_code
+                        ):
                             st.error(t["err_invalid_credentials"])
                         else:
-                            st.error(get_text(st.session_state.get("lang", "KO"), "err_auth_failed", msg=str(res)))
+                            base_msg = get_text(
+                                st.session_state.get("lang", "KO"),
+                                "err_auth_failed",
+                                msg=code,
+                            )
+                            st.error(f"{base_msg} (코드: {code})")
+
+                        # Firebase 콘솔 설정 가이드 (OPERATION_NOT_ALLOWED)
+                        if "OPERATION_NOT_ALLOWED" in upper_code:
+                            st.error(
+                                "Firebase 콘솔에서 이메일/비밀번호 로그인 방식이 비활성화되어 있습니다. "
+                                "Firebase 프로젝트의 Authentication → Sign-in method에서 Email/Password를 활성화해 주세요."
+                            )
                 
         # 소셜 로그인: 버튼 클릭 시 펼침(expander 제거 → 글자 겹침 방지), 배경색·자동 스크롤
         _lang = st.session_state.get("lang", "KO")
