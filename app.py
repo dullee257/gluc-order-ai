@@ -1262,7 +1262,9 @@ if menu_key == "scanner":
                 st.rerun()
     if 'app_stage' not in st.session_state:
         st.session_state['app_stage'] = 'main'
-        
+    if 'current_page' not in st.session_state:
+        st.session_state['current_page'] = 'main'
+
     API_KEY = _get_secret("GEMINI_API_KEY")
     if not API_KEY:
         st.error(t["gemini_key_error"])
@@ -1270,119 +1272,113 @@ if menu_key == "scanner":
     client = genai.Client(api_key=API_KEY)
 
     if st.session_state['app_stage'] == 'main':
-        # 1️⃣ 전문적인 3행 타이틀 디자인 (반응형 폰트 및 여백 적용)
-        title_parts = t["description"].split("|")
-        st.markdown(f"""
-            <div style="text-align: center; margin-top: 10px; margin-bottom: 3vh;">
-                <div style="font-size: clamp(35px, 10vw, 50px); margin-bottom: 1vh;">{title_parts[0]}</div>
-                <div style="font-size: clamp(20px, 6vw, 26px); font-weight: 800; color: #333333; line-height: 1.2;">{title_parts[1]}</div>
-                <div style="font-size: clamp(14px, 4vw, 18px); font-weight: 500; color: #86cc85; margin-top: 1vh;">{title_parts[2]}</div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # [무료 체험 일일 횟수 및 광고 리워드 로직]
-        is_guest = st.session_state['user_id'] == 'guest_user_demo'
+        is_guest = st.session_state.get('user_id') == 'guest_user_demo'
         if 'guest_usage_count' not in st.session_state:
             st.session_state['guest_usage_count'] = 0
-            
-        # 광고 시청 후 획득한 보너스 횟수
         if 'guest_bonus_count' not in st.session_state:
             st.session_state['guest_bonus_count'] = 0
-            
         total_remaining = (2 + st.session_state['guest_bonus_count']) - st.session_state['guest_usage_count']
-        
-        if is_guest and total_remaining <= 0:
-            st.warning(t["guest_trial_exhausted"])
-            st.info(t["guest_ad_bonus"])
-            
-            # --- [Google AdSense 보상형 광고 시뮬레이션 버튼] ---
-            # 실제 배포 시에는 구글 애드몹/애드센스 리워드형 태그로 교체 가능합니다.
-            col_ad1, col_ad2 = st.columns([2, 1])
-            with col_ad1:
-                st.markdown("""
-                    <div style="border:1px solid #ddd; padding:15px; border-radius:10px; background-color:#fefefe; text-align:center;">
-                        <span style="color:#888; font-size:12px; display:block; margin-bottom:5px;">Google 광고</span>
-                        <div style="font-weight:700; color:#4285F4; margin-bottom:5px;">혈당 관리 전문앱, NutriSort 프리미엄!</div>
-                        <div style="font-size:14px; color:#555;">지금 구독하시면 첫 달 무료 혜택과 무제한 스캔을 제공합니다.</div>
-                    </div>
-                """, unsafe_allow_html=True)
-            with col_ad2:
-                st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True) # 줄맞춤
-                if st.button(t["btn_ad_charge"], use_container_width=True):
-                    # 광고를 보면 보너스 횟수를 1 부여하고 화면 리로드
-                    st.session_state['guest_bonus_count'] += 1
-                    st.rerun()
-            
-            st.markdown("<br><hr>", unsafe_allow_html=True)
-            st.markdown(f"**{t['guest_continue_question']}**")
-            if st.button(t["btn_go_signup"], type="primary", use_container_width=True):
-                st.session_state['logged_in'] = False
-                st.session_state['login_type'] = None
-                st.session_state['user_id'] = None
-                st.session_state['user_email'] = None
-                st.session_state["history_loaded_uid"] = None
-                st.session_state["history"] = []
-                st.session_state['auth_mode'] = 'signup'
-                st.rerun()
-        else:
-            if is_guest:
-                st.info(get_text(st.session_state.get("lang", "KO"), "guest_remaining", n=total_remaining))
 
-            # ── 대시보드 우선: CSS + 오늘 요약 카드 + 액션 버튼 ──
-            st.markdown("""
-                <style>
-                .dashboard-card { border-radius: 15px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); padding: 1rem 1.1rem; text-align: center; margin-bottom: 10px; }
-                .dashboard-card .val { font-size: 1.5rem; font-weight: 800; }
-                .dashboard-card .lbl { font-size: 0.75rem; color: #666; margin-top: 4px; }
-                .action-btn-block button { border-radius: 15px !important; box-shadow: 0 4px 14px rgba(0,0,0,0.12) !important; min-height: 56px !important; font-size: 1.05rem !important; }
-                </style>
+        # ── 뒤로가기: 상세 페이지에서는 상단에 [← 뒤로] 표시 ──
+        if st.session_state.get("current_page") != "main":
+            if st.button(t.get("btn_back", "← 뒤로"), key="portal_back", use_container_width=True):
+                st.session_state["current_page"] = "main"
+                st.rerun()
+            st.markdown("---")
+
+        if st.session_state.get("current_page") == "main":
+            # 1️⃣ 메인 포털: 타이틀 + 슬림 요약 바 + 4구 그리드
+            title_parts = t["description"].split("|")
+            st.markdown(f"""
+                <div style="text-align: center; margin-top: 10px; margin-bottom: 2vh;">
+                    <div style="font-size: clamp(35px, 10vw, 50px); margin-bottom: 1vh;">{title_parts[0]}</div>
+                    <div style="font-size: clamp(20px, 6vw, 26px); font-weight: 800; color: #333333; line-height: 1.2;">{title_parts[1]}</div>
+                    <div style="font-size: clamp(14px, 4vw, 18px); font-weight: 500; color: #86cc85; margin-top: 1vh;">{title_parts[2]}</div>
+                </div>
             """, unsafe_allow_html=True)
 
-            if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
-                import pytz
-                _seoul = pytz.timezone("Asia/Seoul")
-                _date_key = datetime.now(_seoul).strftime("%Y-%m-%d")
-                _sum = get_today_summary(st.session_state["user_id"], _date_key)
-                _avg_g = _sum.get("avg_glucose")
-                _total_c = _sum.get("total_carbs", 0)
-                _meal_n = _sum.get("meal_count", 0)
-                if _avg_g is not None:
-                    if _avg_g < 100:
-                        _card_bg = "linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)"
-                    elif _avg_g <= 140:
-                        _card_bg = "linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%)"
-                    else:
-                        _card_bg = "linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)"
-                else:
-                    _card_bg = "linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)"
-                _g_val_str = f"{_avg_g}" if _avg_g is not None else "-"
-                card1 = f'<div class="dashboard-card" style="background: {_card_bg};"><div class="val">{_g_val_str}</div><div class="lbl">{t.get("dashboard_avg_glucose", "오늘의 평균 혈당")}</div></div>'
-                card2 = f'<div class="dashboard-card" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);"><div class="val">{_total_c}g</div><div class="lbl">{t.get("dashboard_total_carbs", "섭취 탄수화물 총량")}</div></div>'
-                card3 = f'<div class="dashboard-card" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);"><div class="val">{_meal_n}</div><div class="lbl">{t.get("dashboard_meal_count", "식단 기록 수")}</div></div>'
-                sc1, sc2, sc3 = st.columns(3)
-                with sc1:
-                    st.markdown(card1, unsafe_allow_html=True)
-                with sc2:
-                    st.markdown(card2, unsafe_allow_html=True)
-                with sc3:
-                    st.markdown(card3, unsafe_allow_html=True)
-                st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
-
-            b1, b2 = st.columns(2)
-            with b1:
-                st.markdown('<div class="action-btn-block">', unsafe_allow_html=True)
-                if st.button(t.get("btn_scan_diet", "📸 식단 분석 시작"), key="main_btn_scan", use_container_width=True, type="primary"):
+            if is_guest and total_remaining <= 0:
+                st.warning(t["guest_trial_exhausted"])
+                st.info(t["guest_ad_bonus"])
+                col_ad1, col_ad2 = st.columns([2, 1])
+                with col_ad1:
+                    st.markdown("""
+                        <div style="border:1px solid #ddd; padding:15px; border-radius:10px; background-color:#fefefe; text-align:center;">
+                            <span style="color:#888; font-size:12px;">Google 광고</span>
+                            <div style="font-weight:700; color:#4285F4;">혈당 관리 전문앱, NutriSort 프리미엄!</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                with col_ad2:
+                    if st.button(t["btn_ad_charge"], use_container_width=True):
+                        st.session_state['guest_bonus_count'] += 1
+                        st.rerun()
+                st.markdown("<br><hr>", unsafe_allow_html=True)
+                st.markdown(f"**{t['guest_continue_question']}**")
+                if st.button(t["btn_go_signup"], type="primary", use_container_width=True):
+                    st.session_state['logged_in'] = False
+                    st.session_state['login_type'] = None
+                    st.session_state['user_id'] = None
+                    st.session_state['user_email'] = None
+                    st.session_state["history_loaded_uid"] = None
+                    st.session_state["history"] = []
+                    st.session_state['auth_mode'] = 'signup'
                     st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
-            with b2:
-                if st.button(t.get("btn_input_glucose", "🩸 혈당 수치 입력"), key="main_btn_glucose", use_container_width=True):
-                    st.session_state["open_glucose"] = True
-                    st.rerun()
-            st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+            else:
+                if is_guest:
+                    st.info(get_text(st.session_state.get("lang", "KO"), "guest_remaining", n=total_remaining))
 
+                # 슬림 요약 바: 오늘 평균 혈당 | 탄수화물 총량 (컴팩트)
+                if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
+                    import pytz
+                    _seoul = pytz.timezone("Asia/Seoul")
+                    _date_key = datetime.now(_seoul).strftime("%Y-%m-%d")
+                    _sum = get_today_summary(st.session_state["user_id"], _date_key)
+                    _avg_g = _sum.get("avg_glucose")
+                    _total_c = _sum.get("total_carbs", 0)
+                    _g_str = f"{_avg_g}" if _avg_g is not None else "-"
+                    st.markdown(f"""
+                        <div style="font-size: 12px; color: #555; padding: 8px 12px; background: #f0f4f0; border-radius: 10px; margin-bottom: 12px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+                            <span>{t.get("dashboard_avg_glucose", "오늘 평균 혈당")}: <strong>{_g_str} mg/dL</strong></span>
+                            <span>{t.get("dashboard_total_carbs", "탄수화물 총량")}: <strong>{_total_c}g</strong></span>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                # CSS: 포털 그리드가 모바일 높이 60~70% 내에 들어오도록
+                st.markdown("""
+                    <style>
+                    .portal-grid-wrap { max-height: 70vh; padding: 0 0 1rem 0; }
+                    .portal-grid-wrap .stButton > button { border-radius: 15px !important; box-shadow: 0 4px 14px rgba(0,0,0,0.12) !important; min-height: 14vh !important; font-size: 1.05rem !important; padding: 1rem !important; }
+                    </style>
+                """, unsafe_allow_html=True)
+
+                # 4구 그리드: st.columns(2) 두 번
+                st.markdown('<div class="portal-grid-wrap">', unsafe_allow_html=True)
+                row1_c1, row1_c2 = st.columns(2)
+                with row1_c1:
+                    if st.button(t.get("btn_scan_diet", "📸 식단 분석 시작"), key="main_btn_scan", use_container_width=True, type="primary"):
+                        st.session_state["current_page"] = "diet_scan"
+                        st.rerun()
+                with row1_c2:
+                    if st.button(t.get("btn_input_glucose", "🩸 혈당 수치 입력"), key="main_btn_glucose", use_container_width=True):
+                        st.session_state["current_page"] = "glucose_input"
+                        st.rerun()
+                row2_c1, row2_c2 = st.columns(2)
+                with row2_c1:
+                    if st.button(t.get("dashboard_view_report", "📊 리포트 보기"), key="main_btn_report", use_container_width=True):
+                        st.session_state["current_page"] = "report"
+                        st.rerun()
+                with row2_c2:
+                    if st.button(t.get("btn_settings", "⚙️ 설정"), key="main_btn_settings", use_container_width=True):
+                        st.session_state["current_page"] = "settings"
+                        st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+
+        elif st.session_state.get("current_page") == "diet_scan":
+            # 식단 스캔 페이지: 업로더만
+            if is_guest:
+                st.info(get_text(st.session_state.get("lang", "KO"), "guest_remaining", n=total_remaining))
             if 'uploader_key' not in st.session_state:
                 st.session_state['uploader_key'] = 0
-            # 2️⃣ 업로드 위젯 (식단 분석)
             uploaded_file = st.file_uploader(
                 "label_hidden",
                 type=["jpg", "png", "jpeg"],
@@ -1392,119 +1388,164 @@ if menu_key == "scanner":
             if uploaded_file:
                 if is_guest:
                     st.session_state['guest_usage_count'] += 1
-                    
-                img = Image.open(uploaded_file) # PIL을 떼고 Image로 바로 호출합니다.
-                
-                # [최적화] 이미지가 서버 메모리에 로드된 직후 브라우저 표시 및 전송 전에 500KB 이하로 압축
+                img = Image.open(uploaded_file)
                 img = compress_image(img, max_size_kb=500)
-                
                 st.session_state['current_img'] = img
                 st.session_state['app_stage'] = 'analyze'
                 st.rerun()
 
-        # 나의 혈당 관리 리포트: st.tabs Daily/Weekly/Monthly + glucose 저장 + Plotly (glucose + user_logs)
-        if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
-            st.markdown("---")
-            uid_r = st.session_state["user_id"]
-            if st.session_state.get("open_glucose"):
-                with st.expander(t.get("btn_input_glucose", "🩸 혈당 수치 입력"), expanded=True):
-                    with st.form(key="glucose_form_quick"):
+        elif st.session_state.get("current_page") == "glucose_input":
+            # 혈당 입력 전용 페이지 (Google 로그인만)
+            if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
+                uid_r = st.session_state["user_id"]
+                with st.form(key="glucose_form_portal"):
+                    import pytz
+                    _seoul = pytz.timezone("Asia/Seoul")
+                    _now_kr = datetime.now(_seoul)
+                    _g_date = st.date_input("날짜", value=_now_kr.date(), key="g_date_portal")
+                    _g_time = st.time_input("시간", value=_now_kr.time().replace(second=0, microsecond=0), key="g_time_portal")
+                    _g_type = st.radio("유형", options=["fasting", "postprandial"], format_func=lambda x: t.get("glucose_fasting", "공복 혈당") if x == "fasting" else t.get("glucose_postprandial", "식후 혈당"), key="g_type_portal")
+                    _g_val = st.number_input("mg/dL", min_value=40, max_value=400, value=100, step=1, key="g_val_portal")
+                    if st.form_submit_button(t.get("glucose_save", "저장")):
+                        _dt = _seoul.localize(datetime.combine(_g_date, _g_time))
+                        if _save_glucose(uid_r, _g_type, _g_val, timestamp=_dt.astimezone(timezone.utc)):
+                            st.toast(t.get("glucose_saved", "혈당이 저장되었습니다."))
+                            get_today_summary.clear()
+                            get_glucose_meals_cached.clear()
+                            st.rerun()
+            else:
+                st.info(t.get("login_heading", "로그인 후 혈당을 기록할 수 있습니다."))
+
+        elif st.session_state.get("current_page") == "report":
+            # 리포트 전용 페이지: 탭 + Plotly
+            if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
+                uid_r = st.session_state["user_id"]
+                st.markdown(f"### 📊 {t.get('report_section_title', '나의 혈당 관리 리포트')}")
+                tab_d, tab_w, tab_m = st.tabs([
+                    t.get("glucose_tab_daily", "Daily"),
+                    t.get("glucose_tab_weekly", "Weekly"),
+                    t.get("glucose_tab_monthly", "Monthly"),
+                ])
+                from datetime import timedelta
+                now = datetime.now(timezone.utc)
+
+                def _render_glucose_tab(start, end, tab_scope_key):
+                    with st.form(key=f"glucose_form_{tab_scope_key}"):
                         import pytz
-                        _seoul = pytz.timezone("Asia/Seoul")
-                        _now_kr = datetime.now(_seoul)
-                        _g_date = st.date_input("날짜", value=_now_kr.date(), key="g_date_quick")
-                        _g_time = st.time_input("시간", value=_now_kr.time().replace(second=0, microsecond=0), key="g_time_quick")
-                        _g_type = st.radio("유형", options=["fasting", "postprandial"], format_func=lambda x: t.get("glucose_fasting", "공복 혈당") if x == "fasting" else t.get("glucose_postprandial", "식후 혈당"), key="g_type_quick")
-                        _g_val = st.number_input("mg/dL", min_value=40, max_value=400, value=100, step=1, key="g_val_quick")
+                        seoul = pytz.timezone("Asia/Seoul")
+                        now_korea = datetime.now(seoul)
+                        default_date = now_korea.date()
+                        default_time = now_korea.time().replace(second=0, microsecond=0)
+                        col_date, col_time, col_type = st.columns(3)
+                        with col_date:
+                            g_date = st.date_input("날짜", value=default_date, key=f"g_date_{tab_scope_key}")
+                        with col_time:
+                            g_time = st.time_input("시간", value=default_time, key=f"g_time_{tab_scope_key}")
+                        with col_type:
+                            g_type = st.radio("유형", options=["fasting", "postprandial"], format_func=lambda x: t.get("glucose_fasting", "공복 혈당") if x == "fasting" else t.get("glucose_postprandial", "식후 혈당"), key=f"g_type_{tab_scope_key}")
+                        g_val = st.number_input("mg/dL", min_value=40, max_value=400, value=100, step=1, key=f"g_val_{tab_scope_key}")
                         if st.form_submit_button(t.get("glucose_save", "저장")):
-                            _dt = _seoul.localize(datetime.combine(_g_date, _g_time))
-                            if _save_glucose(uid_r, _g_type, _g_val, timestamp=_dt.astimezone(timezone.utc)):
-                                st.session_state["open_glucose"] = False
+                            dt_seoul = datetime.combine(g_date, g_time)
+                            if dt_seoul.tzinfo is None:
+                                dt_seoul = seoul.localize(dt_seoul)
+                            ts_utc = dt_seoul.astimezone(timezone.utc)
+                            if _save_glucose(uid_r, g_type, g_val, timestamp=ts_utc):
                                 st.toast(t.get("glucose_saved", "혈당이 저장되었습니다."))
                                 get_today_summary.clear()
                                 get_glucose_meals_cached.clear()
                                 st.rerun()
-            st.markdown(f"### 📊 {t.get('report_section_title', '나의 혈당 관리 리포트')}")
-            tab_d, tab_w, tab_m = st.tabs([
-                t.get("glucose_tab_daily", "Daily"),
-                t.get("glucose_tab_weekly", "Weekly"),
-                t.get("glucose_tab_monthly", "Monthly"),
-            ])
-            from datetime import timedelta
-            now = datetime.now(timezone.utc)
+                    glucose_list, meals_list = get_glucose_meals_cached(uid_r, start.isoformat(), end.isoformat())
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        st.metric(t.get("report_meals_count", "식단 수"), len(meals_list))
+                    with c2:
+                        avg_c = sum(m.get("total_carbs", 0) for m in meals_list) / len(meals_list) if meals_list else 0
+                        st.metric(t.get("report_avg_carbs", "평균 탄수화물"), f"{avg_c:.0f}g")
+                    with c3:
+                        avg_g = sum(g.get("value", 0) for g in glucose_list) / len(glucose_list) if glucose_list else 0
+                        st.metric(t.get("glucose_value_mg", "혈당 (mg/dL)") + " avg", f"{avg_g:.0f}" if glucose_list else "-")
+                    if glucose_list or meals_list:
+                        import plotly.graph_objects as go
+                        from plotly.subplots import make_subplots
+                        fig = make_subplots(specs=[[{"secondary_y": True}]])
+                        if glucose_list:
+                            g_times = [g["timestamp"] for g in glucose_list]
+                            g_vals = [g["value"] for g in glucose_list]
+                            fig.add_trace(go.Scatter(x=g_times, y=g_vals, name=t.get("glucose_value_mg", "혈당"), mode="lines+markers", line=dict(color="#e74c3c")), secondary_y=False)
+                        if meals_list:
+                            m_times = [m["timestamp"] for m in meals_list]
+                            m_carbs = [m.get("total_carbs", 0) for m in meals_list]
+                            fig.add_trace(go.Bar(x=m_times, y=m_carbs, name=t.get("report_avg_carbs", "탄수화물") + " (g)", marker_color="#86cc85"), secondary_y=True)
+                        fig.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=260, xaxis_tickangle=-45, autosize=True)
+                        fig.update_yaxes(title_text=t.get("glucose_value_mg", "혈당 (mg/dL)"), secondary_y=False)
+                        fig.update_yaxes(title_text=t.get("report_avg_carbs", "탄수화물") + " (g)", secondary_y=True)
+                        st.plotly_chart(fig, use_container_width=True, config=dict(responsive=True, displayModeBar=True))
+                    else:
+                        st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
 
-            def _render_glucose_tab(start, end, tab_scope_key):
-                with st.form(key=f"glucose_form_{tab_scope_key}"):
-                    import pytz
-                    seoul = pytz.timezone("Asia/Seoul")
-                    now_korea = datetime.now(seoul)
-                    default_date = now_korea.date()
-                    default_time = now_korea.time().replace(second=0, microsecond=0)
-                    col_date, col_time, col_type = st.columns(3)
-                    with col_date:
-                        g_date = st.date_input("날짜", value=default_date, key=f"g_date_{tab_scope_key}")
-                    with col_time:
-                        g_time = st.time_input("시간", value=default_time, key=f"g_time_{tab_scope_key}")
-                    with col_type:
-                        g_type = st.radio("유형", options=["fasting", "postprandial"], format_func=lambda x: t.get("glucose_fasting", "공복 혈당") if x == "fasting" else t.get("glucose_postprandial", "식후 혈당"), key=f"g_type_{tab_scope_key}")
-                    g_val = st.number_input("mg/dL", min_value=40, max_value=400, value=100, step=1, key=f"g_val_{tab_scope_key}")
-                    if st.form_submit_button(t.get("glucose_save", "저장")):
-                        dt_seoul = datetime.combine(g_date, g_time)
-                        if dt_seoul.tzinfo is None:
-                            dt_seoul = seoul.localize(dt_seoul)
-                        ts_utc = dt_seoul.astimezone(timezone.utc)
-                        if _save_glucose(uid_r, g_type, g_val, timestamp=ts_utc):
-                            st.toast(t.get("glucose_saved", "혈당이 저장되었습니다."))
-                            st.rerun()
-                glucose_list, meals_list = get_glucose_meals_cached(uid_r, start.isoformat(), end.isoformat())
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.metric(t.get("report_meals_count", "식단 수"), len(meals_list))
-                with c2:
-                    avg_c = sum(m.get("total_carbs", 0) for m in meals_list) / len(meals_list) if meals_list else 0
-                    st.metric(t.get("report_avg_carbs", "평균 탄수화물"), f"{avg_c:.0f}g")
-                with c3:
-                    avg_g = sum(g.get("value", 0) for g in glucose_list) / len(glucose_list) if glucose_list else 0
-                    st.metric(t.get("glucose_value_mg", "혈당 (mg/dL)") + " avg", f"{avg_g:.0f}" if glucose_list else "-")
-                if glucose_list or meals_list:
-                    import plotly.graph_objects as go
-                    from plotly.subplots import make_subplots
-                    fig = make_subplots(specs=[[{"secondary_y": True}]])
-                    if glucose_list:
-                        g_times = [g["timestamp"] for g in glucose_list]
-                        g_vals = [g["value"] for g in glucose_list]
-                        fig.add_trace(go.Scatter(x=g_times, y=g_vals, name=t.get("glucose_value_mg", "혈당"), mode="lines+markers", line=dict(color="#e74c3c")), secondary_y=False)
-                    if meals_list:
-                        m_times = [m["timestamp"] for m in meals_list]
-                        m_carbs = [m.get("total_carbs", 0) for m in meals_list]
-                        fig.add_trace(go.Bar(x=m_times, y=m_carbs, name=t.get("report_avg_carbs", "탄수화물") + " (g)", marker_color="#86cc85"), secondary_y=True)
-                    fig.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=260, xaxis_tickangle=-45, autosize=True)
-                    fig.update_yaxes(title_text=t.get("glucose_value_mg", "혈당 (mg/dL)"), secondary_y=False)
-                    fig.update_yaxes(title_text=t.get("report_avg_carbs", "탄수화물") + " (g)", secondary_y=True)
-                    st.plotly_chart(fig, use_container_width=True, config=dict(responsive=True, displayModeBar=True))
-                else:
-                    st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
+                with tab_d:
+                    start_d = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                    if start_d.tzinfo is None:
+                        start_d = start_d.replace(tzinfo=timezone.utc)
+                    _render_glucose_tab(start_d, now, "daily")
+                with tab_w:
+                    start_w = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+                    if start_w.tzinfo is None:
+                        start_w = start_w.replace(tzinfo=timezone.utc)
+                    _render_glucose_tab(start_w, now, "weekly")
+                with tab_m:
+                    start_m = (now.replace(day=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                    if start_m.tzinfo is None:
+                        start_m = start_m.replace(tzinfo=timezone.utc)
+                    _render_glucose_tab(start_m, now, "monthly")
+            else:
+                st.info(t.get("login_heading", "로그인 후 리포트를 볼 수 있습니다."))
 
-            with tab_d:
-                start_d = now.replace(hour=0, minute=0, second=0, microsecond=0)
-                if start_d.tzinfo is None:
-                    start_d = start_d.replace(tzinfo=timezone.utc)
-                _render_glucose_tab(start_d, now, "daily")
-            with tab_w:
-                start_w = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
-                if start_w.tzinfo is None:
-                    start_w = start_w.replace(tzinfo=timezone.utc)
-                _render_glucose_tab(start_w, now, "weekly")
-            with tab_m:
-                start_m = (now.replace(day=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-                if start_m.tzinfo is None:
-                    start_m = start_m.replace(tzinfo=timezone.utc)
-                _render_glucose_tab(start_m, now, "monthly")
+        elif st.session_state.get("current_page") == "settings":
+            # 설정 페이지: 언어, 목표, 로그아웃 (사이드바와 동일한 기능)
+            st.subheader(t.get("btn_settings", "⚙️ 설정"))
+            lang_col1, lang_col2 = st.columns([1, 2])
+            with lang_col2:
+                current_idx = SUPPORTED_LANGS.index(st.session_state["lang"]) if st.session_state["lang"] in SUPPORTED_LANGS else 0
+                selected_lang = st.selectbox(
+                    "Language",
+                    options=SUPPORTED_LANGS,
+                    format_func=lambda x: LANG_LABELS.get(x, x),
+                    index=current_idx,
+                    key="settings_lang",
+                )
+            if selected_lang != st.session_state["lang"]:
+                st.session_state["lang"] = selected_lang
+                t = LANG_DICT[st.session_state["lang"]]
+                st.rerun()
+            if st.session_state.get("login_type") == "google":
+                if st.button(f"🚪 {t['sidebar_logout']}", key="settings_logout", use_container_width=True):
+                    st.session_state["logged_in"] = False
+                    st.session_state["login_type"] = None
+                    st.session_state["user_id"] = None
+                    st.session_state["user_email"] = None
+                    st.session_state["history_loaded_uid"] = None
+                    st.session_state["history"] = []
+                    st.session_state["auth_mode"] = "login"
+                    st.session_state["current_page"] = "main"
+                    st.rerun()
+            elif st.session_state.get("login_type") == "guest":
+                if st.button(f"🔐 {t['sidebar_go_login']}", key="settings_go_login", use_container_width=True):
+                    st.session_state["logged_in"] = False
+                    st.session_state["login_type"] = None
+                    st.session_state["user_id"] = None
+                    st.session_state["user_email"] = None
+                    st.session_state["history_loaded_uid"] = None
+                    st.session_state["history"] = []
+                    st.session_state["auth_mode"] = "login"
+                    st.session_state["current_page"] = "main"
+                    st.rerun()
 
     elif st.session_state['app_stage'] == 'analyze':
         # 2페이지: 업로드 완료 & 분석 대기 페이지
         if st.button(t["btn_back_main"], key="btn_back_main_1", use_container_width=True):
             st.session_state['app_stage'] = 'main'
+            st.session_state['current_page'] = 'main'
             st.session_state['current_img'] = None
             st.session_state['uploader_key'] += 1 # 강제로 새 업로더 생성(초기화)
             st.rerun()
@@ -1682,6 +1723,7 @@ if menu_key == "scanner":
         # 세션 손실(다중 워커/타임아웃 등) 시 분석 결과가 없으면 메인으로 복귀
         if st.session_state.get('current_analysis') is None:
             st.session_state['app_stage'] = 'main'
+            st.session_state['current_page'] = 'main'
             st.session_state['current_img'] = None
             if 'uploader_key' in st.session_state:
                 st.session_state['uploader_key'] += 1
@@ -1690,6 +1732,7 @@ if menu_key == "scanner":
 
         if st.button(t["btn_back_main_2"], key="btn_back_main_2", use_container_width=True):
             st.session_state['app_stage'] = 'main'
+            st.session_state['current_page'] = 'main'
             st.session_state['current_img'] = None
             st.session_state['current_analysis'] = None
             if 'uploader_key' in st.session_state:
