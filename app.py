@@ -1042,9 +1042,18 @@ def _save_glucose(uid, type_, value, note=None, timestamp=None):
             ts = pytz.timezone("Asia/Seoul").localize(ts).astimezone(timezone.utc)
         elif hasattr(ts, "astimezone") and getattr(ts.tzinfo, "key", None) != "UTC":
             ts = ts.astimezone(timezone.utc)
+
+        # 값 전처리: 공백/문자 제거 후 숫자로 변환
+        v_str = str(value).strip()
+        if not v_str:
+            raise ValueError(f"빈 혈당 값입니다: {value!r}")
+        v_clean = v_str.replace(",", "").replace(" ", "")
+        v_num = float(v_clean)
+        v_int = int(round(v_num))
+
         db.collection("users").document(str(uid)).collection("glucose").add({
             "type": type_,
-            "value": int(round(float(value))),
+            "value": v_int,
             "timestamp": ts,
             "note": (str(note).strip() or None),
         })
@@ -1452,10 +1461,18 @@ if menu_key == "scanner":
                     _g_val = st.number_input("mg/dL", min_value=40, max_value=400, value=100, step=1, key="g_val_portal")
                     if st.form_submit_button(t.get("glucose_save", "저장")):
                         _dt = _seoul.localize(datetime.combine(_g_date, _g_time))
-                        if _save_glucose(uid_r, _g_type, _g_val, timestamp=_dt.astimezone(timezone.utc)):
-                            st.toast(t.get("glucose_saved", "혈당이 저장되었습니다."))
+                        try:
+                            with st.spinner("데이터를 창고에 저장 중입니다..."):
+                                ok = _save_glucose(uid_r, _g_type, _g_val, timestamp=_dt.astimezone(timezone.utc))
+                        except Exception as e:
+                            ok = False
+                            st.error(f"저장 실패: {e}")
+                        if ok:
+                            st.success("성공적으로 저장되었습니다!")
                             get_today_summary.clear()
                             get_glucose_meals_cached.clear()
+                            st.session_state["open_glucose"] = False
+                            st.session_state["current_page"] = "main"
                             st.rerun()
             else:
                 st.info(t.get("login_heading", "로그인 후 혈당을 기록할 수 있습니다."))
@@ -1493,8 +1510,14 @@ if menu_key == "scanner":
                             if dt_seoul.tzinfo is None:
                                 dt_seoul = seoul.localize(dt_seoul)
                             ts_utc = dt_seoul.astimezone(timezone.utc)
-                            if _save_glucose(uid_r, g_type, g_val, timestamp=ts_utc):
-                                st.toast(t.get("glucose_saved", "혈당이 저장되었습니다."))
+                            try:
+                                with st.spinner("데이터를 창고에 저장 중입니다..."):
+                                    ok = _save_glucose(uid_r, g_type, g_val, timestamp=ts_utc)
+                            except Exception as e:
+                                ok = False
+                                st.error(f"저장 실패: {e}")
+                            if ok:
+                                st.success("성공적으로 저장되었습니다!")
                                 get_today_summary.clear()
                                 get_glucose_meals_cached.clear()
                                 st.rerun()
