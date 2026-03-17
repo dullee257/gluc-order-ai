@@ -1033,15 +1033,11 @@ def _get_firestore_db():
 
 
 def _save_glucose(uid, type_, value, note=None, timestamp=None):
-    """users/{uid}/glucose 컬렉션에 공복/식후 혈당 저장. type_ in ('fasting','postprandial'). 저장 시각은 Firestore SERVER_TIMESTAMP로 고정(클라이언트 시차 방지)."""
+    """users/{uid}/glucose 컬렉션에 공복/식후 혈당 저장. type_ in ('fasting','postprandial').
+    timestamp는 반드시 timezone-aware Python datetime으로 전달하고, 문자열로 변환하지 않고 그대로 저장하여 Firestore Native Timestamp로 기록됨."""
     if not uid or type_ not in ("fasting", "postprandial"):
         return False
     try:
-        try:
-            from firebase_admin import firestore
-            _server_ts = firestore.SERVER_TIMESTAMP
-        except AttributeError:
-            from google.cloud.firestore_v1 import SERVER_TIMESTAMP as _server_ts
         print("저장 시도 중...")  # 임시 디버깅 로그
         db = _get_firestore_db()
         # 값 전처리: 공백/문자 제거 후 숫자로 변환
@@ -1052,10 +1048,28 @@ def _save_glucose(uid, type_, value, note=None, timestamp=None):
         v_num = float(v_clean)
         v_int = int(round(v_num))
 
+        # timestamp: 문자열로 저장하지 않고, timezone-aware datetime 객체 그대로 저장 (Firestore Native Timestamp)
+        if timestamp is not None:
+            ts = timestamp
+            if hasattr(ts, "astimezone"):
+                if getattr(ts, "tzinfo", None) is None:
+                    import pytz
+                    ts = pytz.timezone("Asia/Seoul").localize(ts).astimezone(timezone.utc)
+                else:
+                    ts = ts.astimezone(timezone.utc)
+            # 절대 .isoformat() 또는 str() 사용 금지 → 객체 그대로 전달
+            ts_value = ts
+        else:
+            try:
+                from firebase_admin import firestore
+                ts_value = firestore.SERVER_TIMESTAMP
+            except AttributeError:
+                from google.cloud.firestore_v1 import SERVER_TIMESTAMP as ts_value
+
         db.collection("users").document(str(uid)).collection("glucose").add({
             "type": type_,
             "value": v_int,
-            "timestamp": _server_ts,
+            "timestamp": ts_value,
             "note": (str(note).strip() or None),
         })
         return True
@@ -1771,6 +1785,7 @@ if menu_key == "scanner":
                     else:
                         st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
                         st.caption("혈당은 **🩸 혈당 수치 입력**에서 저장할 수 있습니다. 저장 후 이 페이지를 새로고침하거나 다시 **리포트 보기**를 눌러 주세요.")
+                        st.caption("※ 이전에 문자열로 저장된 테스트 데이터는 쿼리에서 제외됩니다. **지금부터 새로 저장하는 데이터**부터 그래프에 반영됩니다.")
                         st.caption("아래 **🔧 데이터 조회 진단**을 펼쳐 조회 오류 여부와 기간·경로를 확인할 수 있습니다.")
                         # 진단: 조회 실패 원인 확인 (빈 결과일 때만). 제목은 이모지만 사용(글자 겹침 방지).
                         with st.expander("🔧 데이터 조회 진단", expanded=True):
