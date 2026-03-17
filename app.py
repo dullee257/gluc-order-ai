@@ -1594,6 +1594,31 @@ if menu_key == "scanner":
                 def _render_glucose_tab(start, end, tab_scope_key):
                     glucose_list, meals_list = get_glucose_meals_cached(uid_r, start.isoformat(), end.isoformat())
 
+                    # 조회 기간 내 데이터가 하나도 없을 때는, 사용자가 방금 입력한 값이라도 바로 보이도록
+                    # 예외적으로 "최근 혈당 5건"을 가져와서 그래프에 사용한다.
+                    if not glucose_list and not meals_list:
+                        fallback = _get_glucose_last_n(uid_r, 5)
+                        if fallback:
+                            import pytz
+                            seoul = pytz.timezone("Asia/Seoul")
+                            _tmp = []
+                            for row in fallback:
+                                ts_str = row.get("timestamp")
+                                try:
+                                    ts_dt = datetime.fromisoformat(str(ts_str).replace("Z", "+00:00"))
+                                except Exception:
+                                    continue
+                                if ts_dt.tzinfo is None:
+                                    ts_dt = seoul.localize(ts_dt)
+                                _tmp.append({
+                                    "timestamp": ts_dt.astimezone(timezone.utc),
+                                    "type": row.get("type", ""),
+                                    "value": row.get("value", 0),
+                                })
+                            if _tmp:
+                                glucose_list = _tmp
+                                st.caption("※ 조회 기간에는 데이터가 없어서, 예외적으로 최근 혈당 5건을 기준으로 그래프를 표시합니다.")
+
                     # 기본 지표
                     c1, c2, c3 = st.columns(3)
                     with c1:
