@@ -1033,19 +1033,17 @@ def _get_firestore_db():
 
 
 def _save_glucose(uid, type_, value, note=None, timestamp=None):
-    """users/{uid}/glucose 컬렉션에 공복/식후 혈당 저장. type_ in ('fasting','postprandial'). timestamp가 있으면 해당 시각으로 저장, 없으면 UTC now."""
+    """users/{uid}/glucose 컬렉션에 공복/식후 혈당 저장. type_ in ('fasting','postprandial'). 저장 시각은 Firestore SERVER_TIMESTAMP로 고정(클라이언트 시차 방지)."""
     if not uid or type_ not in ("fasting", "postprandial"):
         return False
     try:
+        try:
+            from firebase_admin import firestore
+            _server_ts = firestore.SERVER_TIMESTAMP
+        except AttributeError:
+            from google.cloud.firestore_v1 import SERVER_TIMESTAMP as _server_ts
         print("저장 시도 중...")  # 임시 디버깅 로그
         db = _get_firestore_db()
-        ts = timestamp if timestamp is not None else datetime.now(timezone.utc)
-        if hasattr(ts, "astimezone") and ts.tzinfo is None:
-            import pytz
-            ts = pytz.timezone("Asia/Seoul").localize(ts).astimezone(timezone.utc)
-        elif hasattr(ts, "astimezone") and getattr(ts.tzinfo, "key", None) != "UTC":
-            ts = ts.astimezone(timezone.utc)
-
         # 값 전처리: 공백/문자 제거 후 숫자로 변환
         v_str = str(value).strip()
         if not v_str:
@@ -1057,7 +1055,7 @@ def _save_glucose(uid, type_, value, note=None, timestamp=None):
         db.collection("users").document(str(uid)).collection("glucose").add({
             "type": type_,
             "value": v_int,
-            "timestamp": ts,
+            "timestamp": _server_ts,
             "note": (str(note).strip() or None),
         })
         return True
@@ -1160,6 +1158,38 @@ def _get_glucose_and_meals(uid, start, end):
     except Exception as e:
         sys.stderr.write(f"[glucose/meals 조회] {e}\n")
         return [], []
+
+
+def _get_glucose_last_n(uid, n=5):
+    """날짜 조건 없이 해당 UID의 glucose 문서를 최근 작성순 n개 조회. 반환: list of dict (id, type, value, timestamp, note)."""
+    try:
+        from firebase_admin import firestore
+        db = _get_firestore_db()
+        uid = str(uid)
+        col = db.collection("users").document(uid).collection("glucose")
+        docs = list(col.order_by("timestamp", direction=firestore.Query.DESCENDING).limit(n).stream())
+        out = []
+        for d in docs:
+            data = d.to_dict()
+            ts = data.get("timestamp")
+            if hasattr(ts, "isoformat"):
+                ts_str = ts.isoformat()
+            elif hasattr(ts, "timestamp"):
+                from datetime import datetime as _dt
+                ts_str = _dt.fromtimestamp(ts.timestamp(), tz=timezone.utc).isoformat()
+            else:
+                ts_str = str(ts)
+            out.append({
+                "id": d.id,
+                "type": data.get("type"),
+                "value": data.get("value"),
+                "timestamp": ts_str,
+                "note": data.get("note"),
+            })
+        return out
+    except Exception as e:
+        sys.stderr.write(f"[_get_glucose_last_n] {e}\n")
+        return []
 
 
 def _warn_similar_food_glucose(uid, food_names, total_carbs):
@@ -1742,7 +1772,7 @@ if menu_key == "scanner":
                         st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
                         st.caption("혈당은 **🩸 혈당 수치 입력**에서 저장할 수 있습니다. 저장 후 이 페이지를 새로고침하거나 다시 **리포트 보기**를 눌러 주세요.")
                         st.caption("아래 **🔧 데이터 조회 진단**을 펼쳐 조회 오류 여부와 기간·경로를 확인할 수 있습니다.")
-                        # 진단: 조회 실패 원인 확인 (빈 결과일 때만)
+                        # 진단: 조회 실패 원인 확인 (빈 결과일 때만). 제목은 이모지만 사용(글자 겹침 방지).
                         with st.expander("🔧 데이터 조회 진단", expanded=True):
                             _uid = str(uid_r)
                             _uid_mask = _uid[:3] + "***" + _uid[-2:] if len(_uid) > 5 else "***"
@@ -1755,6 +1785,15 @@ if menu_key == "scanner":
                                     st.caption("Firestore에 해당 기간 문서가 없거나, 서비스 계정 권한/경로를 확인하세요.")
                             except Exception as _e:
                                 st.error(f"조회 오류: {_e}")
+                            _key_fetch5 = f"diagnostic_raw5_{tab_scope_key}"
+                            if st.button("전체 데이터 5건 강제 확인", key=_key_fetch5, use_container_width=True):
+                                _raw5 = _get_glucose_last_n(uid_r, 5)
+                                st.session_state[_key_fetch5 + "_data"] = _raw5
+                                st.rerun()
+                            if st.session_state.get(_key_fetch5 + "_data") is not None:
+                                _raw5 = st.session_state[_key_fetch5 + "_data"]
+                                st.caption("최근 glucose 문서 5건 (원시 데이터):")
+                                st.json(_raw5)
 
                     # 저장 성공 시 메시지 (폼 밖)
                     if st.session_state.get(f"glucose_saved_report_{tab_scope_key}"):
