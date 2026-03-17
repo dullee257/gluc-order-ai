@@ -1178,6 +1178,7 @@ def _get_glucose_last_n(uid, n=5):
     """날짜 조건 없이 해당 UID의 glucose 문서를 최근 작성순 n개 조회. 반환: list of dict (id, type, value, timestamp, note)."""
     try:
         from firebase_admin import firestore
+        import pytz
         db = _get_firestore_db()
         uid = str(uid)
         col = db.collection("users").document(uid).collection("glucose")
@@ -1187,7 +1188,13 @@ def _get_glucose_last_n(uid, n=5):
             data = d.to_dict()
             ts = data.get("timestamp")
             if hasattr(ts, "isoformat"):
-                ts_str = ts.isoformat()
+                # 진단 표시용: UTC → 한국 시간으로 변환해 사람이 보는 값과 맞춥니다.
+                seoul = pytz.timezone("Asia/Seoul")
+                try:
+                    ts_k = ts.astimezone(seoul)
+                except Exception:
+                    ts_k = ts
+                ts_str = ts_k.isoformat()
             elif hasattr(ts, "timestamp"):
                 from datetime import datetime as _dt
                 ts_str = _dt.fromtimestamp(ts.timestamp(), tz=timezone.utc).isoformat()
@@ -1545,10 +1552,10 @@ if menu_key == "scanner":
             # 저장 성공 후: 메인으로 이동 버튼 (폼 밖에서 독립적으로 작동)
             if st.session_state.get("glucose_saved_portal"):
                 st.success("성공적으로 저장되었습니다!")
-                st.caption("📊 메인에서 **리포트 보기**를 누르면 방금 저장한 혈당이 그래프에 반영됩니다.")
-                if st.button("확인 후 메인으로 이동", key="btn_glucose_back_main", use_container_width=True):
+                st.caption("📊 지금 바로 **리포트**에서 방금 저장한 혈당 그래프를 확인할 수 있습니다.")
+                if st.button("리포트로 이동", key="btn_glucose_go_report", use_container_width=True):
                     st.session_state["open_glucose"] = False
-                    st.session_state["current_page"] = "main"
+                    st.session_state["current_page"] = "report"
                     st.session_state["glucose_saved_portal"] = False
                     st.rerun()
             else:
