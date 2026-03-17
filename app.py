@@ -1536,42 +1536,6 @@ if menu_key == "scanner":
                     return start_kr.astimezone(timezone.utc), now_utc
 
                 def _render_glucose_tab(start, end, tab_scope_key):
-                    with st.form(key=f"glucose_form_{tab_scope_key}"):
-                        import pytz
-                        seoul = pytz.timezone("Asia/Seoul")
-                        now_korea = datetime.now(seoul)
-                        default_date = now_korea.date()
-                        default_time = now_korea.time().replace(second=0, microsecond=0)
-                        col_date, col_time, col_type = st.columns(3)
-                        with col_date:
-                            g_date = st.date_input("날짜", value=default_date, key=f"g_date_{tab_scope_key}")
-                        with col_time:
-                            g_time = st.time_input("시간", value=default_time, key=f"g_time_{tab_scope_key}")
-                        with col_type:
-                            g_type = st.radio("유형", options=["fasting", "postprandial"], format_func=lambda x: t.get("glucose_fasting", "공복 혈당") if x == "fasting" else t.get("glucose_postprandial", "식후 혈당"), key=f"g_type_{tab_scope_key}")
-                        g_val = st.number_input("mg/dL", min_value=40, max_value=400, value=100, step=1, key=f"g_val_{tab_scope_key}")
-                        if st.form_submit_button(t.get("glucose_save", "저장")):
-                            dt_seoul = datetime.combine(g_date, g_time)
-                            if dt_seoul.tzinfo is None:
-                                dt_seoul = seoul.localize(dt_seoul)
-                            ts_utc = dt_seoul.astimezone(timezone.utc)
-                            try:
-                                with st.spinner("데이터를 창고에 저장 중입니다..."):
-                                    ok = _save_glucose(uid_r, g_type, g_val, timestamp=ts_utc)
-                            except Exception as e:
-                                ok = False
-                                st.error(f"저장 실패: {e}")
-                            if ok:
-                                get_today_summary.clear()
-                                get_glucose_meals_cached.clear()
-                                st.session_state[f"glucose_saved_report_{tab_scope_key}"] = True
-                    # 저장 성공 후: 메인으로 이동 버튼 (폼 밖에서 독립적으로 작동)
-                    if st.session_state.get(f"glucose_saved_report_{tab_scope_key}"):
-                        st.success("성공적으로 저장되었습니다!")
-                        if st.button("확인 후 메인으로 이동", key=f"btn_glucose_back_main_{tab_scope_key}", use_container_width=True):
-                            st.session_state["current_page"] = "main"
-                            st.session_state[f"glucose_saved_report_{tab_scope_key}"] = False
-                            st.rerun()
                     glucose_list, meals_list = get_glucose_meals_cached(uid_r, start.isoformat(), end.isoformat())
 
                     # 기본 지표
@@ -1772,6 +1736,47 @@ if menu_key == "scanner":
                     else:
                         st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
                         st.caption("혈당은 **🩸 혈당 수치 입력**에서 저장할 수 있습니다. 저장 후 이 페이지를 새로고침하거나 다시 **리포트 보기**를 눌러 주세요.")
+
+                    # 저장 성공 시 메시지 (폼 밖)
+                    if st.session_state.get(f"glucose_saved_report_{tab_scope_key}"):
+                        st.success("성공적으로 저장되었습니다!")
+                        if st.button("확인 후 메인으로 이동", key=f"btn_glucose_back_main_{tab_scope_key}", use_container_width=True):
+                            st.session_state["current_page"] = "main"
+                            st.session_state[f"glucose_saved_report_{tab_scope_key}"] = False
+                            st.rerun()
+
+                    # 혈당 입력 폼: 접힌 expander로 배치 (리포트 진입 시 차트가 먼저 보이도록)
+                    with st.expander(t.get("btn_input_glucose", "🩸 혈당 수치 입력"), expanded=False):
+                        with st.form(key=f"glucose_form_{tab_scope_key}"):
+                            import pytz
+                            seoul = pytz.timezone("Asia/Seoul")
+                            now_korea = datetime.now(seoul)
+                            default_date = now_korea.date()
+                            default_time = now_korea.time().replace(second=0, microsecond=0)
+                            col_date, col_time, col_type = st.columns(3)
+                            with col_date:
+                                g_date = st.date_input("날짜", value=default_date, key=f"g_date_{tab_scope_key}")
+                            with col_time:
+                                g_time = st.time_input("시간", value=default_time, key=f"g_time_{tab_scope_key}")
+                            with col_type:
+                                g_type = st.radio("유형", options=["fasting", "postprandial"], format_func=lambda x: t.get("glucose_fasting", "공복 혈당") if x == "fasting" else t.get("glucose_postprandial", "식후 혈당"), key=f"g_type_{tab_scope_key}")
+                            g_val = st.number_input("mg/dL", min_value=40, max_value=400, value=100, step=1, key=f"g_val_{tab_scope_key}")
+                            if st.form_submit_button(t.get("glucose_save", "저장")):
+                                dt_seoul = datetime.combine(g_date, g_time)
+                                if dt_seoul.tzinfo is None:
+                                    dt_seoul = seoul.localize(dt_seoul)
+                                ts_utc = dt_seoul.astimezone(timezone.utc)
+                                try:
+                                    with st.spinner("데이터를 창고에 저장 중입니다..."):
+                                        ok = _save_glucose(uid_r, g_type, g_val, timestamp=ts_utc)
+                                except Exception as e:
+                                    ok = False
+                                    st.error(f"저장 실패: {e}")
+                                if ok:
+                                    get_today_summary.clear()
+                                    get_glucose_meals_cached.clear()
+                                    st.session_state[f"glucose_saved_report_{tab_scope_key}"] = True
+                                    st.rerun()
 
                 with tab_d:
                     start_d, end_d = _report_start_end("daily")
