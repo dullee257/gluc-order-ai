@@ -1106,6 +1106,18 @@ def get_glucose_meals_cached(uid, start_iso, end_iso):
         return [], []
 
 
+def _normalize_firestore_ts(ts):
+    """Firestore에서 반환된 timestamp를 timezone-aware datetime으로 통일."""
+    if ts is None:
+        return None
+    if hasattr(ts, "date") and hasattr(ts, "astimezone"):
+        return ts.astimezone(timezone.utc) if getattr(ts, "tzinfo", None) is None else ts
+    if hasattr(ts, "timestamp"):
+        from datetime import datetime as dt
+        return dt.fromtimestamp(ts.timestamp(), tz=timezone.utc)
+    return ts
+
+
 def _get_glucose_and_meals(uid, start, end):
     """기간 내 users/{uid}/glucose 및 user_logs 조회. 반환: (glucose_list, meals_list)."""
     try:
@@ -1116,9 +1128,9 @@ def _get_glucose_and_meals(uid, start, end):
         glucose_list = []
         for d in glucose_docs:
             data = d.to_dict()
-            ts = data.get("timestamp")
-            if hasattr(ts, "isoformat"):
-                ts = ts
+            ts = _normalize_firestore_ts(data.get("timestamp"))
+            if ts is None:
+                continue
             glucose_list.append({
                 "timestamp": ts,
                 "type": data.get("type", ""),
@@ -1129,7 +1141,9 @@ def _get_glucose_and_meals(uid, start, end):
         meals_list = []
         for d in logs_docs:
             data = d.to_dict()
-            ts = data.get("timestamp")
+            ts = _normalize_firestore_ts(data.get("timestamp"))
+            if ts is None:
+                ts = start
             meals_list.append({
                 "timestamp": ts,
                 "date": data.get("date", ""),
@@ -1482,6 +1496,7 @@ if menu_key == "scanner":
             # 저장 성공 후: 메인으로 이동 버튼 (폼 밖에서 독립적으로 작동)
             if st.session_state.get("glucose_saved_portal"):
                 st.success("성공적으로 저장되었습니다!")
+                st.caption("📊 메인에서 **리포트 보기**를 누르면 방금 저장한 혈당이 그래프에 반영됩니다.")
                 if st.button("확인 후 메인으로 이동", key="btn_glucose_back_main", use_container_width=True):
                     st.session_state["open_glucose"] = False
                     st.session_state["current_page"] = "main"
@@ -1501,7 +1516,24 @@ if menu_key == "scanner":
                     t.get("glucose_tab_monthly", "Monthly"),
                 ])
                 from datetime import timedelta
-                now = datetime.now(timezone.utc)
+                import pytz
+                _seoul_tz = pytz.timezone("Asia/Seoul")
+                now_utc = datetime.now(timezone.utc)
+                now_kr = now_utc.astimezone(_seoul_tz)
+
+                def _report_start_end(tab_scope_key):
+                    """한국 시간 기준으로 Daily/Weekly/Monthly 구간 (UTC datetime) 반환."""
+                    if tab_scope_key == "daily":
+                        start_kr = now_kr.replace(hour=0, minute=0, second=0, microsecond=0)
+                        return start_kr.astimezone(timezone.utc), now_utc
+                    if tab_scope_key == "weekly":
+                        # 이번 주 월요일 00:00 (한국) ~ 지금
+                        weekday = now_kr.weekday()
+                        start_kr = (now_kr - timedelta(days=weekday)).replace(hour=0, minute=0, second=0, microsecond=0)
+                        return start_kr.astimezone(timezone.utc), now_utc
+                    # monthly
+                    start_kr = now_kr.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    return start_kr.astimezone(timezone.utc), now_utc
 
                 def _render_glucose_tab(start, end, tab_scope_key):
                     with st.form(key=f"glucose_form_{tab_scope_key}"):
@@ -1562,18 +1594,19 @@ if menu_key == "scanner":
                         volume = defaultdict(float)
 
                         def _group_key(ts):
+                            if ts is None:
+                                return None
                             if hasattr(ts, "astimezone"):
-                                ts_local = ts.astimezone(timezone.utc)
+                                ts_kr = ts.astimezone(_seoul_tz)
                             else:
-                                ts_local = ts
-                            d = ts_local.date()
+                                ts_kr = ts
+                            d = ts_kr.date() if hasattr(ts_kr, "date") else ts_kr
                             if tab_scope_key == "daily":
                                 return d
                             elif tab_scope_key == "weekly":
                                 iso = d.isocalendar()
-                                # (년도, 주차)로 그룹화
                                 return (iso.year, iso.week)
-                            else:  # monthly
+                            else:
                                 return (d.year, d.month)
 
                         # 혈당 OHLC
@@ -1581,13 +1614,15 @@ if menu_key == "scanner":
                             ts = g.get("timestamp")
                             val = g.get("value", 0)
                             key = _group_key(ts)
-                            ohlc[key].append((ts, val))
+                            if key is not None:
+                                ohlc[key].append((ts, val))
 
                         # 탄수화물 "거래량"
                         for m in meals_list:
                             ts = m.get("timestamp")
                             key = _group_key(ts)
-                            volume[key] += float(m.get("total_carbs", 0) or 0)
+                            if key is not None:
+                                volume[key] += float(m.get("total_carbs", 0) or 0)
 
                         # 정렬된 x 축 및 OHLC 배열 구성
                         def _key_to_label(k):
@@ -1736,22 +1771,17 @@ if menu_key == "scanner":
                                 st.markdown(analysis_text)
                     else:
                         st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
+                        st.caption("혈당은 **🩸 혈당 수치 입력**에서 저장할 수 있습니다. 저장 후 이 페이지를 새로고침하거나 다시 **리포트 보기**를 눌러 주세요.")
 
                 with tab_d:
-                    start_d = now.replace(hour=0, minute=0, second=0, microsecond=0)
-                    if start_d.tzinfo is None:
-                        start_d = start_d.replace(tzinfo=timezone.utc)
-                    _render_glucose_tab(start_d, now, "daily")
+                    start_d, end_d = _report_start_end("daily")
+                    _render_glucose_tab(start_d, end_d, "daily")
                 with tab_w:
-                    start_w = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
-                    if start_w.tzinfo is None:
-                        start_w = start_w.replace(tzinfo=timezone.utc)
-                    _render_glucose_tab(start_w, now, "weekly")
+                    start_w, end_w = _report_start_end("weekly")
+                    _render_glucose_tab(start_w, end_w, "weekly")
                 with tab_m:
-                    start_m = (now.replace(day=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-                    if start_m.tzinfo is None:
-                        start_m = start_m.replace(tzinfo=timezone.utc)
-                    _render_glucose_tab(start_m, now, "monthly")
+                    start_m, end_m = _report_start_end("monthly")
+                    _render_glucose_tab(start_m, end_m, "monthly")
             else:
                 st.info(t.get("login_heading", "로그인 후 리포트를 볼 수 있습니다."))
 
