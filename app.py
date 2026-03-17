@@ -1789,8 +1789,14 @@ if menu_key == "scanner":
                         st.caption("혈당은 **🩸 혈당 수치 입력**에서 저장할 수 있습니다. 저장 후 이 페이지를 새로고침하거나 다시 **리포트 보기**를 눌러 주세요.")
                         st.caption("※ 이전에 문자열로 저장된 테스트 데이터는 쿼리에서 제외됩니다. **지금부터 새로 저장하는 데이터**부터 그래프에 반영됩니다.")
                         st.caption("아래 **🔧 데이터 조회 진단**을 펼쳐 조회 오류 여부와 기간·경로를 확인할 수 있습니다.")
-                        # 진단: 조회 실패 원인 확인 (빈 결과일 때만). 제목은 이모지만 사용(글자 겹침 방지).
-                        with st.expander("🔧 데이터 조회 진단", expanded=True):
+                        # 진단: st.expander 화살표 글자 겹침 방지 → 버튼 토글로 대체
+                        _diag_key = f"report_diag_open_{tab_scope_key}"
+                        if _diag_key not in st.session_state:
+                            st.session_state[_diag_key] = True
+                        if st.button("🔧 데이터 조회 진단", key=_diag_key + "_btn", use_container_width=True, type="secondary"):
+                            st.session_state[_diag_key] = not st.session_state[_diag_key]
+                            st.rerun()
+                        if st.session_state[_diag_key]:
                             _uid = str(uid_r)
                             _uid_mask = _uid[:3] + "***" + _uid[-2:] if len(_uid) > 5 else "***"
                             st.caption(f"조회 경로: users/{{uid}}/glucose (uid: {_uid_mask})")
@@ -1820,8 +1826,15 @@ if menu_key == "scanner":
                             st.session_state[f"glucose_saved_report_{tab_scope_key}"] = False
                             st.rerun()
 
-                    # 혈당 입력 폼: 접힌 expander로 배치 (리포트 진입 시 차트가 먼저 보이도록)
-                    with st.expander(t.get("btn_input_glucose", "🩸 혈당 수치 입력"), expanded=False):
+                    # 혈당 입력 폼: st.expander 화살표 글자 겹침 방지 → 버튼 토글로 대체
+                    _form_key = f"report_glucose_form_open_{tab_scope_key}"
+                    if _form_key not in st.session_state:
+                        st.session_state[_form_key] = False
+                    _label_form = t.get("btn_input_glucose", "🩸 혈당 수치 입력")
+                    if st.button(_label_form, key=_form_key + "_btn", use_container_width=True, type="secondary"):
+                        st.session_state[_form_key] = not st.session_state[_form_key]
+                        st.rerun()
+                    if st.session_state[_form_key]:
                         with st.form(key=f"glucose_form_{tab_scope_key}"):
                             import pytz
                             seoul = pytz.timezone("Asia/Seoul")
