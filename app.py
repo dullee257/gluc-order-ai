@@ -1566,30 +1566,17 @@ if menu_key == "scanner":
             if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
                 uid_r = st.session_state["user_id"]
                 st.markdown(f"### 📊 {t.get('report_section_title', '나의 혈당 관리 리포트')}")
-                tab_d, tab_w, tab_m = st.tabs([
-                    t.get("glucose_tab_daily", "Daily"),
-                    t.get("glucose_tab_weekly", "Weekly"),
-                    t.get("glucose_tab_monthly", "Monthly"),
+                tab_d, tab_w, tab_m, tab_mf = st.tabs([
+                    t.get("glucose_tab_daily", "일간"),
+                    t.get("glucose_tab_weekly", "주간"),
+                    t.get("glucose_tab_monthly", "월간"),
+                    t.get("glucose_tab_monthly_fasting_stats", "월별 평균 공복혈당 통계"),
                 ])
                 from datetime import timedelta
                 import pytz
                 _seoul_tz = pytz.timezone("Asia/Seoul")
                 now_utc = datetime.now(timezone.utc)
                 now_kr = now_utc.astimezone(_seoul_tz)
-
-                def _report_start_end(tab_scope_key):
-                    """한국 시간 기준으로 Daily/Weekly/Monthly 구간 (UTC datetime) 반환."""
-                    if tab_scope_key == "daily":
-                        start_kr = now_kr.replace(hour=0, minute=0, second=0, microsecond=0)
-                        return start_kr.astimezone(timezone.utc), now_utc
-                    if tab_scope_key == "weekly":
-                        # 이번 주 월요일 00:00 (한국) ~ 지금
-                        weekday = now_kr.weekday()
-                        start_kr = (now_kr - timedelta(days=weekday)).replace(hour=0, minute=0, second=0, microsecond=0)
-                        return start_kr.astimezone(timezone.utc), now_utc
-                    # monthly
-                    start_kr = now_kr.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                    return start_kr.astimezone(timezone.utc), now_utc
 
                 def _render_glucose_tab(start, end, tab_scope_key):
                     glucose_list, meals_list = get_glucose_meals_cached(uid_r, start.isoformat(), end.isoformat())
@@ -1633,8 +1620,9 @@ if menu_key == "scanner":
                     if glucose_list or meals_list:
                         import plotly.graph_objects as go
                         from plotly.subplots import make_subplots
+                        import statistics
 
-                        # --- 그룹별 OHLC 및 탄수화물 "거래량" 집계 ---
+                        # --- 그룹별 평균 혈당 및 탄수화물 합계 집계 ---
                         ohlc = defaultdict(list)
                         volume = defaultdict(float)
 
@@ -1645,16 +1633,17 @@ if menu_key == "scanner":
                                 ts_kr = ts.astimezone(_seoul_tz)
                             else:
                                 ts_kr = ts
-                            d = ts_kr.date() if hasattr(ts_kr, "date") else ts_kr
                             if tab_scope_key == "daily":
-                                return d
-                            elif tab_scope_key == "weekly":
+                                # 일간: 시간 단위까지 그대로 사용 (시계열)
+                                return ts_kr
+                            d = ts_kr.date()
+                            if tab_scope_key == "weekly":
                                 iso = d.isocalendar()
                                 return (iso.year, iso.week)
                             else:
                                 return (d.year, d.month)
 
-                        # 혈당 OHLC
+                        # 혈당 값 모으기
                         for g in glucose_list:
                             ts = g.get("timestamp")
                             val = g.get("value", 0)
@@ -1669,28 +1658,13 @@ if menu_key == "scanner":
                             if key is not None:
                                 volume[key] += float(m.get("total_carbs", 0) or 0)
 
-                        # 정렬된 x 축 및 OHLC 배열 구성
-                        def _key_to_label(k):
-                            if isinstance(k, tuple):
-                                if tab_scope_key == "weekly":
-                                    y, w = k
-                                    return f"{y}-W{w:02d}"
-                                else:
-                                    y, mon = k
-                                    return f"{y}-{mon:02d}"
-                            if hasattr(k, "isoformat"):
-                                return k.isoformat()
-                            return str(k)
-
+                        # 정렬된 x 축 및 평균 혈당/탄수화물 배열 구성
                         sorted_keys = sorted(ohlc.keys())
                         if not sorted_keys:
                             st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
                         else:
                             x = []
-                            open_v = []
-                            high_v = []
-                            low_v = []
-                            close_v = []
+                            y_vals = []
                             vols = []
 
                             all_values_for_stats = []
@@ -1698,17 +1672,14 @@ if menu_key == "scanner":
                             for k in sorted_keys:
                                 items = sorted(ohlc[k], key=lambda x: x[0])
                                 vals = [v for _, v in items]
-                                o = vals[0]
-                                c = vals[-1]
-                                h = max(vals)
-                                l = min(vals)
-                                x.append(_key_to_label(k))
-                                open_v.append(o)
-                                high_v.append(h)
-                                low_v.append(l)
-                                close_v.append(c)
+                                avg_v = statistics.mean(vals)
+                                x.append(k)
+                                y_vals.append(avg_v)
                                 vols.append(volume.get(k, 0.0))
                                 all_values_for_stats.extend(vals)
+
+                            colors = ["#e74c3c" if v > 140 else "#2980b9" for v in y_vals]
+                            texts = [f"{v:.0f}" for v in y_vals]
 
                             fig = make_subplots(
                                 rows=2,
@@ -1718,21 +1689,34 @@ if menu_key == "scanner":
                                 vertical_spacing=0.05,
                             )
 
+                            # 상단: 혈당 꺾은선 + 마커 + 텍스트
                             fig.add_trace(
-                                go.Candlestick(
+                                go.Scatter(
                                     x=x,
-                                    open=open_v,
-                                    high=high_v,
-                                    low=low_v,
-                                    close=close_v,
-                                    increasing_line_color="#e74c3c",
-                                    decreasing_line_color="#2ecc71",
+                                    y=y_vals,
+                                    mode="lines+markers+text",
+                                    line=dict(color="#34495e", width=2),
+                                    marker=dict(color=colors, size=8),
+                                    text=texts,
+                                    textposition="top center",
                                     name=t.get("glucose_value_mg", "혈당"),
                                 ),
                                 row=1,
                                 col=1,
                             )
 
+                            # Safe Zone: 90~140
+                            fig.add_hrect(
+                                y0=90,
+                                y1=140,
+                                fillcolor="#2ecc71",
+                                opacity=0.12,
+                                line_width=0,
+                                row=1,
+                                col=1,
+                            )
+
+                            # 하단: 탄수화물 막대
                             fig.add_trace(
                                 go.Bar(
                                     x=x,
@@ -1743,6 +1727,14 @@ if menu_key == "scanner":
                                 row=2,
                                 col=1,
                             )
+
+                            # X축 포맷
+                            if tab_scope_key == "daily":
+                                fig.update_xaxes(tickformat="%H:%M", row=2, col=1)
+                            elif tab_scope_key == "weekly":
+                                fig.update_xaxes(tickformat="%m/%d", row=2, col=1)
+                            else:
+                                fig.update_xaxes(tickformat="%Y-%m", row=2, col=1)
 
                             fig.update_layout(
                                 margin=dict(l=20, r=20, t=30, b=20),
@@ -1899,14 +1891,136 @@ if menu_key == "scanner":
                                     st.rerun()
 
                 with tab_d:
-                    start_d, end_d = _report_start_end("daily")
+                    # 일간: 날짜 선택 (기본값: 오늘)
+                    sel_date = st.date_input("일간 기준 날짜", value=now_kr.date(), key="report_daily_date")
+                    start_d_kr = datetime.combine(sel_date, datetime.min.time()).replace(tzinfo=_seoul_tz)
+                    end_d_kr = datetime.combine(sel_date, datetime.max.time()).replace(tzinfo=_seoul_tz)
+                    start_d = start_d_kr.astimezone(timezone.utc)
+                    end_d = end_d_kr.astimezone(timezone.utc)
                     _render_glucose_tab(start_d, end_d, "daily")
+
                 with tab_w:
-                    start_w, end_w = _report_start_end("weekly")
+                    # 주간: 시작일 선택 → 종료일 = 시작일 + 7일
+                    default_start_w = now_kr.date() - timedelta(days=6)
+                    sel_start_w = st.date_input("주간 시작일", value=default_start_w, key="report_weekly_start")
+                    start_w_kr = datetime.combine(sel_start_w, datetime.min.time()).replace(tzinfo=_seoul_tz)
+                    end_w_kr = start_w_kr + timedelta(days=7)
+                    start_w = start_w_kr.astimezone(timezone.utc)
+                    end_w = end_w_kr.astimezone(timezone.utc)
                     _render_glucose_tab(start_w, end_w, "weekly")
+
                 with tab_m:
-                    start_m, end_m = _report_start_end("monthly")
+                    # 월간: 연/월 선택 (기본값: 이번 달)
+                    current_year = now_kr.year
+                    current_month = now_kr.month
+                    years = list(range(current_year - 5, current_year + 1))
+                    cols_m = st.columns(2)
+                    with cols_m[0]:
+                        sel_year = st.selectbox("연도", options=years, index=len(years) - 1, key="report_monthly_year")
+                    with cols_m[1]:
+                        sel_month = st.selectbox("월", options=list(range(1, 13)), index=current_month - 1, key="report_monthly_month")
+                    start_m_kr = datetime(sel_year, sel_month, 1, tzinfo=_seoul_tz)
+                    if sel_month == 12:
+                        next_month_kr = datetime(sel_year + 1, 1, 1, tzinfo=_seoul_tz)
+                    else:
+                        next_month_kr = datetime(sel_year, sel_month + 1, 1, tzinfo=_seoul_tz)
+                    end_m_kr = next_month_kr
+                    start_m = start_m_kr.astimezone(timezone.utc)
+                    end_m = end_m_kr.astimezone(timezone.utc)
                     _render_glucose_tab(start_m, end_m, "monthly")
+
+                with tab_mf:
+                    # 월별 평균 공복혈당 통계
+                    import pytz as _pytz
+                    seoul = _pytz.timezone("Asia/Seoul")
+                    # 기간 선택: 퀵 버튼
+                    mf_range = st.radio(
+                        "기간",
+                        options=["3m", "6m", "1y", "2y", "custom"],
+                        format_func=lambda x: {
+                            "3m": "최근 3개월",
+                            "6m": "최근 6개월",
+                            "1y": "최근 1년",
+                            "2y": "최근 2년",
+                            "custom": "직접 입력",
+                        }.get(x, x),
+                        horizontal=True,
+                        key="report_monthly_fasting_range",
+                    )
+                    end_all_kr = now_kr.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+                    if mf_range == "3m":
+                        start_all_kr = (end_all_kr - timedelta(days=90)).replace(day=1)
+                    elif mf_range == "6m":
+                        start_all_kr = (end_all_kr - timedelta(days=180)).replace(day=1)
+                    elif mf_range == "1y":
+                        start_all_kr = (end_all_kr - timedelta(days=365)).replace(day=1)
+                    elif mf_range == "2y":
+                        start_all_kr = (end_all_kr - timedelta(days=730)).replace(day=1)
+                    else:
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            custom_start = st.date_input("시작 연월", value=end_all_kr.date(), key="mf_custom_start")
+                        with c2:
+                            custom_end = st.date_input("종료 연월", value=end_all_kr.date(), key="mf_custom_end")
+                        start_all_kr = datetime(custom_start.year, custom_start.month, 1, tzinfo=seoul)
+                        end_all_kr = datetime(custom_end.year, custom_end.month, 1, tzinfo=seoul)
+                    start_all = start_all_kr.astimezone(timezone.utc)
+                    end_all = end_all_kr.astimezone(timezone.utc)
+
+                    glucose_all, _meals_all = _get_glucose_and_meals(uid_r, start_all, end_all)
+                    # 공복혈당만
+                    fasting = [g for g in glucose_all if g.get("type") == "fasting"]
+                    if not fasting:
+                        st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
+                    else:
+                        # 월별 평균
+                        by_month = defaultdict(list)
+                        for g in fasting:
+                            ts = g.get("timestamp")
+                            ts_kr = ts.astimezone(seoul) if hasattr(ts, "astimezone") else ts
+                            y, m = ts_kr.year, ts_kr.month
+                            by_month[(y, m)].append(g.get("value", 0))
+                        keys = sorted(by_month.keys())
+                        import statistics as _st
+                        x = []
+                        y_vals = []
+                        for y, m in keys:
+                            avg_v = _st.mean(by_month[(y, m)])
+                            x.append(datetime(y, m, 1, tzinfo=seoul))
+                            y_vals.append(avg_v)
+                        colors = ["#e74c3c" if v > 140 else "#2980b9" for v in y_vals]
+                        texts = [f"{v:.0f}" for v in y_vals]
+
+                        import plotly.graph_objects as go
+                        fig_mf = go.Figure()
+                        fig_mf.add_trace(
+                            go.Scatter(
+                                x=x,
+                                y=y_vals,
+                                mode="lines+markers+text",
+                                line=dict(color="#34495e", width=2),
+                                marker=dict(color=colors, size=8),
+                                text=texts,
+                                textposition="top center",
+                                name=t.get("glucose_fasting", "공복 혈당"),
+                            )
+                        )
+                        fig_mf.add_hrect(
+                            y0=90,
+                            y1=140,
+                            fillcolor="#2ecc71",
+                            opacity=0.12,
+                            line_width=0,
+                        )
+                        fig_mf.update_layout(
+                            margin=dict(l=20, r=20, t=30, b=20),
+                            height=340,
+                            autosize=True,
+                            showlegend=False,
+                        )
+                        fig_mf.update_xaxes(tickformat="%y.%m")
+                        fig_mf.update_yaxes(title_text=t.get("glucose_fasting", "공복 혈당") + " (mg/dL)")
+                        st.plotly_chart(fig_mf, use_container_width=True, config=dict(responsive=True, displayModeBar=True))
             else:
                 st.info(t.get("login_heading", "로그인 후 리포트를 볼 수 있습니다."))
 
