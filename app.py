@@ -1412,7 +1412,7 @@ if menu_key == "scanner":
 
         if st.session_state.get("current_page") == "main":
             # 1️⃣ 메인 포털: 타이틀 + 슬림 요약 바 + 4구 그리드
-            title_parts = t["description"].split("|")
+            title_parts = (t.get("description") or "📈|혈당 스파이크 방지|올바른 섭취 순서").split("|")
             st.markdown(f"""
                 <div style="text-align: center; margin-top: 10px; margin-bottom: 2vh;">
                     <div style="font-size: clamp(35px, 10vw, 50px); margin-bottom: 1vh;">{title_parts[0]}</div>
@@ -1644,9 +1644,11 @@ if menu_key == "scanner":
                                     y, w = k
                                     return f"{y}-W{w:02d}"
                                 else:
-                                    y, m = k
-                                    return f"{y}-{m:02d}"
-                            return k.isoformat()
+                                    y, mon = k
+                                    return f"{y}-{mon:02d}"
+                            if hasattr(k, "isoformat"):
+                                return k.isoformat()
+                            return str(k)
 
                         sorted_keys = sorted(ohlc.keys())
                         if not sorted_keys:
