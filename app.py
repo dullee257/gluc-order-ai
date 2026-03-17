@@ -6,6 +6,8 @@ import json
 import traceback
 import urllib.parse
 import re
+from collections import defaultdict
+import statistics
 
 from translation import LANG_DICT, get_text, SUPPORTED_LANGS, LANG_LABELS, LANG_HTML_ATTR, GOAL_INTERNAL_KEYS
 from prompts import get_analysis_prompt
@@ -1539,6 +1541,8 @@ if menu_key == "scanner":
                             st.session_state[f"glucose_saved_report_{tab_scope_key}"] = False
                             st.rerun()
                     glucose_list, meals_list = get_glucose_meals_cached(uid_r, start.isoformat(), end.isoformat())
+
+                    # 기본 지표
                     c1, c2, c3 = st.columns(3)
                     with c1:
                         st.metric(t.get("report_meals_count", "식단 수"), len(meals_list))
@@ -1548,22 +1552,188 @@ if menu_key == "scanner":
                     with c3:
                         avg_g = sum(g.get("value", 0) for g in glucose_list) / len(glucose_list) if glucose_list else 0
                         st.metric(t.get("glucose_value_mg", "혈당 (mg/dL)") + " avg", f"{avg_g:.0f}" if glucose_list else "-")
+
                     if glucose_list or meals_list:
                         import plotly.graph_objects as go
                         from plotly.subplots import make_subplots
-                        fig = make_subplots(specs=[[{"secondary_y": True}]])
-                        if glucose_list:
-                            g_times = [g["timestamp"] for g in glucose_list]
-                            g_vals = [g["value"] for g in glucose_list]
-                            fig.add_trace(go.Scatter(x=g_times, y=g_vals, name=t.get("glucose_value_mg", "혈당"), mode="lines+markers", line=dict(color="#e74c3c")), secondary_y=False)
-                        if meals_list:
-                            m_times = [m["timestamp"] for m in meals_list]
-                            m_carbs = [m.get("total_carbs", 0) for m in meals_list]
-                            fig.add_trace(go.Bar(x=m_times, y=m_carbs, name=t.get("report_avg_carbs", "탄수화물") + " (g)", marker_color="#86cc85"), secondary_y=True)
-                        fig.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=260, xaxis_tickangle=-45, autosize=True)
-                        fig.update_yaxes(title_text=t.get("glucose_value_mg", "혈당 (mg/dL)"), secondary_y=False)
-                        fig.update_yaxes(title_text=t.get("report_avg_carbs", "탄수화물") + " (g)", secondary_y=True)
-                        st.plotly_chart(fig, use_container_width=True, config=dict(responsive=True, displayModeBar=True))
+
+                        # --- 그룹별 OHLC 및 탄수화물 "거래량" 집계 ---
+                        ohlc = defaultdict(list)
+                        volume = defaultdict(float)
+
+                        def _group_key(ts):
+                            if hasattr(ts, "astimezone"):
+                                ts_local = ts.astimezone(timezone.utc)
+                            else:
+                                ts_local = ts
+                            d = ts_local.date()
+                            if tab_scope_key == "daily":
+                                return d
+                            elif tab_scope_key == "weekly":
+                                iso = d.isocalendar()
+                                # (년도, 주차)로 그룹화
+                                return (iso.year, iso.week)
+                            else:  # monthly
+                                return (d.year, d.month)
+
+                        # 혈당 OHLC
+                        for g in glucose_list:
+                            ts = g.get("timestamp")
+                            val = g.get("value", 0)
+                            key = _group_key(ts)
+                            ohlc[key].append((ts, val))
+
+                        # 탄수화물 "거래량"
+                        for m in meals_list:
+                            ts = m.get("timestamp")
+                            key = _group_key(ts)
+                            volume[key] += float(m.get("total_carbs", 0) or 0)
+
+                        # 정렬된 x 축 및 OHLC 배열 구성
+                        def _key_to_label(k):
+                            if isinstance(k, tuple):
+                                if tab_scope_key == "weekly":
+                                    y, w = k
+                                    return f"{y}-W{w:02d}"
+                                else:
+                                    y, m = k
+                                    return f"{y}-{m:02d}"
+                            return k.isoformat()
+
+                        sorted_keys = sorted(ohlc.keys())
+                        if not sorted_keys:
+                            st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
+                        else:
+                            x = []
+                            open_v = []
+                            high_v = []
+                            low_v = []
+                            close_v = []
+                            vols = []
+
+                            all_values_for_stats = []
+
+                            for k in sorted_keys:
+                                items = sorted(ohlc[k], key=lambda x: x[0])
+                                vals = [v for _, v in items]
+                                o = vals[0]
+                                c = vals[-1]
+                                h = max(vals)
+                                l = min(vals)
+                                x.append(_key_to_label(k))
+                                open_v.append(o)
+                                high_v.append(h)
+                                low_v.append(l)
+                                close_v.append(c)
+                                vols.append(volume.get(k, 0.0))
+                                all_values_for_stats.extend(vals)
+
+                            fig = make_subplots(
+                                rows=2,
+                                cols=1,
+                                shared_xaxes=True,
+                                row_heights=[0.7, 0.3],
+                                vertical_spacing=0.05,
+                            )
+
+                            fig.add_trace(
+                                go.Candlestick(
+                                    x=x,
+                                    open=open_v,
+                                    high=high_v,
+                                    low=low_v,
+                                    close=close_v,
+                                    increasing_line_color="#e74c3c",
+                                    decreasing_line_color="#2ecc71",
+                                    name=t.get("glucose_value_mg", "혈당"),
+                                ),
+                                row=1,
+                                col=1,
+                            )
+
+                            fig.add_trace(
+                                go.Bar(
+                                    x=x,
+                                    y=vols,
+                                    name=t.get("report_avg_carbs", "탄수화물") + " (g)",
+                                    marker_color="#86cc85",
+                                ),
+                                row=2,
+                                col=1,
+                            )
+
+                            fig.update_layout(
+                                margin=dict(l=20, r=20, t=30, b=20),
+                                height=360,
+                                xaxis_tickangle=-45,
+                                autosize=True,
+                                showlegend=False,
+                            )
+                            fig.update_yaxes(title_text=t.get("glucose_value_mg", "혈당 (mg/dL)"), row=1, col=1)
+                            fig.update_yaxes(title_text=t.get("report_avg_carbs", "탄수화물") + " (g)", row=2, col=1)
+                            st.plotly_chart(fig, use_container_width=True, config=dict(responsive=True, displayModeBar=True))
+
+                            # --- 간단 AI 스타일 분석 텍스트 ---
+                            analysis_text = ""
+                            if all_values_for_stats:
+                                overall_avg = statistics.mean(all_values_for_stats)
+                                if tab_scope_key == "daily":
+                                    daily_range = max(all_values_for_stats) - min(all_values_for_stats)
+                                    spike_flag = daily_range >= 40
+                                    analysis_text = (
+                                        f"오늘 평균 혈당은 약 **{overall_avg:.0f} mg/dL**이며, "
+                                        f"일중 변동 폭은 약 **{daily_range:.0f} mg/dL** 입니다. "
+                                    )
+                                    if spike_flag and sum(vols) > 0:
+                                        analysis_text += (
+                                            "혈당 스파이크가 관찰되며, 같은 기간 탄수화물 섭취량이 높았던 구간과의 상관관계를 의심해볼 수 있습니다. "
+                                            "탄수화물 섭취량이 많은 식사 전후의 혈당 패턴을 특히 유심히 관찰해 보세요."
+                                        )
+                                    else:
+                                        analysis_text += (
+                                            "전반적으로 혈당 변동성이 크지 않은 편이며, "
+                                            "오늘의 식단과 혈당 관리가 비교적 안정적으로 유지된 것으로 보입니다."
+                                        )
+                                elif tab_scope_key == "weekly":
+                                    try:
+                                        vol = statistics.pstdev(all_values_for_stats)
+                                    except statistics.StatisticsError:
+                                        vol = 0.0
+                                    analysis_text = (
+                                        f"이번 주 평균 혈당은 약 **{overall_avg:.0f} mg/dL**, "
+                                        f"표준편차(변동성)는 약 **{vol:.1f} mg/dL** 입니다. "
+                                    )
+                                    # 전주 대비 비교
+                                    try:
+                                        prev_start = (start - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+                                        prev_glucose, _ = get_glucose_meals_cached(uid_r, prev_start.isoformat(), start.isoformat())
+                                        if prev_glucose:
+                                            prev_vals = [g.get("value", 0) for g in prev_glucose]
+                                            prev_avg = statistics.mean(prev_vals)
+                                            diff = overall_avg - prev_avg
+                                            if abs(diff) < 3:
+                                                analysis_text += "전 주와 비교했을 때 평균 혈당은 큰 변화가 없습니다."
+                                            elif diff > 0:
+                                                analysis_text += f"전 주 대비 평균 혈당이 약 **{diff:.0f} mg/dL** 상승했습니다."
+                                            else:
+                                                analysis_text += f"전 주 대비 평균 혈당이 약 **{abs(diff):.0f} mg/dL** 감소했습니다."
+                                    except Exception:
+                                        pass
+                                else:  # monthly
+                                    # 당화혈색소 추정: HbA1c = (AvgGlucose + 46.7) / 28.7
+                                    est_hba1c = (overall_avg + 46.7) / 28.7
+                                    analysis_text = (
+                                        f"이번 달 평균 혈당은 약 **{overall_avg:.0f} mg/dL** 입니다. "
+                                        f"이를 기준으로 추정한 당화혈색소는 약 **{est_hba1c:.1f}%** 수준입니다. "
+                                    )
+                                    if est_hba1c < 6.5:
+                                        analysis_text += "현재로서는 비교적 양호한 범위에 가까우나, 식사 패턴과 운동을 꾸준히 유지하는 것이 중요합니다."
+                                    else:
+                                        analysis_text += "당뇨 치료 목표 범위를 벗어날 가능성이 있으므로, 의료진과 상의하여 관리 계획을 조정하는 것을 권장드립니다."
+
+                            if analysis_text:
+                                st.markdown("#### 🔍 혈당 패턴 분석")
+                                st.markdown(analysis_text)
                     else:
                         st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
 
