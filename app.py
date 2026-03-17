@@ -1606,6 +1606,10 @@ if menu_key == "scanner":
                                 glucose_list = _tmp
                                 st.caption("※ 조회 기간에는 데이터가 없어서, 예외적으로 최근 혈당 5건을 기준으로 그래프를 표시합니다.")
 
+                    # 주간/월간 탭에서는 공복혈당만 사용
+                    if tab_scope_key in ("weekly", "monthly") and glucose_list:
+                        glucose_list = [g for g in glucose_list if g.get("type") == "fasting"]
+
                     # 기본 지표
                     c1, c2, c3 = st.columns(3)
                     with c1:
