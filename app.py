@@ -1101,8 +1101,13 @@ def get_glucose_meals_cached(uid, start_iso, end_iso):
     try:
         start = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
         end = datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        if end.tzinfo is None:
+            end = end.replace(tzinfo=timezone.utc)
         return _get_glucose_and_meals(uid, start, end)
-    except Exception:
+    except Exception as e:
+        sys.stderr.write(f"[get_glucose_meals_cached] {e}\n")
         return [], []
 
 
@@ -1736,6 +1741,20 @@ if menu_key == "scanner":
                     else:
                         st.info(t.get("report_no_data", "해당 기간 기록이 없습니다."))
                         st.caption("혈당은 **🩸 혈당 수치 입력**에서 저장할 수 있습니다. 저장 후 이 페이지를 새로고침하거나 다시 **리포트 보기**를 눌러 주세요.")
+                        st.caption("아래 **🔧 데이터 조회 진단**을 펼쳐 조회 오류 여부와 기간·경로를 확인할 수 있습니다.")
+                        # 진단: 조회 실패 원인 확인 (빈 결과일 때만)
+                        with st.expander("🔧 데이터 조회 진단", expanded=True):
+                            _uid = str(uid_r)
+                            _uid_mask = _uid[:3] + "***" + _uid[-2:] if len(_uid) > 5 else "***"
+                            st.caption(f"조회 경로: users/{{uid}}/glucose (uid: {_uid_mask})")
+                            st.caption(f"기간: {start.isoformat()} ~ {end.isoformat()}")
+                            try:
+                                _g2, _m2 = _get_glucose_and_meals(uid_r, start, end)
+                                st.caption(f"직접 조회 결과: 혈당 {len(_g2)}건, 식단 {len(_m2)}건")
+                                if not _g2 and not _m2:
+                                    st.caption("Firestore에 해당 기간 문서가 없거나, 서비스 계정 권한/경로를 확인하세요.")
+                            except Exception as _e:
+                                st.error(f"조회 오류: {_e}")
 
                     # 저장 성공 시 메시지 (폼 밖)
                     if st.session_state.get(f"glucose_saved_report_{tab_scope_key}"):
