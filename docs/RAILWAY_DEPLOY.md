@@ -39,6 +39,7 @@ Railway 대시보드 → 해당 서비스 → **Variables** 탭에서 아래 변
 | 변수명 | 설명 | 예시 |
 |--------|------|------|
 | `GEMINI_API_KEY` | Gemini API 키 | (기존과 동일) |
+| `GEMINI_VISION_MODEL` | (선택) 식단 이미지 분석용 멀티모달 모델 ID. 미설정 시 `gemini-2.0-flash` → `gemini-1.5-pro` → `gemini-1.5-flash` 순으로 시도. **`-vision` 접미사 모델명은 사용하지 마세요(폐기됨).** | `gemini-2.0-flash` |
 | `BASE_URL` | **배포 후 부여되는 Railway URL** (아래 4단계에서 확인 후 입력) | `https://gluc-order-ai-production.up.railway.app` |
 | `FIREBASE_API_KEY` | Firebase Web API Key | (Firebase 콘솔 → 프로젝트 설정) |
 | `FIREBASE_GOOGLE_OAUTH_CLIENT_ID` | Google OAuth 클라이언트 ID | (Firebase/Google Cloud 콘솔) |
