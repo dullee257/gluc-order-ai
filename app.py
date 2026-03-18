@@ -2298,13 +2298,36 @@ if menu_key == "scanner":
             _lang = st.session_state.get("lang", "KO")
             food_prompt, advice_prompt = get_analysis_prompt(_lang)
 
+            # Vision 모델: 환경변수 우선, 실패 시 자동 폴백
+            _env_model = os.environ.get("GEMINI_VISION_MODEL", "").strip()
+            _model_candidates = []
+            if _env_model:
+                _model_candidates.append(_env_model)
+            # v1beta에서 안정적으로 동작하는 비전(멀티모달) 모델 후보
+            _model_candidates += ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro-vision"]
+            # 중복 제거(순서 유지)
+            _seen = set()
+            _model_candidates = [m for m in _model_candidates if not (m in _seen or _seen.add(m))]
+
             for attempt in range(max_retries):
                 try:
-                    VISION_MODEL = os.environ.get("GEMINI_VISION_MODEL", "gemini-2.0-pro-vision")
-                    response = client.models.generate_content(
-                        model=VISION_MODEL,
-                        contents=[food_prompt, st.session_state['current_img']]
-                    )
+                    response = None
+                    last_model_err = ""
+                    for VISION_MODEL in _model_candidates:
+                        try:
+                            response = client.models.generate_content(
+                                model=VISION_MODEL,
+                                contents=[food_prompt, st.session_state['current_img']]
+                            )
+                            break
+                        except Exception as _me:
+                            last_model_err = str(_me)
+                            # 모델 미지원/미존재는 다음 후보로 폴백
+                            if "not found" in last_model_err.lower() or "not supported" in last_model_err.lower() or "NOT_FOUND" in last_model_err:
+                                continue
+                            raise
+                    if response is None:
+                        raise Exception(last_model_err or "No available vision model")
 
                     # 결과 파싱 (업그레이드 형식: name|GI|carbs|protein|fat|kcal|color|order)
                     raw_lines = response.text.strip().split('\n')
@@ -2344,10 +2367,22 @@ if menu_key == "scanner":
                         total_kcal = sum((i[7] if len(i) > 7 else 0) for i in items)
 
                         # 소견 분석 (선택 언어로 응답하도록 prompts.get_advice_prompt 사용)
-                        advice_res = client.models.generate_content(
-                            model=VISION_MODEL,
-                            contents=[advice_prompt, st.session_state['current_img']]
-                        )
+                        advice_res = None
+                        last_model_err = ""
+                        for VISION_MODEL in _model_candidates:
+                            try:
+                                advice_res = client.models.generate_content(
+                                    model=VISION_MODEL,
+                                    contents=[advice_prompt, st.session_state['current_img']]
+                                )
+                                break
+                            except Exception as _me:
+                                last_model_err = str(_me)
+                                if "not found" in last_model_err.lower() or "not supported" in last_model_err.lower() or "NOT_FOUND" in last_model_err:
+                                    continue
+                                raise
+                        if advice_res is None:
+                            raise Exception(last_model_err or "No available vision model (advice)")
 
                         # 혈당 순서 가이드 엔진: 식이섬유 → 단백질 → 탄수화물
                         def _classify_bucket(name, gi, carbs, protein, fat):
