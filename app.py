@@ -2217,6 +2217,8 @@ if menu_key == "scanner":
                     st.rerun()
 
     elif st.session_state['app_stage'] == 'analyze':
+        # main 단계와 분리되어 있어 게스트 여부를 여기서도 정의 (분석 실패 시 복구 로직용)
+        is_guest = st.session_state.get("user_id") == "guest_user_demo"
         # 2페이지: 업로드 완료 & 분석 대기 페이지
         if st.button(t["btn_back_main"], key="btn_back_main_1", use_container_width=True):
             st.session_state['app_stage'] = 'main'
