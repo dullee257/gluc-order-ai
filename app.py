@@ -15,10 +15,6 @@ from datetime import datetime, timezone
 
 from translation import LANG_DICT, get_text, SUPPORTED_LANGS, LANG_LABELS, LANG_HTML_ATTR, GOAL_INTERNAL_KEYS
 from prompts import get_analysis_prompt
-try:
-    import google.generativeai as genai  # Gemini Pro/Flash SDK
-except Exception:
-    genai = None
 
 # Railway 등 Linux 환경에서 한글 출력 깨짐 방지
 if hasattr(sys.stdout, "reconfigure"):
@@ -258,7 +254,7 @@ st.components.v1.html(
     _embed_script.replace("__BASE_URL__", BASE_URL).replace("__BASE_HOST__", _base_host),
     height=0,
 )
-from google import genai
+from google import genai  # 패키지: google-genai (구 google-generativeai 아님)
 from PIL import Image
 from datetime import datetime, timezone
 import io
@@ -2298,12 +2294,12 @@ if menu_key == "scanner":
             _lang = st.session_state.get("lang", "KO")
             food_prompt, advice_prompt = get_analysis_prompt(_lang)
 
-            # 멀티모달(이미지) 분석: 최신은 -vision 접미사 없음. 기본 gemini-2.0-flash → 1.5 폴백
+            # Gemini 1.5 시리즈 폐기: gemini-2.5-flash → gemini-2.0-flash 만 사용 (google-genai SDK)
             _env_mm = os.environ.get("GEMINI_VISION_MODEL", "").strip()
             _model_candidates = []
             if _env_mm:
                 _model_candidates.append(_env_mm)
-            for _m in ("gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"):
+            for _m in ("gemini-2.5-flash", "gemini-2.0-flash"):
                 if _m not in _model_candidates:
                     _model_candidates.append(_m)
 
