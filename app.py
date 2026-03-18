@@ -8,9 +8,16 @@ import urllib.parse
 import re
 from collections import defaultdict
 import statistics
+import io
+from PIL import Image
+from datetime import datetime, timezone
 
 from translation import LANG_DICT, get_text, SUPPORTED_LANGS, LANG_LABELS, LANG_HTML_ATTR, GOAL_INTERNAL_KEYS
 from prompts import get_analysis_prompt
+try:
+    import google.generativeai as genai  # Gemini Pro/Flash SDK
+except Exception:
+    genai = None
 
 # Railway 등 Linux 환경에서 한글 출력 깨짐 방지
 if hasattr(sys.stdout, "reconfigure"):
@@ -2150,29 +2157,32 @@ if menu_key == "scanner":
 
             for attempt in range(max_retries):
                 try:
+                    VISION_MODEL = os.environ.get("GEMINI_VISION_MODEL", "gemini-2.0-pro-vision")
                     response = client.models.generate_content(
-                        model="gemini-flash-latest",
+                        model=VISION_MODEL,
                         contents=[food_prompt, st.session_state['current_img']]
                     )
 
-                    # 결과 파싱 (새 형식: name|GI|carbs|protein|color|order)
+                    # 결과 파싱 (업그레이드 형식: name|GI|carbs|protein|fat|kcal|color|order)
                     raw_lines = response.text.strip().split('\n')
                     items = []
                     for line in raw_lines:
                         line = line.strip()
                         if '|' not in line:
                             continue
-                        skip_words = ['---', 'GI', 'Food', '음식이름', '형식', '규칙', '예시']
+                        skip_words = ['---', 'GI', 'Food', '음식이름', '형식', '규칙', '예시', '칼로리']
                         if any(x in line for x in skip_words):
                             continue
                         parts = [p.strip() for p in line.split('|')]
                         try:
-                            if len(parts) >= 6:
+                            if len(parts) >= 8:
                                 gi = int(''.join(filter(str.isdigit, parts[1])) or '50')
                                 carbs = int(''.join(filter(str.isdigit, parts[2])) or '0')
                                 protein = int(''.join(filter(str.isdigit, parts[3])) or '0')
-                                order = int(''.join(filter(str.isdigit, parts[5])) or '99')
-                                items.append([parts[0], gi, carbs, protein, parts[4], order])
+                                fat = int(''.join(filter(str.isdigit, parts[4])) or '0')
+                                kcal = int(''.join(filter(str.isdigit, parts[5])) or '0')
+                                order = int(''.join(filter(str.isdigit, parts[7])) or '99')
+                                items.append([parts[0], gi, carbs, protein, parts[6], order, fat, kcal])
                             elif len(parts) >= 3:
                                 # 구 형식 fallback
                                 order = int(''.join(filter(str.isdigit, parts[2])) or '99')
@@ -2187,12 +2197,30 @@ if menu_key == "scanner":
                         blood_sugar_score = min(100, avg_gi)
                         total_carbs = sum(i[2] for i in items)
                         total_protein = sum(i[3] for i in items)
+                        total_fat = sum((i[6] if len(i) > 6 else 0) for i in items)
+                        total_kcal = sum((i[7] if len(i) > 7 else 0) for i in items)
 
                         # 소견 분석 (선택 언어로 응답하도록 prompts.get_advice_prompt 사용)
                         advice_res = client.models.generate_content(
-                            model="gemini-flash-latest",
+                            model=VISION_MODEL,
                             contents=[advice_prompt, st.session_state['current_img']]
                         )
+
+                        # 혈당 순서 가이드 엔진: 식이섬유 → 단백질 → 탄수화물
+                        def _classify_bucket(name, gi, carbs, protein, fat):
+                            n = (name or "").lower()
+                            if any(k in n for k in ["salad","샐러드","나물","야채","채소","greens","spinach","lettuce","kimchi","김치","무침"]):
+                                return "fiber"
+                            if protein >= carbs and protein >= fat:
+                                return "protein"
+                            return "carb"
+                        buckets = {"fiber": [], "protein": [], "carb": []}
+                        for it in sorted_items:
+                            # it: [name, gi, carbs, protein, color, order, fat?, kcal?]
+                            name, gi, carbs, protein = it[0], it[1], it[2], it[3]
+                            fat = it[6] if len(it) > 6 else 0
+                            buckets[_classify_bucket(name, gi, carbs, protein, fat)].append(name)
+                        order_comment = f"이 식단은 {( ' · '.join(buckets['fiber']) if buckets['fiber'] else '식이섬유' )} ➡️ {( ' · '.join(buckets['protein']) if buckets['protein'] else '단백질' )} ➡️ {( ' · '.join(buckets['carb']) if buckets['carb'] else '탄수화물' )} 순서로 드시면 혈당 스파이크를 막을 수 있습니다!"
 
                         # 하루 누적 업데이트
                         prev_count = st.session_state['daily_meals_count']
@@ -2205,11 +2233,13 @@ if menu_key == "scanner":
 
                         st.session_state['current_analysis'] = {
                             "sorted_items": sorted_items,
-                            "advice": advice_res.text,
+                            "advice": advice_res.text + "\n\n" + order_comment,
                             "raw_img": st.session_state['current_img'],
                             "blood_sugar_score": blood_sugar_score,
                             "total_carbs": total_carbs,
                             "total_protein": total_protein,
+                            "total_fat": total_fat,
+                            "total_kcal": total_kcal,
                             "avg_gi": avg_gi,
                         }
                         loading_placeholder.empty()
@@ -2513,6 +2543,8 @@ if menu_key == "scanner":
                             "blood_sugar_score": _num(res.get("blood_sugar_score")),
                             "total_carbs": _num(res.get("total_carbs")),
                             "total_protein": _num(res.get("total_protein")),
+                            "total_fat": _num(res.get("total_fat")),
+                            "total_kcal": _num(res.get("total_kcal")),
                             "avg_gi": _num(res.get("avg_gi")),
                             "image_url": image_url if image_url is not None else None,
                         }
@@ -2529,6 +2561,8 @@ if menu_key == "scanner":
                             "blood_sugar_score": new_db_record["blood_sugar_score"],
                             "total_carbs": new_db_record["total_carbs"],
                             "total_protein": new_db_record["total_protein"],
+                            "total_fat": new_db_record.get("total_fat", 0),
+                            "total_kcal": new_db_record.get("total_kcal", 0),
                             "avg_gi": new_db_record["avg_gi"],
                             "image_url": new_db_record["image_url"],
                         })
@@ -2551,6 +2585,8 @@ if menu_key == "scanner":
                             "blood_sugar_score": res.get("blood_sugar_score", 0),
                             "total_carbs": res.get("total_carbs", 0),
                             "total_protein": res.get("total_protein", 0),
+                            "total_fat": res.get("total_fat", 0),
+                            "total_kcal": res.get("total_kcal", 0),
                             "avg_gi": res.get("avg_gi", 0),
                         })
                         st.balloons()
