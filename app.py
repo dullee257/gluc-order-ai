@@ -759,6 +759,44 @@ def pyrebase_auth(email, password, mode="login"):
     except Exception as e:
         return False, {"code": "EXCEPTION", "raw": str(e)}
 
+
+_ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+
+
+def _load_legal_markdown(kind: str, lang: str) -> str:
+    """kind: 'terms' | 'privacy' → assets/terms_{ko|en}.md, privacy_{ko|en}.md"""
+    suffix = "ko" if (lang or "KO") == "KO" else "en"
+    path = os.path.join(_ASSETS_DIR, f"{kind}_{suffix}.md")
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except Exception:
+        return f"*(Could not load legal file: {kind}_{suffix}.md)*"
+
+
+def handle_social_login(provider: str) -> dict:
+    """
+    글로벌 소셜 로그인 통합 진입점 (Firebase Authentication UID 단일 체계 전제).
+
+    Google Play 인앱 결제(Billing) 영수증 검증 후 서버에서 **동일 사용자**를 식별하려면
+    어떤 소셜(OAuth)로 가입했든 최종 식별자는 **Firebase Auth localId(UID)** 로 맞추는 것이 일반적이다.
+
+    향후 흐름(뼈대):
+    - google: Google OAuth code/id_token → Firebase `signInWithCredential` 또는 Custom Token 발급
+    - naver / kakao / facebook: 각 SDK/OAuth → Firebase Custom Token (백엔드) → 동일 UID 네임스페이스
+    - 모든 경로에서 `st.session_state['user_id']` = Firebase UID 로 저장 (현재는 이메일/게스트 병행)
+
+    Returns:
+        dict with keys: action in ('oauth_google', 'stub', 'error'), optional 'provider'
+    """
+    p = (provider or "").strip().lower()
+    if p == "google":
+        return {"action": "oauth_google"}
+    if p in ("naver", "kakao", "facebook"):
+        return {"action": "stub", "provider": p}
+    return {"action": "error", "provider": p}
+
+
 if not st.session_state['logged_in']:
     import urllib.parse
     import uuid
@@ -811,203 +849,297 @@ if not st.session_state['logged_in']:
             st.query_params.clear()
             st.stop()
 
-    # 1페이지 반응형: 모바일에서 스크롤 없이 한 화면에 맞추기
-    st.markdown("""
+    _lg = st.session_state.get("lang", "KO")
+    _t = LANG_DICT.get(_lg, LANG_DICT["KO"])
+
+    for _k, _v in [
+        ("auth_splash_done", False),
+        ("auth_sheet_open", False),
+        ("auth_phase", "splash"),
+        ("pending_social_provider", None),
+        ("auth_guest_step", False),
+    ]:
+        if _k not in st.session_state:
+            st.session_state[_k] = _v
+    if "auth_mode" not in st.session_state:
+        st.session_state["auth_mode"] = "login"
+
+    # --- 약관 통과 후 Google OAuth 1회 자동 제출 (Firebase UID 통합 전 단계: Google 계정 식별) ---
+    if st.session_state.pop("proceed_google_oauth", False):
+        if google_client_id:
+            _oauth_state = html_module.escape(st.session_state.get("oauth_state", "oauth"))
+            _cid = html_module.escape(google_client_id)
+            _uri = html_module.escape(BASE_URL)
+            _oauth_html = f"""
+            <form id="gOAuthForm" action="https://accounts.google.com/o/oauth2/v2/auth" method="GET" target="_top">
+                <input type="hidden" name="client_id" value="{_cid}">
+                <input type="hidden" name="redirect_uri" value="{_uri}">
+                <input type="hidden" name="response_type" value="code">
+                <input type="hidden" name="scope" value="openid email profile">
+                <input type="hidden" name="state" value="{_oauth_state}">
+                <input type="hidden" name="access_type" value="offline">
+                <input type="hidden" name="prompt" value="consent">
+            </form>
+            <script>document.getElementById("gOAuthForm").submit();</script>
+            <p style="font-size:14px;color:#666;">Redirecting to Google…</p>
+            """
+            st.components.v1.html(_oauth_html, height=120)
+            st.caption(_t.get("oauth_open_in_browser", ""))
+        else:
+            st.error(_t.get("google_login_disabled_help", "Configure OAuth client ID."))
+        st.stop()
+
+    st.markdown(
+        """
     <style>
-    @media (max-height: 700px), (max-width: 480px) {
-        .block-container { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
-        .login-page-title { margin-top: 1vh !important; margin-bottom: 0.5vh !important; }
-        .login-page-title .main { font-size: clamp(22px, 6vw, 36px) !important; }
-        .login-page-title .sub { font-size: clamp(13px, 3.5vw, 18px) !important; }
-    }
-    .login-page-title { margin-top: 2vh; margin-bottom: 1.5vh; text-align: center; }
-    .login-page-title .main { font-size: clamp(26px, 7vw, 40px); font-weight: 800; color: #333; margin-bottom: 0.5vh; }
-    .login-page-title .sub { font-size: clamp(14px, 4vw, 20px); font-weight: 500; color: #86cc85; }
+    body.auth-login-splash header[data-testid="stHeader"],
+    body.auth-login-splash [data-testid="stToolbar"],
+    body.auth-login-splash footer { visibility: hidden !important; height: 0 !important; min-height: 0 !important;
+      overflow: hidden !important; margin: 0 !important; padding: 0 !important; border: none !important; }
+    body.auth-login-splash [data-testid="stDecoration"] { display: none !important; }
+    body.auth-login-splash .block-container { padding-top: 0.75rem !important; max-width: 100% !important; }
+    body.auth-login-splash .stApp { background: linear-gradient(180deg, #e8f5e9 0%, #fafafa 45%, #ffffff 100%) !important; min-height: 100vh !important; }
+    .auth-splash-logo { text-align: center; font-size: clamp(3rem, 14vw, 4.5rem); line-height: 1.2; margin-top: 8vh; }
+    .auth-splash-copy { text-align: center; font-size: clamp(1.05rem, 4.2vw, 1.35rem); font-weight: 600; color: #2e7d32; margin: 1.5rem 1rem 2rem; line-height: 1.45; }
+    .auth-sheet-enter main .block-container { animation: authSlideUp 0.42s ease-out; }
+    @keyframes authSlideUp { from { transform: translateY(72%); opacity: 0.65; } to { transform: translateY(0); opacity: 1; } }
+    .auth-soc-row button { height: 48px !important; font-weight: 700 !important; border-radius: 12px !important; }
+    .auth-mark-google + div button {
+      background: #ffffff !important; color: #3c4043 !important; border: 1px solid #dadce0 !important; }
+    .auth-mark-naver + div button {
+      background: #03C75A !important; color: #fff !important; border: none !important; }
+    .auth-mark-kakao + div button {
+      background: #FEE500 !important; color: #191919 !important; border: none !important; }
+    .auth-mark-fb + div button {
+      background: #1877F2 !important; color: #fff !important; border: none !important; }
+    .auth-terms-panel { border: 1px solid #e0e0e0; border-radius: 12px; padding: 0.75rem; background: #fafafa; max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
     </style>
-    """, unsafe_allow_html=True)
-    st.markdown(f"""
-        <div class="login-page-title">
-            <div class="main">{t['title']}</div>
-            <div class="sub">{t['login_heading']}</div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    if 'auth_mode' not in st.session_state:
-        st.session_state['auth_mode'] = 'login'
-        
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if st.button(t["btn_login"], type="primary" if st.session_state['auth_mode'] == 'login' else "secondary", use_container_width=True):
-            st.session_state['auth_mode'] = 'login'
+    """,
+        unsafe_allow_html=True,
+    )
+
+    # 스플래시 시 헤더/푸터 숨김
+    if not st.session_state.get("auth_splash_done"):
+        st.components.v1.html(
+            """
+        <script>
+        try { window.parent.document.body.classList.add("auth-login-splash"); } catch(e) {}
+        </script>
+        """,
+            height=0,
+        )
+    else:
+        st.components.v1.html(
+            """
+        <script>
+        try { window.parent.document.body.classList.remove("auth-login-splash"); } catch(e) {}
+        </script>
+        """,
+            height=0,
+        )
+
+    # ---------- 약관 동의 화면 (소셜 클릭 후) ----------
+    if st.session_state.get("auth_phase") == "terms" and st.session_state.get("pending_social_provider"):
+        prov = st.session_state["pending_social_provider"]
+        st.markdown(f"### {_t['terms_modal_title']}")
+        if st.button(_t["auth_back"], key="terms_back"):
+            st.session_state["auth_phase"] = "sheet"
+            st.session_state["pending_social_provider"] = None
+            for x in ("terms_cb_all", "terms_cb_tos", "terms_cb_privacy"):
+                st.session_state.pop(x, None)
             st.rerun()
-    with c2:
-        if st.button(t["btn_signup"], type="primary" if st.session_state['auth_mode'] == 'signup' else "secondary", use_container_width=True):
-            st.session_state['auth_mode'] = 'signup'
-            st.rerun()
-    with c3:
-        if st.button(t["btn_guest"], type="primary" if st.session_state['auth_mode'] == 'guest' else "secondary", use_container_width=True):
-            st.session_state['auth_mode'] = 'guest'
-            st.rerun()
-    
-    st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
-    
-    if st.session_state['auth_mode'] in ['login', 'signup']:
-        mode_text = t["btn_login"] if st.session_state['auth_mode'] == 'login' else t["btn_signup"]
-        submit_label = t["auth_submit_login"] if st.session_state['auth_mode'] == 'login' else t["auth_submit_signup"]
-        with st.form("auth_form_modern"):
-            st.markdown(f"#### 🔒 {mode_text}")
-            email = st.text_input(t["auth_email_label"], placeholder=t["auth_email_placeholder"])
-            # 이메일 도움말: 형식이 틀릴 때만 빨간 안내 문구
-            email_valid = bool(email and ("@" in email))
-            if email and not email_valid:
-                st.caption("🔴 올바른 이메일 형식을 입력해 주세요.")
 
-            pwd = st.text_input(t["auth_pwd_label"], type="password", placeholder=t["auth_pwd_placeholder"])
+        agree_all = st.checkbox(_t["terms_agree_all"], key="terms_cb_all")
+        with st.expander(_t["terms_required_tos"], expanded=False):
+            st.markdown(_load_legal_markdown("terms", _lg))
+        with st.expander(_t["terms_required_privacy"], expanded=False):
+            st.markdown(_load_legal_markdown("privacy", _lg))
 
-            # 검증 조건과 상관없이 버튼은 항상 활성화 (테스트/UX용)
-            submitted = st.form_submit_button(
-                submit_label,
-                type="primary",
-                use_container_width=True,
-                disabled=False,
-            )
+        if agree_all:
+            cb_tos = True
+            cb_priv = True
+            st.caption("✓ " + _t["terms_required_tos"] + " / " + _t["terms_required_privacy"])
+        else:
+            cb_tos = st.checkbox(_t["terms_required_tos"] + " — " + _t.get("terms_continue_btn", ""), key="terms_cb_tos")
+            cb_priv = st.checkbox(_t["terms_required_privacy"], key="terms_cb_privacy")
 
-            if submitted:
-                # 1차 검증: 형식이 틀리면 경고 후 중단
-                if not email_valid or not pwd:
-                    st.error("형식이 틀렸습니다. 이메일과 비밀번호를 다시 확인해 주세요.")
-                else:
-                    with st.spinner("인증 중..."):
-                        success, res = pyrebase_auth(
-                            email,
-                            pwd,
-                            "login" if st.session_state['auth_mode'] == 'login' else "signup",
-                        )
-
-                    if success:
-                        st.session_state['logged_in'] = True
-                        st.session_state['user_id'] = res.get('localId', f"user_{email}")
-                        st.session_state['user_email'] = email
-                        st.session_state['login_type'] = "google"
-                        st.rerun()
-                    else:
-                        # 에러 코드 가시화
-                        code = str((res or {}).get("code", "UNKNOWN"))
-                        upper_code = code.upper()
-
-                        if "EMAIL_EXISTS" in upper_code:
-                            st.error(t["err_email_exists"])
-                        elif (
-                            "INVALID_LOGIN_CREDENTIALS" in upper_code
-                            or "INVALID_PASSWORD" in upper_code
-                            or "EMAIL_NOT_FOUND" in upper_code
-                        ):
-                            st.error(t["err_invalid_credentials"])
-                        else:
-                            base_msg = get_text(
-                                st.session_state.get("lang", "KO"),
-                                "err_auth_failed",
-                                msg=code,
-                            )
-                            st.error(f"{base_msg} (코드: {code})")
-
-                        # Firebase 콘솔 설정 가이드 (OPERATION_NOT_ALLOWED)
-                        if "OPERATION_NOT_ALLOWED" in upper_code:
-                            st.error(
-                                "Firebase 콘솔에서 이메일/비밀번호 로그인 방식이 비활성화되어 있습니다. "
-                                "Firebase 프로젝트의 Authentication → Sign-in method에서 Email/Password를 활성화해 주세요."
-                            )
-                
-        # 소셜 로그인: 버튼 클릭 시 펼침(expander 제거 → 글자 겹침 방지), 배경색·자동 스크롤
-        _lang = st.session_state.get("lang", "KO")
-        _show_kakao_naver = _lang == "KO"
-        if "show_social_buttons" not in st.session_state:
-            st.session_state["show_social_buttons"] = False
-        _btn_label = t.get("btn_social_login", "소셜 계정으로 로그인하기")
-        st.markdown("""
-        <style>
-        /* 소셜 로그인하기 버튼만 배경색 적용 (바로 다음 블록의 버튼) */
-        #social-login-trigger-marker + div button { background-color: #e8f5e9 !important; color: #1b5e20 !important; border: 1px solid #a5d6a7 !important; border-radius: 8px !important; font-weight: 600 !important; }
-        #social-login-trigger-marker + div button:hover { background-color: #c8e6c9 !important; }
-        </style>
-        """, unsafe_allow_html=True)
-        st.markdown('<div id="social-login-trigger-marker"></div>', unsafe_allow_html=True)
-        if st.button(_btn_label, key="social_login_toggle", type="secondary", use_container_width=True):
-            st.session_state["show_social_buttons"] = True
-            st.rerun()
-        if st.session_state.get("show_social_buttons"):
-            st.markdown('<div id="social-buttons-block" style="scroll-margin-top: 12px;"></div>', unsafe_allow_html=True)
-            st.caption(t["or_social"])
-            if _show_kakao_naver:
-                col1, col2, col3 = st.columns(3)
+        if st.button(_t["terms_continue_btn"], type="primary", use_container_width=True, key="terms_submit"):
+            if not (cb_tos and cb_priv):
+                st.error(_t["terms_must_check"])
             else:
-                col1 = st.columns(1)[0]
-            with col1:
-                if google_client_id:
-                    auth_url = "https://accounts.google.com/o/oauth2/v2/auth"
-                    params = {
-                        "client_id": google_client_id,
-                        "redirect_uri": BASE_URL + "/",
-                        "response_type": "code",
-                        "scope": "openid email profile",
-                        "state": st.session_state.get("oauth_state", "oauth"),
-                        "access_type": "offline",
-                        "prompt": "consent"
-                    }
-                    full_auth_url = f"{auth_url}?{urllib.parse.urlencode(params)}"
-                    oauth_state = st.session_state.get("oauth_state", "oauth")
-                    auth_html = f'''
-                    <form action="https://accounts.google.com/o/oauth2/v2/auth" method="GET" target="_top" style="margin: 0; padding: 0;">
-                        <input type="hidden" name="client_id" value="{google_client_id}">
-                        <input type="hidden" name="redirect_uri" value="{BASE_URL}">
-                        <input type="hidden" name="response_type" value="code">
-                        <input type="hidden" name="scope" value="openid email profile">
-                        <input type="hidden" name="state" value="{oauth_state}">
-                        <input type="hidden" name="access_type" value="offline">
-                        <input type="hidden" name="prompt" value="consent">
-                        <button type="submit" style="display: flex; align-items: center; justify-content: center; height: 43px; width: 100%; border: 1px solid #dcdcdc; border-radius: 8px; font-weight: 600; font-size: 15.5px; background-color: white; color: #333333; cursor: pointer; text-decoration: none; transition: background-color 0.2s;">
-                            {t['google_login_btn']}
-                        </button>
-                    </form>
-                    <div style="text-align:center; font-size:11px; color:#999; margin-top:5px; line-height:1.2;">
-                        {t['oauth_open_in_browser']}
-                    </div>
-                    '''
-                    st.components.v1.html(auth_html, height=80)
-                else:
-                    st.button(t["google_login_btn"], disabled=True, use_container_width=True, help=t["google_login_disabled_help"])
-            if _show_kakao_naver:
-                with col2:
-                    st.button(t["kakao_login_btn"], disabled=True, use_container_width=True)
-                with col3:
-                    st.button(t.get("naver_login_btn", "네이버 로그인"), disabled=True, use_container_width=True)
-            # 펼친 직후 구글 등이 보이도록 자동 스크롤 (한글/비한글 공통, DOM 준비 후 실행)
-            st.components.v1.html("""
-            <script>
-            (function(){
-                function scrollToSocial() {
-                    try {
-                        var doc = window.parent.document;
-                        var el = doc.getElementById("social-buttons-block");
-                        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    } catch (e) {}
-                }
-                setTimeout(scrollToSocial, 280);
-            })();
-            </script>
-            """, height=1)
-            
-    elif st.session_state['auth_mode'] == 'guest':
-        st.info(f"{t['guest_info_title']}\n\n{t['guest_info_body']}", icon="🚀")
-        if st.button(t["guest_confirm_btn"], type="primary", use_container_width=True):
-            st.session_state['logged_in'] = True
-            st.session_state['user_id'] = "guest_user_demo"
-            st.session_state['login_type'] = "guest"
+                st.session_state["terms_accepted_provider"] = prov
+                decision = handle_social_login(prov)
+                st.session_state["auth_phase"] = "sheet"
+                st.session_state["pending_social_provider"] = None
+                if decision.get("action") == "oauth_google":
+                    st.session_state["proceed_google_oauth"] = True
+                    st.rerun()
+                elif decision.get("action") == "stub":
+                    pname = str(decision.get("provider", prov) or "").title()
+                    st.session_state["auth_flash_msg"] = get_text(_lg, "social_provider_stub", provider=pname)
+                st.rerun()
+
+        st.stop()
+
+    # ---------- 게스트 확정 ----------
+    if st.session_state.get("auth_guest_step"):
+        st.info(f"{_t['guest_info_title']}\n\n{_t['guest_info_body']}", icon="🚀")
+        if st.button(_t["guest_confirm_btn"], type="primary", use_container_width=True):
+            st.session_state["logged_in"] = True
+            st.session_state["user_id"] = "guest_user_demo"
+            st.session_state["login_type"] = "guest"
+            st.session_state["auth_guest_step"] = False
             st.rerun()
+        if st.button(_t["auth_back"], key="guest_back"):
+            st.session_state["auth_guest_step"] = False
+            st.rerun()
+        st.stop()
+
+    # ---------- 스플래시 (첫 진입) ----------
+    if not st.session_state.get("auth_splash_done"):
+        lc = st.columns([1, 2, 1])
+        with lc[2]:
+            lang_pick = st.selectbox(
+                "Lang",
+                options=SUPPORTED_LANGS,
+                index=SUPPORTED_LANGS.index(_lg) if _lg in SUPPORTED_LANGS else 0,
+                format_func=lambda c: LANG_LABELS.get(c, c),
+                label_visibility="collapsed",
+            )
+            if lang_pick != st.session_state.get("lang"):
+                st.session_state["lang"] = lang_pick
+                st.rerun()
+        st.markdown(f'<div class="auth-splash-logo">{t["title"]}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="auth-splash-copy">{_t.get("splash_main_copy", "")}</div>', unsafe_allow_html=True)
+        st.markdown("<div style='height:18vh;'></div>", unsafe_allow_html=True)
+        if st.button(_t.get("splash_start_btn", "시작하기"), type="primary", use_container_width=True, key="splash_start"):
+            st.session_state["auth_splash_done"] = True
+            st.session_state["auth_sheet_open"] = True
+            st.session_state["auth_phase"] = "sheet"
+            st.rerun()
+        st.stop()
+
+    # ---------- 슬라이드업 느낌의 로그인 시트 ----------
+    if st.session_state.get("auth_sheet_open") and not st.session_state.get("auth_guest_step"):
+        st.components.v1.html(
+            """
+        <script>
+        try {
+          var m = window.parent.document.querySelector("main");
+          if (m && !m.classList.contains("auth-sheet-enter")) {
+            m.classList.add("auth-sheet-enter");
+            setTimeout(function(){ try { m.classList.remove("auth-sheet-enter"); } catch(e) {} }, 600);
+          }
+        } catch(e) {}
+        </script>
+        """,
+            height=0,
+        )
+
+    _flash = st.session_state.pop("auth_flash_msg", None)
+    if _flash:
+        st.warning(_flash)
+
+    st.markdown(
+        f"<div style='text-align:center;font-weight:800;font-size:1.15rem;margin-bottom:0.75rem;'>{_t.get('login_sheet_title', '')}</div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="auth-soc-row">', unsafe_allow_html=True)
+    _is_ko = _lg == "KO"
+    if _is_ko:
+        st.markdown('<div class="auth-mark-google"></div>', unsafe_allow_html=True)
+        if st.button(_t["social_google_ko"], key="soc_ko_g", use_container_width=True):
+            st.session_state["pending_social_provider"] = "google"
+            st.session_state["auth_phase"] = "terms"
+            st.rerun()
+        st.markdown('<div class="auth-mark-naver"></div>', unsafe_allow_html=True)
+        if st.button(_t["social_naver_ko"], key="soc_ko_n", use_container_width=True):
+            st.session_state["pending_social_provider"] = "naver"
+            st.session_state["auth_phase"] = "terms"
+            st.rerun()
+        st.markdown('<div class="auth-mark-kakao"></div>', unsafe_allow_html=True)
+        if st.button(_t["social_kakao_ko"], key="soc_ko_k", use_container_width=True):
+            st.session_state["pending_social_provider"] = "kakao"
+            st.session_state["auth_phase"] = "terms"
+            st.rerun()
+    else:
+        st.markdown('<div class="auth-mark-google"></div>', unsafe_allow_html=True)
+        if st.button(_t["social_google_intl"], key="soc_intl_g", use_container_width=True):
+            st.session_state["pending_social_provider"] = "google"
+            st.session_state["auth_phase"] = "terms"
+            st.rerun()
+        st.markdown('<div class="auth-mark-fb"></div>', unsafe_allow_html=True)
+        if st.button(_t["social_facebook_intl"], key="soc_intl_f", use_container_width=True):
+            st.session_state["pending_social_provider"] = "facebook"
+            st.session_state["auth_phase"] = "terms"
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.caption(_t.get("or_social", ""))
+    if st.button(_t.get("guest_entry_link", "Guest"), key="guest_entry"):
+        st.session_state["auth_guest_step"] = True
+        st.rerun()
+
+    with st.expander(_t.get("auth_email_expand", "Email")):
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button(t["btn_login"], type="primary" if st.session_state["auth_mode"] == "login" else "secondary", use_container_width=True):
+                st.session_state["auth_mode"] = "login"
+                st.rerun()
+        with c2:
+            if st.button(t["btn_signup"], type="primary" if st.session_state["auth_mode"] == "signup" else "secondary", use_container_width=True):
+                st.session_state["auth_mode"] = "signup"
+                st.rerun()
+        with c3:
+            pass
+        if st.session_state["auth_mode"] in ("login", "signup"):
+            mode_text = t["btn_login"] if st.session_state["auth_mode"] == "login" else t["btn_signup"]
+            submit_label = t["auth_submit_login"] if st.session_state["auth_mode"] == "login" else t["auth_submit_signup"]
+            with st.form("auth_form_modern"):
+                st.markdown(f"#### 🔒 {mode_text}")
+                email = st.text_input(t["auth_email_label"], placeholder=t["auth_email_placeholder"])
+                email_valid = bool(email and ("@" in email))
+                if email and not email_valid:
+                    st.caption("🔴 올바른 이메일 형식을 입력해 주세요.")
+                pwd = st.text_input(t["auth_pwd_label"], type="password", placeholder=t["auth_pwd_placeholder"])
+                submitted = st.form_submit_button(submit_label, type="primary", use_container_width=True)
+                if submitted:
+                    if not email_valid or not pwd:
+                        st.error("형식이 틀렸습니다. 이메일과 비밀번호를 다시 확인해 주세요.")
+                    else:
+                        with st.spinner("인증 중..."):
+                            success, res = pyrebase_auth(
+                                email,
+                                pwd,
+                                "login" if st.session_state["auth_mode"] == "login" else "signup",
+                            )
+                        if success:
+                            st.session_state["logged_in"] = True
+                            st.session_state["user_id"] = res.get("localId", f"user_{email}")
+                            st.session_state["user_email"] = email
+                            st.session_state["login_type"] = "email"
+                            st.rerun()
+                        else:
+                            code = str((res or {}).get("code", "UNKNOWN"))
+                            upper_code = code.upper()
+                            if "EMAIL_EXISTS" in upper_code:
+                                st.error(t["err_email_exists"])
+                            elif (
+                                "INVALID_LOGIN_CREDENTIALS" in upper_code
+                                or "INVALID_PASSWORD" in upper_code
+                                or "EMAIL_NOT_FOUND" in upper_code
+                            ):
+                                st.error(t["err_invalid_credentials"])
+                            else:
+                                st.error(f"{get_text(_lg, 'err_auth_failed', msg=code)} (코드: {code})")
+                            if "OPERATION_NOT_ALLOWED" in upper_code:
+                                st.error(
+                                    "Firebase 콘솔 → Authentication → Email/Password 활성화가 필요합니다."
+                                )
 
     st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
-
-    st.stop()  # 로그인되지 않은 사용자는 식단 분석 로직을 볼 수 없음
+    st.stop()
 
 
 def _normalize_image_url(url, bucket_name=None):
