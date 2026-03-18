@@ -5,6 +5,7 @@ import os
 import json
 import traceback
 import urllib.parse
+import html as html_module
 import re
 from collections import defaultdict
 import statistics
@@ -603,18 +604,97 @@ st.markdown(f"""
     iframe[title="Streamlit App Deploy Button"] {{ display: none !important; }}
     iframe[src*="share.streamlit.io"] {{ display: none !important; visibility: hidden !important; }}
 
-    /* 우측 상단 메뉴 버튼 및 스트림릿 워터마크 숨기기 */
-    #MainMenu {{visibility: hidden;}}
-    footer {{display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important; overflow: hidden !important;}}
-    header {{display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important;}}
+    /* 우측 상단 메뉴·헤더·푸터 숨김 (독립 앱 느낌) */
+    #MainMenu {{visibility: hidden !important; height: 0 !important;}}
+    footer {{visibility: hidden !important; display: none !important; height: 0 !important;}}
+    header {{visibility: hidden !important; display: none !important; height: 0 !important;}}
+    [data-testid="stHeader"] {{display: none !important; visibility: hidden !important; height: 0 !important;}}
+    [data-testid="stToolbar"] {{display: none !important;}}
     
-    /* embed 모드 해제로 인한 기본 상하 여백 최소화 */
     .block-container {{
         padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
-        padding-bottom: 0px !important;
+        padding-bottom: 1rem !important;
+    }}
+    /* 모바일: 여백 대폭 축소 + FAB 영역 확보 */
+    @media screen and (max-width: 768px) {{
+        .block-container {{
+            padding-top: 0.35rem !important;
+            padding-left: 0.45rem !important;
+            padding-right: 0.45rem !important;
+            padding-bottom: 5.75rem !important;
+            max-width: 100% !important;
+        }}
+    }}
+    /* Metric이 있는 가로 행: 모바일에서 2열(2x2) 강제 */
+    @media screen and (max-width: 768px) {{
+        div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) {{
+            flex-wrap: nowrap !important;
+            gap: 0.25rem !important;
+        }}
+        div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div[data-testid="column"] {{
+            flex: 1 1 calc(50% - 4px) !important;
+            min-width: calc(50% - 4px) !important;
+            max-width: 50% !important;
+        }}
+        div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) [data-testid="stMetricValue"] {{
+            font-size: clamp(1.1rem, 4vw, 1.35rem) !important;
+        }}
+    }}
+    /* 플로팅 액션 버튼 (엄지 존) */
+    .nutri-fab-wrap {{
+        position: fixed;
+        z-index: 999998;
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        justify-content: center;
+        align-items: center;
+        left: 50%;
+        transform: translateX(-50%);
+        bottom: max(16px, env(safe-area-inset-bottom, 0px));
+        width: calc(100% - 20px);
+        max-width: 420px;
+        pointer-events: none;
+    }}
+    .nutri-fab-wrap a {{
+        pointer-events: auto;
+        flex: 1;
+        text-align: center;
+        text-decoration: none !important;
+        font-weight: 800;
+        font-size: clamp(13px, 3.6vw, 15px);
+        padding: 14px 10px;
+        border-radius: 999px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+        border: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }}
+    .nutri-fab-green {{
+        background: linear-gradient(135deg, #2e7d32, #43a047);
+        color: #fff !important;
+    }}
+    .nutri-fab-mint {{
+        background: linear-gradient(135deg, #5a9e59, #86cc85);
+        color: #1b2e1b !important;
+    }}
+    @media screen and (min-width: 769px) {{
+        .nutri-fab-wrap {{
+            left: auto;
+            right: 16px;
+            transform: none;
+            flex-direction: column;
+            width: auto;
+            max-width: none;
+            bottom: max(24px, env(safe-area-inset-bottom, 0px));
+        }}
+        .nutri-fab-wrap a {{
+            flex: none;
+            min-width: 148px;
+        }}
     }}
 
     /* 🚀 추가: 파일 업로드 후 생기는 파일명 박스 강제 숨기기 & 찌그러짐 방지 */
@@ -1355,6 +1435,34 @@ def _load_my_history_from_firestore():
 if st.session_state.get("logged_in") and st.session_state.get("login_type") == "google":
     _load_my_history_from_firestore()
 
+# FAB 딥링크 (?fab=scan | ?fab=glucose) → 식단 촬영 / 혈당 입력 화면
+if st.session_state.get("logged_in"):
+    _fab_nav = None
+    try:
+        _fv = st.query_params.get("fab")
+        if isinstance(_fv, (list, tuple)) and _fv:
+            _fab_nav = str(_fv[0]).strip().lower()
+        elif isinstance(_fv, str):
+            _fab_nav = _fv.strip().lower()
+    except Exception:
+        pass
+    if _fab_nav == "scan":
+        st.session_state["current_page"] = "diet_scan"
+        st.session_state["nav_menu"] = "scanner"
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
+        st.rerun()
+    elif _fab_nav == "glucose":
+        st.session_state["current_page"] = "glucose_input"
+        st.session_state["nav_menu"] = "scanner"
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
+        st.rerun()
+
 # 5. 메인 화면 - 식단 스캔 / 나의 기록 전환 (사이드바 없이도 항상 노출)
 # 위젯 키(sidebar_menu)는 직접 설정 불가 → nav_menu 사용 후 menu_key 반영
 _nav1, _nav2 = st.columns(2)
@@ -1369,6 +1477,15 @@ with _nav2:
 if st.session_state.get("nav_menu"):
     menu_key = st.session_state["nav_menu"]
 st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+
+_fab_l1 = html_module.escape(t.get("fab_scan_label", "📸 식단 촬영"))
+_fab_l2 = html_module.escape(t.get("fab_glucose_label", "🩸 혈당 입력"))
+st.markdown(
+    f'<div class="nutri-fab-wrap" role="navigation" aria-label="quick actions">'
+    f'<a href="?fab=scan" class="nutri-fab nutri-fab-green">{_fab_l1}</a>'
+    f'<a href="?fab=glucose" class="nutri-fab nutri-fab-mint">{_fab_l2}</a></div>',
+    unsafe_allow_html=True,
+)
 
 # 5-1. 식단 스캐너
 if menu_key == "scanner":
@@ -1617,16 +1734,20 @@ if menu_key == "scanner":
                     if tab_scope_key in ("weekly", "monthly") and glucose_list:
                         glucose_list = [g for g in glucose_list if g.get("type") == "fasting"]
 
-                    # 기본 지표
-                    c1, c2, c3 = st.columns(3)
-                    with c1:
+                    # 기본 지표 (모바일 2x2 그리드)
+                    avg_c = sum(m.get("total_carbs", 0) for m in meals_list) / len(meals_list) if meals_list else 0
+                    avg_g = sum(g.get("value", 0) for g in glucose_list) / len(glucose_list) if glucose_list else 0
+                    _total_c_period = sum(m.get("total_carbs", 0) for m in meals_list)
+                    _mr1a, _mr1b = st.columns(2)
+                    with _mr1a:
                         st.metric(t.get("report_meals_count", "식단 수"), len(meals_list))
-                    with c2:
-                        avg_c = sum(m.get("total_carbs", 0) for m in meals_list) / len(meals_list) if meals_list else 0
+                    with _mr1b:
                         st.metric(t.get("report_avg_carbs", "평균 탄수화물"), f"{avg_c:.0f}g")
-                    with c3:
-                        avg_g = sum(g.get("value", 0) for g in glucose_list) / len(glucose_list) if glucose_list else 0
+                    _mr2a, _mr2b = st.columns(2)
+                    with _mr2a:
                         st.metric(t.get("glucose_value_mg", "혈당 (mg/dL)") + " avg", f"{avg_g:.0f}" if glucose_list else "-")
+                    with _mr2b:
+                        st.metric(t.get("report_period_carbs_total", "기간 탄수화물 합"), f"{_total_c_period:.0f}g")
 
                     if glucose_list or meals_list:
                         import plotly.graph_objects as go
@@ -1748,11 +1869,21 @@ if menu_key == "scanner":
                                 fig.update_xaxes(tickformat="%Y-%m", row=2, col=1)
 
                             fig.update_layout(
-                                margin=dict(l=20, r=20, t=30, b=20),
+                                margin=dict(l=10, r=10, t=28, b=48),
                                 height=360,
                                 xaxis_tickangle=-45,
                                 autosize=True,
-                                showlegend=False,
+                                showlegend=True,
+                                legend=dict(
+                                    orientation="h",
+                                    yanchor="top",
+                                    y=-0.14,
+                                    x=0.5,
+                                    xanchor="center",
+                                    font=dict(size=9),
+                                    bgcolor="rgba(248,249,250,0.92)",
+                                    borderwidth=0,
+                                ),
                             )
                             fig.update_yaxes(title_text=t.get("glucose_value_mg", "혈당 (mg/dL)"), row=1, col=1)
                             fig.update_yaxes(title_text=t.get("report_avg_carbs", "탄수화물") + " (g)", row=2, col=1)
@@ -2024,10 +2155,20 @@ if menu_key == "scanner":
                             line_width=0,
                         )
                         fig_mf.update_layout(
-                            margin=dict(l=20, r=20, t=30, b=20),
+                            margin=dict(l=10, r=10, t=28, b=44),
                             height=340,
                             autosize=True,
-                            showlegend=False,
+                            showlegend=True,
+                            legend=dict(
+                                orientation="h",
+                                yanchor="top",
+                                y=-0.12,
+                                x=0.5,
+                                xanchor="center",
+                                font=dict(size=9),
+                                bgcolor="rgba(248,249,250,0.92)",
+                                borderwidth=0,
+                            ),
                         )
                         fig_mf.update_xaxes(tickformat="%y.%m")
                         fig_mf.update_yaxes(title_text=t.get("glucose_fasting", "공복 혈당") + " (mg/dL)")
