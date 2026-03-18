@@ -13,7 +13,7 @@ import io
 from PIL import Image
 from datetime import datetime, timezone
 
-from translation import LANG_DICT, get_text, SUPPORTED_LANGS, LANG_LABELS, LANG_HTML_ATTR, GOAL_INTERNAL_KEYS
+from translation import LANG_DICT, get_text, GOAL_INTERNAL_KEYS
 from prompts import get_analysis_prompt
 
 # Railway 등 Linux 환경에서 한글 출력 깨짐 방지
@@ -380,15 +380,8 @@ if "history_loaded_uid" not in st.session_state:
     st.session_state["history_loaded_uid"] = None
 if 'user_goal' not in st.session_state:
     st.session_state['user_goal'] = '일반 관리'
-if 'lang' not in st.session_state:
-    st.session_state['lang'] = 'KO'
-
-# 다국어: translation.py의 LANG_DICT 사용 (언어 추가 시 SUPPORTED_LANGS만 확장)
-_current_lang = st.session_state.get("lang", "KO")
-if _current_lang not in LANG_DICT:
-    _current_lang = "KO"
-    st.session_state["lang"] = _current_lang
-t = LANG_DICT[_current_lang]
+# KR 단일 타겟팅: 언어는 KO로 고정
+t = LANG_DICT["KO"]
 
 
 def render_login_badge():
@@ -406,7 +399,7 @@ def render_login_badge():
             display_name = email_for_display.split("@")[0]
         else:
             display_name = t.get("welcome_fallback", "User")  # UID만 있을 때(구 세션) 일반 문구
-        welcome_msg = get_text(st.session_state.get("lang", "KO"), "welcome_user", name=display_name)
+        welcome_msg = get_text("KO", "welcome_user", name=display_name)
         st.markdown(
             f'<div style="background:#4CAF50;color:white;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;text-align:center;margin-bottom:8px;">✓ {welcome_msg}</div>',
             unsafe_allow_html=True,
@@ -486,29 +479,8 @@ with st.sidebar:
     with st.expander(f"⚠️ {t['health_disclaimer_title']}", expanded=False):
         st.caption(t.get("health_disclaimer_body", ""))
 
-# 3-2. 언어 선택 드롭다운: 로그인/체험 전(1페이지)에만 표시, 2페이지부터는 숨김
-if not st.session_state.get("logged_in", False):
-    st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-    lang_col1, lang_col2, lang_col3 = st.columns([1, 2, 1])
-    with lang_col2:
-        current_idx = SUPPORTED_LANGS.index(st.session_state["lang"]) if st.session_state["lang"] in SUPPORTED_LANGS else 0
-        selected_lang = st.selectbox(
-            "Language",
-            options=SUPPORTED_LANGS,
-            format_func=lambda x: LANG_LABELS.get(x, x),
-            index=current_idx,
-            key="lang_select_top",
-            label_visibility="collapsed",
-        )
-    if selected_lang != st.session_state["lang"]:
-        st.session_state["lang"] = selected_lang
-        t = LANG_DICT[st.session_state["lang"]]
-        st.rerun()
-    st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
-
-# 3-3. 브라우저 자동번역 방지: 선택된 언어로 HTML lang 속성 설정
-_lang_attr = LANG_HTML_ATTR.get(st.session_state.get("lang", "KO"), "ko")
-st.markdown(f'<script>try{{document.documentElement.lang="{_lang_attr}";}}catch(e){{}}</script>', unsafe_allow_html=True)
+# 3-2. 브라우저 자동번역 방지: KR 단일 타겟팅 (항상 ko)
+st.markdown('<script>try{document.documentElement.lang="ko";}catch(e){}</script>', unsafe_allow_html=True)
 
 # 4. 피그마 디자인 + 한글 표시 보장 (UTF-8·폰트)
 # 업로더 placeholder: CSS content 내 따옴표·백슬래시 이스케이프 (글자 오류 방지)
@@ -780,14 +752,13 @@ _ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
 def _load_legal_markdown(kind: str, lang: str) -> str:
-    """kind: 'terms' | 'privacy' → assets/terms_{ko|en}.md, privacy_{ko|en}.md"""
-    suffix = "ko" if (lang or "KO") == "KO" else "en"
-    path = os.path.join(_ASSETS_DIR, f"{kind}_{suffix}.md")
+    """KR 단일 타겟팅: assets/terms_ko.md, assets/privacy_ko.md만 사용"""
+    path = os.path.join(_ASSETS_DIR, f"{kind}_ko.md")
     try:
         with open(path, encoding="utf-8") as f:
             return f.read()
     except Exception:
-        return f"*(Could not load legal file: {kind}_{suffix}.md)*"
+        return f"*(Could not load legal file: {kind}_ko.md)*"
 
 
 def handle_social_login(provider: str) -> dict:
@@ -853,20 +824,20 @@ if not st.session_state['logged_in']:
                     st.query_params.clear()
                     st.rerun()
                 else:
-                    st.error(get_text(st.session_state.get("lang", "KO"), "google_oauth_err_userinfo", code=userinfo_res.status_code))
+                    st.error(get_text("KO", "google_oauth_err_userinfo", code=userinfo_res.status_code))
                     st.query_params.clear()
                     st.stop()
             else:
-                st.error(get_text(st.session_state.get("lang", "KO"), "google_oauth_err_token", msg=res.text))
+                st.error(get_text("KO", "google_oauth_err_token", msg=res.text))
                 st.query_params.clear()
                 st.stop()
         except Exception as e:
-            st.error(get_text(st.session_state.get("lang", "KO"), "google_oauth_err_network", err=str(e)))
+            st.error(get_text("KO", "google_oauth_err_network", err=str(e)))
             st.query_params.clear()
             st.stop()
 
-    _lg = st.session_state.get("lang", "KO")
-    _t = LANG_DICT.get(_lg, LANG_DICT["KO"])
+    _lg = "KO"
+    _t = LANG_DICT["KO"]
 
     for _k, _v in [
         ("auth_splash_done", False),
@@ -926,8 +897,7 @@ if not st.session_state['logged_in']:
       background: #03C75A !important; color: #fff !important; border: none !important; }
     .auth-mark-kakao + div button {
       background: #FEE500 !important; color: #191919 !important; border: none !important; }
-    .auth-mark-fb + div button {
-      background: #1877F2 !important; color: #fff !important; border: none !important; }
+    /* KR 단일: Facebook 버튼 제거 */
     .auth-terms-panel { border: 1px solid #e0e0e0; border-radius: 12px; padding: 0.75rem; background: #fafafa; max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
     </style>
     """,
@@ -1013,18 +983,6 @@ if not st.session_state['logged_in']:
 
     # ---------- 스플래시 (첫 진입) ----------
     if not st.session_state.get("auth_splash_done"):
-        lc = st.columns([1, 2, 1])
-        with lc[2]:
-            lang_pick = st.selectbox(
-                "Lang",
-                options=SUPPORTED_LANGS,
-                index=SUPPORTED_LANGS.index(_lg) if _lg in SUPPORTED_LANGS else 0,
-                format_func=lambda c: LANG_LABELS.get(c, c),
-                label_visibility="collapsed",
-            )
-            if lang_pick != st.session_state.get("lang"):
-                st.session_state["lang"] = lang_pick
-                st.rerun()
         st.markdown(f'<div class="auth-splash-logo">{t["title"]}</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="auth-splash-copy">{_t.get("splash_main_copy", "")}</div>', unsafe_allow_html=True)
         st.markdown("<div style='height:18vh;'></div>", unsafe_allow_html=True)
@@ -1079,17 +1037,7 @@ if not st.session_state['logged_in']:
             st.session_state["pending_social_provider"] = "kakao"
             st.session_state["auth_phase"] = "terms"
             st.rerun()
-    else:
-        st.markdown('<div class="auth-mark-google"></div>', unsafe_allow_html=True)
-        if st.button(_t["social_google_intl"], key="soc_intl_g", use_container_width=True):
-            st.session_state["pending_social_provider"] = "google"
-            st.session_state["auth_phase"] = "terms"
-            st.rerun()
-        st.markdown('<div class="auth-mark-fb"></div>', unsafe_allow_html=True)
-        if st.button(_t["social_facebook_intl"], key="soc_intl_f", use_container_width=True):
-            st.session_state["pending_social_provider"] = "facebook"
-            st.session_state["auth_phase"] = "terms"
-            st.rerun()
+    # KR 단일: 해외 소셜(예: Facebook) 제거
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.caption(_t.get("or_social", ""))
@@ -1724,7 +1672,7 @@ if menu_key == "scanner":
                     st.rerun()
             else:
                 if is_guest:
-                    st.info(get_text(st.session_state.get("lang", "KO"), "guest_remaining", n=total_remaining))
+                    st.info(get_text("KO", "guest_remaining", n=total_remaining))
 
                 # 슬림 요약 바: 오늘 평균 혈당 | 탄수화물 총량 (컴팩트)
                 if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
@@ -1775,7 +1723,7 @@ if menu_key == "scanner":
         elif st.session_state.get("current_page") == "diet_scan":
             # 식단 스캔 페이지: 업로더만
             if is_guest:
-                st.info(get_text(st.session_state.get("lang", "KO"), "guest_remaining", n=total_remaining))
+                st.info(get_text("KO", "guest_remaining", n=total_remaining))
             if 'uploader_key' not in st.session_state:
                 st.session_state['uploader_key'] = 0
             uploaded_file = st.file_uploader(
@@ -2323,20 +2271,7 @@ if menu_key == "scanner":
         elif st.session_state.get("current_page") == "settings":
             # 설정 페이지: 언어, 목표, 로그아웃 (사이드바와 동일한 기능)
             st.subheader(t.get("btn_settings", "⚙️ 설정"))
-            lang_col1, lang_col2 = st.columns([1, 2])
-            with lang_col2:
-                current_idx = SUPPORTED_LANGS.index(st.session_state["lang"]) if st.session_state["lang"] in SUPPORTED_LANGS else 0
-                selected_lang = st.selectbox(
-                    "Language",
-                    options=SUPPORTED_LANGS,
-                    format_func=lambda x: LANG_LABELS.get(x, x),
-                    index=current_idx,
-                    key="settings_lang",
-                )
-            if selected_lang != st.session_state["lang"]:
-                st.session_state["lang"] = selected_lang
-                t = LANG_DICT[st.session_state["lang"]]
-                st.rerun()
+            # KR 단일 타겟팅: 언어 설정 제거
             if st.session_state.get("login_type") == "google":
                 if st.button(f"🚪 {t['sidebar_logout']}", key="settings_logout", use_container_width=True):
                     st.session_state["logged_in"] = False
@@ -2439,8 +2374,7 @@ if menu_key == "scanner":
             success = False
             last_err_msg = ""
             is_503 = False
-            _lang = st.session_state.get("lang", "KO")
-            food_prompt, advice_prompt = get_analysis_prompt(_lang)
+            food_prompt, advice_prompt = get_analysis_prompt("KO")
 
             # Gemini 1.5 시리즈 폐기: gemini-2.5-flash → gemini-2.0-flash 만 사용 (google-genai SDK)
             _env_mm = os.environ.get("GEMINI_VISION_MODEL", "").strip()
@@ -2594,7 +2528,7 @@ if menu_key == "scanner":
                 if is_503:
                     st.error(t["server_busy"])
                 else:
-                    st.error(get_text(st.session_state.get("lang", "KO"), "analysis_error_generic", msg=last_err_msg))
+                    st.error(get_text("KO", "analysis_error_generic", msg=last_err_msg))
 
     elif st.session_state['app_stage'] == 'result':
         # 세션 손실(다중 워커/타임아웃 등) 시 분석 결과가 없으면 메인으로 복귀
@@ -2775,7 +2709,7 @@ if menu_key == "scanner":
                 st.rerun()
         else:
             if st.button(t["save_btn"], use_container_width=True):
-                _lang = st.session_state.get("lang", "KO")
+                _lang = "KO"
                 try:
                     import pytz
                     tz = pytz.timezone(LANG_TIMEZONE.get(_lang) or "UTC")
@@ -2997,7 +2931,7 @@ elif menu_key == "history":
             _key = f"hist_open_{i}"
             if _key not in st.session_state:
                 st.session_state[_key] = False
-            _lang = st.session_state.get("lang", "KO")
+            _lang = "KO"
             _date = _format_record_date(rec.get("date", ""), rec.get("saved_at_utc"), _lang)
             _btn_label = f"🍴 {_date}  ·  혈당 {rec_score} ({rl})  ·  탄수화물 {rec_carbs}g"
             if st.button(_btn_label, key=_key + "_btn", use_container_width=True, type="secondary"):
