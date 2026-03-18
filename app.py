@@ -517,6 +517,22 @@ st.markdown(f"""
 <style>
     /* 한글 표시: Noto Sans KR 로드 후 전역 적용 (한글 깨짐 방지) */
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+    /* Streamlit expander 아이콘이 텍스트(arrow_down/right)로 보이는 현상 방지 */
+    @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+    .material-icons {
+        font-family: 'Material Icons' !important;
+        font-weight: normal !important;
+        font-style: normal !important;
+        line-height: 1 !important;
+        letter-spacing: normal !important;
+        text-transform: none !important;
+        display: inline-block !important;
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        direction: ltr !important;
+        -webkit-font-feature-settings: 'liga' !important;
+        -webkit-font-smoothing: antialiased !important;
+    }
     .stApp, .stApp .stMarkdown, .stApp p, .stApp span, .stApp label, .stApp div[data-testid], 
     [data-testid="stFileUploader"] section::after {{
         font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", "Nanum Gothic", sans-serif !important;
