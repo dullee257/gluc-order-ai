@@ -491,7 +491,7 @@ st.markdown(f"""
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
     /* Streamlit expander 아이콘이 텍스트(arrow_down/right)로 보이는 현상 방지 */
     @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
-    .material-icons {
+    .material-icons {{
         font-family: 'Material Icons' !important;
         font-weight: normal !important;
         font-style: normal !important;
@@ -504,7 +504,7 @@ st.markdown(f"""
         direction: ltr !important;
         -webkit-font-feature-settings: 'liga' !important;
         -webkit-font-smoothing: antialiased !important;
-    }
+    }}
     .stApp, .stApp .stMarkdown, .stApp p, .stApp span, .stApp label, .stApp div[data-testid], 
     [data-testid="stFileUploader"] section::after {{
         font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", "Nanum Gothic", sans-serif !important;
