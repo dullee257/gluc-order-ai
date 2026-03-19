@@ -255,6 +255,7 @@ st.components.v1.html(
     height=0,
 )
 from google import genai  # 패키지: google-genai (구 google-generativeai 아님)
+from google.genai import types as gtypes
 from PIL import Image
 from datetime import datetime, timezone
 import io
@@ -307,6 +308,117 @@ def _format_record_date(date_str, saved_at_utc=None, lang="KO"):
     except Exception as e:
         sys.stderr.write(f"[날짜 포맷] {lang} {date_str!r}: {e}\n")
         return date_str or (str(saved_at_utc) if saved_at_utc else "")
+
+
+def _extract_json_blob_from_text(raw):
+    """Gemini 텍스트 응답에서 JSON 객체 문자열만 추출 (마크다운 펜스·잡담 대응)."""
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        raw = str(raw)
+    s = raw.strip()
+    if not s:
+        return None
+    fence = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", s, re.IGNORECASE)
+    if fence:
+        inner = fence.group(1).strip()
+        if inner.startswith("{"):
+            s = inner
+    dec = json.JSONDecoder()
+    i = s.find("{")
+    while i != -1:
+        try:
+            _obj, end = dec.raw_decode(s, i)
+            return s[i:end]
+        except json.JSONDecodeError:
+            i = s.find("{", i + 1)
+    return None
+
+
+def _coerce_int_nutrient(v, default=0):
+    """JSON 숫자 필드를 정수로 안전 변환."""
+    if v is None:
+        return default
+    if isinstance(v, bool):
+        return default
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float):
+        return int(round(v))
+    s = str(v).strip()
+    if not s:
+        return default
+    try:
+        return int(float(s))
+    except (TypeError, ValueError):
+        digits = "".join(c for c in s if c.isdigit() or c in ".-")
+        try:
+            return int(float(digits)) if digits else default
+        except (TypeError, ValueError):
+            return default
+
+
+def _parse_food_analysis_json_response(text):
+    """
+    비전 JSON 응답 → (sorted_items, total_carbs) 또는 None.
+    sorted_items 항목: [name, gi, carbs, protein, color, order, fat, kcal]
+    """
+    blob = _extract_json_blob_from_text(text)
+    if not blob:
+        return None
+    try:
+        data = json.loads(blob)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    items = data.get("items")
+    if not isinstance(items, list) or len(items) == 0:
+        return None
+    parsed = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        name = str(it.get("name", "")).strip()
+        if not name:
+            continue
+        gi = max(0, min(100, _coerce_int_nutrient(it.get("gi"), 50)))
+        carbs = max(0, _coerce_int_nutrient(it.get("carbs"), 0))
+        protein = max(0, _coerce_int_nutrient(it.get("protein"), 0))
+        fat = max(0, _coerce_int_nutrient(it.get("fat"), 0))
+        kcal = max(0, _coerce_int_nutrient(it.get("kcal"), 0))
+        signal = it.get("signal") or it.get("color") or "노랑"
+        signal = str(signal).strip() or "노랑"
+        order = max(1, _coerce_int_nutrient(it.get("order"), 99))
+        parsed.append([name, gi, carbs, protein, signal, order, fat, kcal])
+    if not parsed:
+        return None
+    sorted_items = sorted(parsed, key=lambda x: x[5])
+    sum_carbs = sum(x[2] for x in parsed)
+    tc_raw = data.get("total_carbs")
+    try:
+        tc = int(float(tc_raw))
+    except (TypeError, ValueError):
+        tc = sum_carbs
+    if sum_carbs > 0 and abs(tc - sum_carbs) > max(8, int(sum_carbs * 0.35)):
+        tc = sum_carbs
+    total_carbs = max(0, tc)
+    return sorted_items, total_carbs
+
+
+def _reset_vision_analysis_parse_error(is_guest, loading_placeholder):
+    """JSON 파싱 실패 시 게스트 횟수 복구·분석 상태 초기화·사용자 알림."""
+    if loading_placeholder is not None:
+        try:
+            loading_placeholder.empty()
+        except Exception:
+            pass
+    st.session_state["vision_analysis_status"] = "idle"
+    st.session_state.pop("current_analysis", None)
+    if is_guest and st.session_state.get("guest_usage_count", 0) > 0:
+        st.session_state["guest_usage_count"] -= 1
+    st.error("이미지 분석 중 오류가 발생했습니다. 다시 시도해 주세요.")
+
 
 def compress_image(img, max_size_kb=500, max_edge=1024):
     """이미지가 서버에 로드된 직후 500KB 이하로 브라우저 표시 및 전송 전에 최적화. 모바일 대용량 사진은 먼저 리사이즈해 인코딩 시간 단축."""
@@ -1936,6 +2048,8 @@ if menu_key == "scanner":
         st.session_state['app_stage'] = 'main'
     if 'current_page' not in st.session_state:
         st.session_state['current_page'] = 'main'
+    if "vision_analysis_status" not in st.session_state:
+        st.session_state["vision_analysis_status"] = "idle"
 
     API_KEY = _get_secret("GEMINI_API_KEY")
     if not API_KEY:
@@ -2695,6 +2809,7 @@ if menu_key == "scanner":
             st.session_state['app_stage'] = 'main'
             st.session_state['current_page'] = 'main'
             st.session_state['current_img'] = None
+            st.session_state["vision_analysis_status"] = "idle"
             st.session_state['uploader_key'] += 1 # 강제로 새 업로더 생성(초기화)
             st.rerun()
         
@@ -2759,6 +2874,7 @@ if menu_key == "scanner":
                 }
                 </style>
             """, unsafe_allow_html=True)
+            st.session_state["vision_analysis_status"] = "running"
             import time
             import random
             
@@ -2783,10 +2899,19 @@ if menu_key == "scanner":
                     last_model_err = ""
                     for _mm_model in _model_candidates:
                         try:
-                            response = client.models.generate_content(
-                                model=_mm_model,
-                                contents=[food_prompt, st.session_state['current_img']]
-                            )
+                            try:
+                                response = client.models.generate_content(
+                                    model=_mm_model,
+                                    contents=[food_prompt, st.session_state["current_img"]],
+                                    config=gtypes.GenerateContentConfig(
+                                        response_mime_type="application/json"
+                                    ),
+                                )
+                            except Exception:
+                                response = client.models.generate_content(
+                                    model=_mm_model,
+                                    contents=[food_prompt, st.session_state["current_img"]],
+                                )
                             break
                         except Exception as _me:
                             last_model_err = str(_me)
@@ -2797,42 +2922,21 @@ if menu_key == "scanner":
                     if response is None:
                         raise Exception(last_model_err or "No available Gemini multimodal model")
 
-                    # 결과 파싱 (업그레이드 형식: name|GI|carbs|protein|fat|kcal|color|order)
-                    raw_lines = response.text.strip().split('\n')
-                    items = []
-                    for line in raw_lines:
-                        line = line.strip()
-                        if '|' not in line:
-                            continue
-                        skip_words = ['---', 'GI', 'Food', '음식이름', '형식', '규칙', '예시', '칼로리']
-                        if any(x in line for x in skip_words):
-                            continue
-                        parts = [p.strip() for p in line.split('|')]
-                        try:
-                            if len(parts) >= 8:
-                                gi = int(''.join(filter(str.isdigit, parts[1])) or '50')
-                                carbs = int(''.join(filter(str.isdigit, parts[2])) or '0')
-                                protein = int(''.join(filter(str.isdigit, parts[3])) or '0')
-                                fat = int(''.join(filter(str.isdigit, parts[4])) or '0')
-                                kcal = int(''.join(filter(str.isdigit, parts[5])) or '0')
-                                order = int(''.join(filter(str.isdigit, parts[7])) or '99')
-                                items.append([parts[0], gi, carbs, protein, parts[6], order, fat, kcal])
-                            elif len(parts) >= 3:
-                                # 구 형식 fallback
-                                order = int(''.join(filter(str.isdigit, parts[2])) or '99')
-                                items.append([parts[0], 50, 30, 10, parts[1] if len(parts) > 1 else '노랑', order])
-                        except Exception:
-                            pass
+                    raw_text = (response.text or "").strip()
+                    parsed_tuple = _parse_food_analysis_json_response(raw_text)
+                    if not parsed_tuple:
+                        _reset_vision_analysis_parse_error(is_guest, loading_placeholder)
+                        success = True
+                        break
 
-                    if items:
-                        sorted_items = sorted(items, key=lambda x: x[5])
+                    sorted_items, total_carbs = parsed_tuple
+                    if sorted_items:
                         # 혈당 스코어 계산
-                        avg_gi = int(sum(i[1] for i in items) / len(items))
+                        avg_gi = int(sum(i[1] for i in sorted_items) / len(sorted_items))
                         blood_sugar_score = min(100, avg_gi)
-                        total_carbs = sum(i[2] for i in items)
-                        total_protein = sum(i[3] for i in items)
-                        total_fat = sum((i[6] if len(i) > 6 else 0) for i in items)
-                        total_kcal = sum((i[7] if len(i) > 7 else 0) for i in items)
+                        total_protein = sum(i[3] for i in sorted_items)
+                        total_fat = sum((i[6] if len(i) > 6 else 0) for i in sorted_items)
+                        total_kcal = sum((i[7] if len(i) > 7 else 0) for i in sorted_items)
 
                         # 소견 분석 (선택 언어로 응답하도록 prompts.get_advice_prompt 사용)
                         advice_res = None
@@ -2889,14 +2993,10 @@ if menu_key == "scanner":
                             "avg_gi": avg_gi,
                         }
                         loading_placeholder.empty()
+                        st.session_state["vision_analysis_status"] = "done"
                         st.session_state['app_stage'] = 'result'
                         success = True
                         st.rerun()
-                    else:
-                        loading_placeholder.empty()
-                        st.warning(t["analysis_failed"])
-                        success = True
-                        break
                         
                 except Exception as e:
                     err_str = str(e)
@@ -2913,6 +3013,7 @@ if menu_key == "scanner":
                     
             if not success:
                 loading_placeholder.empty()
+                st.session_state["vision_analysis_status"] = "idle"
                 # 에러로 인해 스캔이 실패했으므로, 게스트 유저인 경우 차감된 횟수를 1회 복구해줍니다.
                 if is_guest and st.session_state['guest_usage_count'] > 0:
                     st.session_state['guest_usage_count'] -= 1
@@ -2928,6 +3029,7 @@ if menu_key == "scanner":
             st.session_state['app_stage'] = 'main'
             st.session_state['current_page'] = 'main'
             st.session_state['current_img'] = None
+            st.session_state["vision_analysis_status"] = "idle"
             if 'uploader_key' in st.session_state:
                 st.session_state['uploader_key'] += 1
             st.warning(t["session_reset_msg"])
@@ -2938,6 +3040,7 @@ if menu_key == "scanner":
             st.session_state['current_page'] = 'main'
             st.session_state['current_img'] = None
             st.session_state['current_analysis'] = None
+            st.session_state["vision_analysis_status"] = "idle"
             if 'uploader_key' in st.session_state:
                 st.session_state['uploader_key'] += 1
             st.rerun()
@@ -3070,6 +3173,38 @@ if menu_key == "scanner":
                 </div>
             </div>"""
         st.markdown(cards_html, unsafe_allow_html=True)
+
+        # ── 4b. 예상 혈당 상승 (탄수화물 기반) 하이브리드 경고 — 권장 섭취 순서 바로 위
+        try:
+            _tc_for_spike = int(round(float(total_carbs)))
+        except (TypeError, ValueError):
+            _tc_for_spike = 0
+        estimated_spike = int(round(_tc_for_spike * 3))
+        if estimated_spike < 60:
+            st.markdown(
+                f'<h3 style="color:#2ecc71; margin-bottom:5px;">🌿 예상 혈당 상승: +{estimated_spike} mg/dL</h3>',
+                unsafe_allow_html=True,
+            )
+            st.success("훌륭합니다! 식후 혈당이 완만하게 오르는 안전한 식단입니다.")
+        elif estimated_spike < 120:
+            st.markdown(
+                f'<h3 style="color:#f39c12; margin-bottom:5px;">⚠️ 예상 혈당 상승: +{estimated_spike} mg/dL</h3>',
+                unsafe_allow_html=True,
+            )
+            st.warning(
+                "주의! 탄수화물 비중이 있습니다. 반드시 채소와 단백질을 먼저 드셔서 혈당을 방어하세요."
+            )
+        else:
+            st.markdown(
+                f'<h3 style="color:#e74c3c; font-weight:900; margin-bottom:5px;">🚨 위험! 예상 혈당 상승: 최대 +{estimated_spike} mg/dL</h3>',
+                unsafe_allow_html=True,
+            )
+            st.error(
+                "경고! 탄수화물 폭탄입니다. 이대로 드시면 혈당 스파이크가 발생합니다. 밥이나 면의 양을 절반으로 줄이세요!"
+            )
+        st.caption(
+            "* 위 수치는 탄수화물 총량을 기반으로 한 단순 예측치이며, 개인의 대사량과 체질에 따라 다를 수 있습니다. 의학적 진단으로 사용될 수 없습니다."
+        )
 
         # ── 5. 권장 섭취 순서 태그 ──
         st.markdown(f"""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">{t['recommended_order_section']}</div></div>""", unsafe_allow_html=True)
