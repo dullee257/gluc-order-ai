@@ -3117,23 +3117,46 @@ if menu_key == "scanner":
         </div>
         """, unsafe_allow_html=True)
 
-        # ── 3. 혈당 스파이크 예측 바 ──
-        spike_label = t["spike_low"] if score <= 40 else t["spike_mid"] if score <= 65 else t["spike_high"]
-        st.markdown(f"""
-        <div style="background:white;border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #f0f0f0;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
-                <div style="font-weight:700;font-size:14px;color:#333;">{t['spike_prediction']}</div>
-                <div style="font-weight:700;font-size:14px;color:{risk_color};">{spike_label}</div>
+        # ── 3. 혈당 스파이크 예측 바 + 하이브리드 경고 (한 컨테이너에 묶어서 시각적 덩어리화) ──
+        with st.container():
+            spike_label = t["spike_low"] if score <= 40 else t["spike_mid"] if score <= 65 else t["spike_high"]
+            st.markdown(f"""
+            <div style="background:white;border-radius:14px;padding:14px 14px 10px 14px;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #f0f0f0;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">
+                    <div style="font-weight:700;font-size:14px;color:#333;">{t['spike_prediction']}</div>
+                    <div style="font-weight:700;font-size:14px;color:{risk_color};">{spike_label}</div>
+                </div>
+                <div style="background:#f0f0f0;border-radius:8px;height:10px;overflow:hidden;">
+                    <div style="background:linear-gradient(90deg,#4CAF50,#FFB300,#F44336);width:{score}%;height:10px;border-radius:8px;"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                    <div style="font-size:10px;color:#aaa;">{t['safe_end']}</div>
+                    <div style="font-size:10px;color:#aaa;">{t['danger_end']}</div>
+                </div>
             </div>
-            <div style="background:#f0f0f0;border-radius:8px;height:10px;overflow:hidden;">
-                <div style="background:linear-gradient(90deg,#4CAF50,#FFB300,#F44336);width:{score}%;height:10px;border-radius:8px;"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-top:4px;">
-                <div style="font-size:10px;color:#aaa;">{t['safe_end']}</div>
-                <div style="font-size:10px;color:#aaa;">{t['danger_end']}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+
+            # 탄수화물 기반 예상 혈당 상승 하이브리드 경고 (그래프 바로 아래 밀착)
+            try:
+                _tc_for_spike = int(round(float(total_carbs)))
+            except (TypeError, ValueError):
+                _tc_for_spike = 0
+            estimated_spike = int(round(_tc_for_spike * 2))
+            if estimated_spike < 60:
+                st.success(
+                    "훌륭합니다! 식후 혈당이 완만하게 유지되는 착한 식단입니다. 마음 편히 즐기세요!"
+                )
+            elif estimated_spike < 120:
+                st.warning(
+                    "탄수화물이 꽤 포함되어 있습니다. 본격적인 식사 전, 샐러드나 나물 반찬을 한 입 먼저 드시면 혈당 곡선을 훨씬 부드럽게 만들 수 있습니다."
+                )
+            else:
+                st.error(
+                    "맛있는 대중 음식이지만 탄수화물 비중이 높아 혈당이 뛸 수 있습니다. 드시기 전에 주변 편의점에서 **감동란(계란), 스트링 치즈, 무가당 두유**를 곁들여 단백질 방어막을 쳐보세요!"
+                )
+            st.caption(
+                "* 위 수치는 탄수화물 총량을 기반으로 한 단순 예측치이며, 개인의 대사량과 체질에 따라 다를 수 있습니다. 의학적 진단으로 사용될 수 없습니다."
+            )
 
         # ── 4. 음식별 혈당 분석 카드 (GI 바 포함) ──
         st.markdown(f"""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">{t['food_analysis_section']}</div></div>""", unsafe_allow_html=True)
@@ -3173,40 +3196,6 @@ if menu_key == "scanner":
                 </div>
             </div>"""
         st.markdown(cards_html, unsafe_allow_html=True)
-
-        # ── 4b. 예상 혈당 상승 (탄수화물 기반) 하이브리드 경고 — 권장 섭취 순서 바로 위
-        try:
-            _tc_for_spike = int(round(float(total_carbs)))
-        except (TypeError, ValueError):
-            _tc_for_spike = 0
-        estimated_spike = int(round(_tc_for_spike * 2))
-        if estimated_spike < 60:
-            st.markdown(
-                f'<h3 style="color:#2ecc71; margin-bottom:5px;">🌿 편안한 혈당 (예상 +{estimated_spike} mg/dL)</h3>',
-                unsafe_allow_html=True,
-            )
-            st.success(
-                "훌륭합니다! 식후 혈당이 완만하게 유지되는 착한 식단입니다. 마음 편히 즐기세요!"
-            )
-        elif estimated_spike < 120:
-            st.markdown(
-                f'<h3 style="color:#f39c12; margin-bottom:5px;">🟡 혈당 방어 추천 (예상 +{estimated_spike} mg/dL)</h3>',
-                unsafe_allow_html=True,
-            )
-            st.warning(
-                "탄수화물이 꽤 포함되어 있습니다. 본격적인 식사 전, 샐러드나 나물 반찬을 한 입 먼저 드시면 혈당 곡선을 훨씬 부드럽게 만들 수 있습니다."
-            )
-        else:
-            st.markdown(
-                f'<h3 style="color:#e74c3c; font-weight:900; margin-bottom:5px;">🚨 적극적인 방어 필요! (예상 +{estimated_spike} mg/dL)</h3>',
-                unsafe_allow_html=True,
-            )
-            st.error(
-                "맛있는 대중 음식이지만 탄수화물 비중이 높아 혈당이 뛸 수 있습니다. 드시기 전에 주변 편의점에서 **감동란(계란), 스트링 치즈, 무가당 두유**를 곁들여 단백질 방어막을 쳐보세요!"
-            )
-        st.caption(
-            "* 위 수치는 탄수화물 총량을 기반으로 한 단순 예측치이며, 개인의 대사량과 체질에 따라 다를 수 있습니다. 의학적 진단으로 사용될 수 없습니다."
-        )
 
         # ── 5. 권장 섭취 순서 태그 ──
         st.markdown(f"""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">{t['recommended_order_section']}</div></div>""", unsafe_allow_html=True)
