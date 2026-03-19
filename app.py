@@ -490,54 +490,37 @@ st.markdown(f"""
     /* 한글 표시: Noto Sans KR 로드 후 전역 적용 (한글 깨짐 방지) */
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
     /*
-     * st.expander: Material Icons 외부 폰트 제거. 아이콘 글리프가 'arrow_right' 등 텍스트로
-     * 겹쳐 보이는 문제 → 유니코드 화살표(› / ⌄)로 대체 + flex로 라벨·화살표 간격 확보.
+     * st.expander: 스트림릿 기본 아이콘·SVG 전부 숨김 → summary::after 유니코드 화살표만 사용
      */
-    [data-testid="stExpander"] details > summary {{
+    [data-testid="stExpander"] details summary {{
+        list-style: none !important;
         display: flex !important;
-        align-items: center !important;
         justify-content: space-between !important;
+        align-items: center !important;
         gap: 12px !important;
         width: 100% !important;
         box-sizing: border-box !important;
         padding: 0.4rem 0.65rem 0.4rem 0.35rem !important;
-        list-style: none !important;
     }}
-    [data-testid="stExpander"] details > summary::-webkit-details-marker {{
+    [data-testid="stExpander"] details summary::-webkit-details-marker {{
         display: none !important;
     }}
-    [data-testid="stExpander"] .material-icons {{
-        font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif !important;
-        font-size: 0 !important;
-        line-height: 0 !important;
-        letter-spacing: normal !important;
-        text-transform: none !important;
-        width: 1.35em !important;
-        min-width: 1.35em !important;
-        height: 1.35em !important;
-        flex: 0 0 auto !important;
-        position: relative !important;
-        margin-left: 10px !important;
-        overflow: visible !important;
-        color: transparent !important;
+    [data-testid="stExpander"] details summary svg,
+    [data-testid="stExpander"] details summary .material-icons,
+    [data-testid="stExpander"] details summary .st-icon,
+    [data-testid="stExpanderIcon"] {{
+        display: none !important;
     }}
-    [data-testid="stExpander"] .material-icons::after {{
-        content: '›' !important;
-        font-size: 1.2rem !important;
-        line-height: 1.2 !important;
-        font-weight: 600 !important;
-        color: rgba(49, 51, 63, 0.75) !important;
-        position: absolute !important;
-        right: 0 !important;
-        top: 50% !important;
-        transform: translateY(-50%) !important;
-        display: block !important;
-        width: 1em !important;
-        text-align: center !important;
-    }}
-    [data-testid="stExpander"] details[open] > summary .material-icons::after {{
+    [data-testid="stExpander"] details summary::after {{
         content: '⌄' !important;
-        transform: translateY(-40%) !important;
+        font-size: 1.2rem !important;
+        color: #666 !important;
+        margin-left: auto !important;
+        flex-shrink: 0 !important;
+        line-height: 1 !important;
+    }}
+    [data-testid="stExpander"] details[open] summary::after {{
+        content: '⌃' !important;
     }}
     [data-testid="stExpander"] details > summary > div:first-child,
     [data-testid="stExpander"] details > summary .stMarkdown {{
@@ -3039,7 +3022,7 @@ elif menu_key == "history":
             st.rerun()
         st.markdown("---")
 
-    # st.expander 화살표(_arrow_right) 겹침 제거: 버튼 토글로 대체
+    # st.expander: 이력 목록은 버튼 토글로 펼침 (CSS는 전역 <style>의 stExpander 규칙 적용)
     if st.session_state['history']:
         for i, rec in enumerate(reversed(st.session_state['history'])):
             rec_score = rec.get('blood_sugar_score', 0)
