@@ -562,43 +562,44 @@ st.markdown(f"""
         -webkit-text-size-adjust: 100% !important;
     }}
     /*
-     * st.expander: 스트림릿 기본 아이콘·SVG 전부 숨김 → summary::after 유니코드 화살표만 사용
+     * st.expander: 기본 아이콘·SVG·래퍼 물리적 제거, 라벨은 이모지 문구로 안내(우측 가상 화살표 없음)
      */
     [data-testid="stExpander"] details summary {{
         list-style: none !important;
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        gap: 12px !important;
+        display: block !important;
         width: 100% !important;
         box-sizing: border-box !important;
-        padding: 0.4rem 0.65rem 0.4rem 0.35rem !important;
+        padding: 0.4rem 0.5rem !important;
+        text-align: left !important;
     }}
     [data-testid="stExpander"] details summary::-webkit-details-marker {{
         display: none !important;
     }}
+    /* Expander 우측 기본 아이콘 및 잔여 영역 완전 제거 */
     [data-testid="stExpander"] details summary svg,
     [data-testid="stExpander"] details summary .material-icons,
+    [data-testid="stExpander"] details summary i,
+    [data-testid="stExpander"] details summary [data-testid="stExpanderIconWrapper"],
     [data-testid="stExpander"] details summary .st-icon,
     [data-testid="stExpanderIcon"] {{
         display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
     }}
     [data-testid="stExpander"] details summary::after {{
-        content: '⌄' !important;
-        font-size: 1.2rem !important;
-        color: #666 !important;
-        margin-left: auto !important;
-        flex-shrink: 0 !important;
-        line-height: 1 !important;
-    }}
-    [data-testid="stExpander"] details[open] summary::after {{
-        content: '⌃' !important;
+        content: none !important;
+        display: none !important;
     }}
     [data-testid="stExpander"] details > summary > div:first-child,
     [data-testid="stExpander"] details > summary .stMarkdown {{
-        flex: 1 1 auto !important;
-        min-width: 0 !important;
-        padding-right: 6px !important;
+        text-align: left !important;
     }}
     .stApp, .stApp .stMarkdown, .stApp p, .stApp span, .stApp label, .stApp div[data-testid], 
     [data-testid="stFileUploader"] section::after {{
@@ -1031,9 +1032,9 @@ if not st.session_state['logged_in']:
             st.rerun()
 
         agree_all = st.checkbox(_t["terms_agree_all"], key="terms_cb_all")
-        with st.expander(_t["terms_required_tos"], expanded=False):
+        with st.expander(_t.get("terms_expander_tos", _t["terms_required_tos"]), expanded=False):
             st.markdown(_load_legal_markdown("terms", _lg))
-        with st.expander(_t["terms_required_privacy"], expanded=False):
+        with st.expander(_t.get("terms_expander_privacy", _t["terms_required_privacy"]), expanded=False):
             st.markdown(_load_legal_markdown("privacy", _lg))
 
         if agree_all:

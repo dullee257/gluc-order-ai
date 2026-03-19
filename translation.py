@@ -145,6 +145,8 @@ def _ko():
         "terms_agree_all": "전체 약관에 동의합니다",
         "terms_required_tos": "[필수] 이용약관",
         "terms_required_privacy": "[필수] 개인정보 수집 및 이용 동의",
+        "terms_expander_tos": "🔽 [필수] 이용약관 상세보기",
+        "terms_expander_privacy": "🔽 [필수] 개인정보 수집 및 이용 동의 상세보기",
         "terms_continue_btn": "동의하고 계속하기",
         "terms_must_check": "필수 약관에 모두 동의해 주세요.",
         "auth_back": "← 뒤로",
