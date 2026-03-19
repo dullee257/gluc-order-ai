@@ -1097,8 +1097,40 @@ if not st.session_state['logged_in']:
     body.auth-login-splash [data-testid="stDecoration"] { display: none !important; }
     body.auth-login-splash .block-container { padding-top: 0.75rem !important; max-width: 100% !important; }
     body.auth-login-splash .stApp { background: linear-gradient(180deg, #e8f5e9 0%, #fafafa 45%, #ffffff 100%) !important; min-height: 100vh !important; }
-    .auth-splash-logo { text-align: center; font-size: clamp(3rem, 14vw, 4.5rem); line-height: 1.2; margin-top: 8vh; }
-    .auth-splash-copy { text-align: center; font-size: clamp(1.05rem, 4.2vw, 1.35rem); font-weight: 600; color: #2e7d32; margin: 1.5rem 1rem 2rem; line-height: 1.45; }
+    .splash-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 55vh;
+      text-align: center;
+      padding: 0 1rem;
+    }
+    .splash-title {
+      font-size: clamp(2.3rem, 10vw, 3rem);
+      font-weight: 800;
+      color: #1a1a1a;
+      line-height: 1.2;
+      margin: 0;
+      animation: tracking-in 1.2s cubic-bezier(0.215, 0.610, 0.355, 1.000) both;
+    }
+    .splash-subtitle {
+      font-size: clamp(1rem, 4.2vw, 1.15rem);
+      font-weight: 600;
+      color: #2ecc71;
+      line-height: 1.5;
+      margin: 0.85rem 0 0;
+      animation: fade-in-up 1s ease-out 0.8s both;
+    }
+    @keyframes tracking-in {
+      0% { letter-spacing: 0.5em; opacity: 0; }
+      40% { opacity: 0.6; }
+      100% { letter-spacing: normal; opacity: 1; }
+    }
+    @keyframes fade-in-up {
+      0% { transform: translateY(20px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
     .auth-sheet-enter main .block-container { animation: authSlideUp 0.42s ease-out; }
     @keyframes authSlideUp { from { transform: translateY(72%); opacity: 0.65; } to { transform: translateY(0); opacity: 1; } }
     .auth-soc-row button { height: 48px !important; font-weight: 700 !important; border-radius: 12px !important; }
@@ -1194,8 +1226,15 @@ if not st.session_state['logged_in']:
 
     # ---------- 스플래시 (첫 진입) ----------
     if not st.session_state.get("auth_splash_done"):
-        st.markdown(f'<div class="auth-splash-logo">{t["title"]}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="auth-splash-copy">{_t.get("splash_main_copy", "")}</div>', unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <div class="splash-container">
+              <div class="splash-title">{t["title"]}</div>
+              <div class="splash-subtitle">{_t.get("splash_main_copy", "")}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         st.markdown("<div style='height:18vh;'></div>", unsafe_allow_html=True)
         if st.button(_t.get("splash_start_btn", "시작하기"), type="primary", use_container_width=True, key="splash_start"):
             st.session_state["auth_splash_done"] = True
