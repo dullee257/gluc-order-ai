@@ -1131,41 +1131,26 @@ if not st.session_state['logged_in']:
       margin-top: 5px;
     }
     .spike-crash-animation {
-      margin-top: 30px;
-      position: relative;
-      font-size: 4rem;
-      line-height: 1;
-      animation: scale-in-center 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) 2s both,
-                 spike-vibrate 0.2s 2.5s 2;
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
     }
-    .spike-icon { color: #e74c3c; }
-    .crash-cracks {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+    .real-spike-svg { overflow: visible; }
+    .spike-left, .spike-right {
+      stroke-dasharray: 200;
+      stroke-dashoffset: 200;
+      animation: draw-graph 0.5s ease-out 1.2s forwards;
+    }
+    .spike-right {
+      transform-origin: 55px 20px;
+      will-change: transform, opacity;
+      animation: draw-graph 0.5s ease-out 1.2s forwards,
+                 break-and-fall 0.6s cubic-bezier(0.550, 0.085, 0.680, 0.530) 2.0s forwards;
+    }
+    .slash-effect {
       opacity: 0;
-      animation: cracks-flash 0.3s 2.5s ease-out both;
-    }
-    .crash-cracks::before, .crash-cracks::after {
-      content: '';
-      position: absolute;
-      background-color: white;
-    }
-    .crash-cracks::before {
-      width: 2px;
-      height: 100%;
-      top: 0;
-      left: 50%;
-      transform: translateX(-50%) rotate(15deg);
-    }
-    .crash-cracks::after {
-      width: 100%;
-      height: 2px;
-      top: 50%;
-      left: 0;
-      transform: translateY(-50%) rotate(-10deg);
+      will-change: transform, opacity;
+      animation: flash-slash 0.3s ease-out 1.9s forwards;
     }
     @keyframes tracking-in {
       0% { letter-spacing: 0.5em; opacity: 0; }
@@ -1176,25 +1161,15 @@ if not st.session_state['logged_in']:
       0% { transform: translateY(20px); opacity: 0; }
       100% { transform: translateY(0); opacity: 1; }
     }
-    @keyframes scale-in-center {
-      0% { transform: scale(0); opacity: 0; }
-      100% { transform: scale(1); opacity: 1; }
+    @keyframes draw-graph { to { stroke-dashoffset: 0; } }
+    @keyframes flash-slash {
+      0% { opacity: 0; transform: scale(0.5) translate(-20px, 20px); }
+      50% { opacity: 1; transform: scale(1.2) translate(0, 0); }
+      100% { opacity: 0; transform: scale(1.5) translate(20px, -20px); }
     }
-    @keyframes cracks-flash {
-      0% { opacity: 0; }
-      10% { opacity: 1; }
-      100% {
-        opacity: 0;
-        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
-      }
-    }
-    @keyframes spike-vibrate {
-      0% { transform: translate(0); }
-      20% { transform: translate(-2px, 2px); }
-      40% { transform: translate(-2px, -2px); }
-      60% { transform: translate(2px, 2px); }
-      80% { transform: translate(2px, -2px); }
-      100% { transform: translate(0); }
+    @keyframes break-and-fall {
+      0% { transform: rotate(0) translate(0, 0); opacity: 1; }
+      100% { transform: rotate(60deg) translate(30px, 80px); opacity: 0; }
     }
     .auth-sheet-enter main .block-container { animation: authSlideUp 0.42s ease-out; }
     @keyframes authSlideUp { from { transform: translateY(72%); opacity: 0.65; } to { transform: translateY(0); opacity: 1; } }
@@ -1298,8 +1273,11 @@ if not st.session_state['logged_in']:
               <div class="splash-subtitle-line1">같은 음식인데 결과는 다르다</div>
               <div class="splash-subtitle-line2">먹는 순서가 바꾸는 혈당 변화</div>
               <div class="spike-crash-animation">
-                <div class="spike-icon">⚡</div>
-                <div class="crash-cracks"></div>
+                <svg viewBox="0 0 100 100" width="120" height="120" class="real-spike-svg" aria-hidden="true">
+                  <path class="spike-left" d="M 5,80 L 40,80 L 55,20" stroke="#e74c3c" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                  <path class="spike-right" d="M 55,20 L 70,80 L 95,80" stroke="#e74c3c" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                  <line class="slash-effect" x1="20" y1="60" x2="90" y2="-10" stroke="#ffffff" stroke-width="8" stroke-linecap="round" />
+                </svg>
               </div>
             </div>
             """,
