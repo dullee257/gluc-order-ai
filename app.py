@@ -482,7 +482,7 @@ with st.sidebar:
 # 3-2. 브라우저 자동번역 방지: KR 단일 타겟팅 (항상 ko)
 st.markdown('<script>try{document.documentElement.lang="ko";}catch(e){}</script>', unsafe_allow_html=True)
 
-# 3-2b. 모바일: viewport 고정 + 핀치/더블탭 줌 완화 (iframe·부모 문서 모두 시도)
+# 3-2b. 모바일: viewport 고정 + CSS/JS로 핀치·더블탭 줌 억제 (iframe·부모 문서)
 st.markdown(
     r"""
 <script>
@@ -505,6 +505,45 @@ st.markdown(
     }
   } catch (e) {}
 })();
+
+function blockZoom(doc) {
+  if (!doc || !doc.addEventListener) return;
+  doc.addEventListener(
+    "touchmove",
+    function (event) {
+      var multi = event.touches && event.touches.length > 1;
+      var scaled = typeof event.scale === "number" && event.scale !== 1;
+      if (multi || scaled) {
+        event.preventDefault();
+      }
+    },
+    { passive: false }
+  );
+
+  var lastTouchEnd = 0;
+  doc.addEventListener(
+    "touchend",
+    function (event) {
+      var now = new Date().getTime();
+      if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    },
+    { passive: false }
+  );
+
+  doc.addEventListener("gesturestart", function (event) {
+    event.preventDefault();
+  });
+}
+
+try { blockZoom(document); } catch (e) {}
+try {
+  if (window.parent && window.parent.document) {
+    blockZoom(window.parent.document);
+  }
+} catch (e) {}
 </script>
 """,
     unsafe_allow_html=True,
@@ -517,9 +556,9 @@ st.markdown(f"""
 <style>
     /* 한글 표시: Noto Sans KR 로드 후 전역 적용 (한글 깨짐 방지) */
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
-    /* 모바일: 더블탭 줌·텍스트 자동 확대 완화 (touch-action: manipulation) */
+    /* 모바일: 스크롤(pan)만 허용, 핀치·더블탭 확대 제스처 억제 (pan-x pan-y) */
     html, body, .stApp, .block-container, button, input, select, textarea {{
-        touch-action: manipulation !important;
+        touch-action: pan-x pan-y !important;
         -webkit-text-size-adjust: 100% !important;
     }}
     /*
