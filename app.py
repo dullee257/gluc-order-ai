@@ -1112,15 +1112,60 @@ if not st.session_state['logged_in']:
       color: #1a1a1a;
       line-height: 1.2;
       margin: 0;
-      animation: tracking-in 1.2s cubic-bezier(0.215, 0.610, 0.355, 1.000) both;
+      animation: tracking-in 0.8s ease-out both;
     }
-    .splash-subtitle {
-      font-size: clamp(1rem, 4.2vw, 1.15rem);
-      font-weight: 600;
+    .splash-subtitle-line1 {
+      animation: fade-in-up 0.8s ease-out 0.6s both;
+      font-size: clamp(1rem, 4.1vw, 1.1rem);
+      font-weight: 700;
+      color: #333;
+      line-height: 1.45;
+      margin-top: 0.95rem;
+    }
+    .splash-subtitle-line2 {
+      animation: fade-in-up 0.8s ease-out 1.2s both;
+      font-weight: 800;
       color: #2ecc71;
-      line-height: 1.5;
-      margin: 0.85rem 0 0;
-      animation: fade-in-up 1s ease-out 0.8s both;
+      font-size: clamp(1.1rem, 4.6vw, 1.3rem);
+      line-height: 1.45;
+      margin-top: 5px;
+    }
+    .spike-crash-animation {
+      margin-top: 30px;
+      position: relative;
+      font-size: 4rem;
+      line-height: 1;
+      animation: scale-in-center 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) 2s both,
+                 spike-vibrate 0.2s 2.5s 2;
+    }
+    .spike-icon { color: #e74c3c; }
+    .crash-cracks {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      animation: cracks-flash 0.3s 2.5s ease-out both;
+    }
+    .crash-cracks::before, .crash-cracks::after {
+      content: '';
+      position: absolute;
+      background-color: white;
+    }
+    .crash-cracks::before {
+      width: 2px;
+      height: 100%;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%) rotate(15deg);
+    }
+    .crash-cracks::after {
+      width: 100%;
+      height: 2px;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%) rotate(-10deg);
     }
     @keyframes tracking-in {
       0% { letter-spacing: 0.5em; opacity: 0; }
@@ -1130,6 +1175,26 @@ if not st.session_state['logged_in']:
     @keyframes fade-in-up {
       0% { transform: translateY(20px); opacity: 0; }
       100% { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes scale-in-center {
+      0% { transform: scale(0); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes cracks-flash {
+      0% { opacity: 0; }
+      10% { opacity: 1; }
+      100% {
+        opacity: 0;
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+      }
+    }
+    @keyframes spike-vibrate {
+      0% { transform: translate(0); }
+      20% { transform: translate(-2px, 2px); }
+      40% { transform: translate(-2px, -2px); }
+      60% { transform: translate(2px, 2px); }
+      80% { transform: translate(2px, -2px); }
+      100% { transform: translate(0); }
     }
     .auth-sheet-enter main .block-container { animation: authSlideUp 0.42s ease-out; }
     @keyframes authSlideUp { from { transform: translateY(72%); opacity: 0.65; } to { transform: translateY(0); opacity: 1; } }
@@ -1227,10 +1292,15 @@ if not st.session_state['logged_in']:
     # ---------- 스플래시 (첫 진입) ----------
     if not st.session_state.get("auth_splash_done"):
         st.markdown(
-            f"""
+            """
             <div class="splash-container">
-              <div class="splash-title">{t["title"]}</div>
-              <div class="splash-subtitle">{_t.get("splash_main_copy", "")}</div>
+              <div class="splash-title">혈당스캐너 AI</div>
+              <div class="splash-subtitle-line1">같은 음식인데 결과는 다르다</div>
+              <div class="splash-subtitle-line2">먹는 순서가 바꾸는 혈당 변화</div>
+              <div class="spike-crash-animation">
+                <div class="spike-icon">⚡</div>
+                <div class="crash-cracks"></div>
+              </div>
             </div>
             """,
             unsafe_allow_html=True,
