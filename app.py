@@ -482,6 +482,34 @@ with st.sidebar:
 # 3-2. 브라우저 자동번역 방지: KR 단일 타겟팅 (항상 ko)
 st.markdown('<script>try{document.documentElement.lang="ko";}catch(e){}</script>', unsafe_allow_html=True)
 
+# 3-2b. 모바일: viewport 고정 + 핀치/더블탭 줌 완화 (iframe·부모 문서 모두 시도)
+st.markdown(
+    r"""
+<script>
+(function () {
+  var VIEWPORT = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no";
+  function fixViewport(doc) {
+    if (!doc || !doc.head) return;
+    var m = doc.querySelector('meta[name="viewport"]');
+    if (!m) {
+      m = doc.createElement("meta");
+      m.setAttribute("name", "viewport");
+      doc.head.insertBefore(m, doc.head.firstChild);
+    }
+    m.setAttribute("content", VIEWPORT);
+  }
+  try { fixViewport(document); } catch (e) {}
+  try {
+    if (window.parent && window.parent !== window && window.parent.document) {
+      fixViewport(window.parent.document);
+    }
+  } catch (e) {}
+})();
+</script>
+""",
+    unsafe_allow_html=True,
+)
+
 # 4. 피그마 디자인 + 한글 표시 보장 (UTF-8·폰트)
 # 업로더 placeholder: CSS content 내 따옴표·백슬래시 이스케이프 (글자 오류 방지)
 _uploader_ph = (t.get("uploader_placeholder") or "식단 스캔 시작").replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
@@ -489,6 +517,11 @@ st.markdown(f"""
 <style>
     /* 한글 표시: Noto Sans KR 로드 후 전역 적용 (한글 깨짐 방지) */
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+    /* 모바일: 더블탭 줌·텍스트 자동 확대 완화 (touch-action: manipulation) */
+    html, body, .stApp, .block-container, button, input, select, textarea {{
+        touch-action: manipulation !important;
+        -webkit-text-size-adjust: 100% !important;
+    }}
     /*
      * st.expander: 스트림릿 기본 아이콘·SVG 전부 숨김 → summary::after 유니코드 화살표만 사용
      */
