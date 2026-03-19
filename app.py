@@ -3179,28 +3179,30 @@ if menu_key == "scanner":
             _tc_for_spike = int(round(float(total_carbs)))
         except (TypeError, ValueError):
             _tc_for_spike = 0
-        estimated_spike = int(round(_tc_for_spike * 3))
+        estimated_spike = int(round(_tc_for_spike * 2))
         if estimated_spike < 60:
             st.markdown(
-                f'<h3 style="color:#2ecc71; margin-bottom:5px;">🌿 예상 혈당 상승: +{estimated_spike} mg/dL</h3>',
+                f'<h3 style="color:#2ecc71; margin-bottom:5px;">🌿 편안한 혈당 (예상 +{estimated_spike} mg/dL)</h3>',
                 unsafe_allow_html=True,
             )
-            st.success("훌륭합니다! 식후 혈당이 완만하게 오르는 안전한 식단입니다.")
+            st.success(
+                "훌륭합니다! 식후 혈당이 완만하게 유지되는 착한 식단입니다. 마음 편히 즐기세요!"
+            )
         elif estimated_spike < 120:
             st.markdown(
-                f'<h3 style="color:#f39c12; margin-bottom:5px;">⚠️ 예상 혈당 상승: +{estimated_spike} mg/dL</h3>',
+                f'<h3 style="color:#f39c12; margin-bottom:5px;">🟡 혈당 방어 추천 (예상 +{estimated_spike} mg/dL)</h3>',
                 unsafe_allow_html=True,
             )
             st.warning(
-                "주의! 탄수화물 비중이 있습니다. 반드시 채소와 단백질을 먼저 드셔서 혈당을 방어하세요."
+                "탄수화물이 꽤 포함되어 있습니다. 본격적인 식사 전, 샐러드나 나물 반찬을 한 입 먼저 드시면 혈당 곡선을 훨씬 부드럽게 만들 수 있습니다."
             )
         else:
             st.markdown(
-                f'<h3 style="color:#e74c3c; font-weight:900; margin-bottom:5px;">🚨 위험! 예상 혈당 상승: 최대 +{estimated_spike} mg/dL</h3>',
+                f'<h3 style="color:#e74c3c; font-weight:900; margin-bottom:5px;">🚨 적극적인 방어 필요! (예상 +{estimated_spike} mg/dL)</h3>',
                 unsafe_allow_html=True,
             )
             st.error(
-                "경고! 탄수화물 폭탄입니다. 이대로 드시면 혈당 스파이크가 발생합니다. 밥이나 면의 양을 절반으로 줄이세요!"
+                "맛있는 대중 음식이지만 탄수화물 비중이 높아 혈당이 뛸 수 있습니다. 드시기 전에 주변 편의점에서 **감동란(계란), 스트링 치즈, 무가당 두유**를 곁들여 단백질 방어막을 쳐보세요!"
             )
         st.caption(
             "* 위 수치는 탄수화물 총량을 기반으로 한 단순 예측치이며, 개인의 대사량과 체질에 따라 다를 수 있습니다. 의학적 진단으로 사용될 수 없습니다."
