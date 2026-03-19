@@ -545,28 +545,43 @@ try {
   }
 } catch (e) {}
 
-/* st.expander: _arrow_right / arrow_right 가 텍스트 노드로만 박힌 경우 제거 (React innerHTML 불변) */
+/* st.expander: Streamlit 1.47+ stIconMaterial 폰트 미로드 시 노출되는 glyph 이름 텍스트 제거 (summary 밖 포함) */
 (function () {
-  function stripGhostTextInSummary(summary) {
-    if (!summary || !summary.ownerDocument) return;
-    var doc = summary.ownerDocument;
+  var GHOST_PARTS = [
+    "_arrow_right",
+    "_arrow_down",
+    "_arrow_drop_down",
+    "_arrow_drop_up",
+    "arrow_right",
+    "arrow_down",
+    "keyboard_arrow_right",
+    "keyboard_arrow_down",
+    "keyboard_arrow_up",
+  ];
+  function stripGhostTextInSubtree(root) {
+    if (!root || !root.ownerDocument) return;
+    var doc = root.ownerDocument;
     try {
-      var walker = doc.createTreeWalker(summary, NodeFilter.SHOW_TEXT, null, false);
+      var walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
       var node;
       while ((node = walker.nextNode())) {
         if (!node.nodeValue) continue;
         var v = node.nodeValue;
-        if (v.indexOf("_arrow_right") === -1 && v.indexOf("arrow_right") === -1) continue;
-        node.nodeValue = v.split("_arrow_right").join("").split("arrow_right").join("");
+        var next = v;
+        for (var p = 0; p < GHOST_PARTS.length; p++) {
+          var part = GHOST_PARTS[p];
+          if (next.indexOf(part) !== -1) next = next.split(part).join("");
+        }
+        if (next !== v) node.nodeValue = next;
       }
     } catch (err) {}
   }
 
   function stripAllExpanderGhostText(doc) {
     if (!doc || !doc.querySelectorAll) return;
-    var list = doc.querySelectorAll('[data-testid="stExpander"] summary');
+    var list = doc.querySelectorAll('[data-testid="stExpander"]');
     for (var i = 0; i < list.length; i++) {
-      stripGhostTextInSummary(list[i]);
+      stripGhostTextInSubtree(list[i]);
     }
   }
 
@@ -580,6 +595,13 @@ try {
       if (t) clearTimeout(t);
       t = setTimeout(function () {
         stripAllExpanderGhostText(doc);
+        try {
+          if (typeof requestAnimationFrame === "function") {
+            requestAnimationFrame(function () {
+              stripAllExpanderGhostText(doc);
+            });
+          }
+        } catch (e1) {}
         t = null;
       }, 0);
     }
@@ -640,6 +662,8 @@ st.markdown(f"""
     [data-testid="stExpander"] details summary .material-icons,
     [data-testid="stExpander"] details summary i,
     [data-testid="stExpander"] details summary [data-testid="stExpanderIconWrapper"],
+    [data-testid="stExpander"] details summary [data-testid="stIconMaterial"],
+    [data-testid="stExpander"] [data-testid="stIconMaterial"],
     [data-testid="stExpander"] details summary .st-icon,
     [data-testid="stExpanderIcon"] {{
         display: none !important;
@@ -875,6 +899,8 @@ st.markdown(f"""
     [data-testid="stExpander"] details summary .material-icons,
     [data-testid="stExpander"] summary i.material-icons,
     [data-testid="stExpander"] summary .material-icons,
+    [data-testid="stExpander"] details summary [data-testid="stIconMaterial"],
+    [data-testid="stExpander"] [data-testid="stIconMaterial"],
     [data-testid="stExpander"] [data-testid="stExpanderIconWrapper"],
     [data-testid="stExpander"] [data-testid="stExpanderIcon"] {{
         display: none !important;
