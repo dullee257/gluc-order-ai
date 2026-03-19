@@ -2970,7 +2970,15 @@ if menu_key == "scanner":
                             name, gi, carbs, protein = it[0], it[1], it[2], it[3]
                             fat = it[6] if len(it) > 6 else 0
                             buckets[_classify_bucket(name, gi, carbs, protein, fat)].append(name)
-                        order_comment = f"이 식단은 {( ' · '.join(buckets['fiber']) if buckets['fiber'] else '식이섬유' )} ➡️ {( ' · '.join(buckets['protein']) if buckets['protein'] else '단백질' )} ➡️ {( ' · '.join(buckets['carb']) if buckets['carb'] else '탄수화물' )} 순서로 드시면 혈당 스파이크를 막을 수 있습니다!"
+                        order_comment = (
+                            "이 식단은 "
+                            f"{( ' · '.join(buckets['fiber']) if buckets['fiber'] else '식이섬유' )} "
+                            "➡ "
+                            f"{( ' · '.join(buckets['protein']) if buckets['protein'] else '단백질' )} "
+                            "➡ "
+                            f"{( ' · '.join(buckets['carb']) if buckets['carb'] else '탄수화물' )} "
+                            "순서로 드시면 혈당 스파이크를 줄이는 데 도움이 됩니다!"
+                        )
 
                         # 하루 누적 업데이트
                         prev_count = st.session_state['daily_meals_count']

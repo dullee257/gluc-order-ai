@@ -62,6 +62,9 @@ def get_advice_prompt(lang):
 
 사진 속 음식을 분석하여 혈당 관리를 위한 조언을 다음 4단계 카테고리로 나누어 반드시 순서대로 작성해 주세요. 각 카테고리 앞에 번호와 제목을 적어 주세요.
 
+중요: 어떤 문장에서도 '~을(를) 막을 수 있습니다', '~을(를) 예방합니다'처럼 단정적인 의학적 효능 표현을 쓰지 마세요.
+'~을(를) 줄이는 데 도움이 됩니다', '~을(를) 완화하는 데 도움이 될 수 있습니다'와 같이 조심스러운 표현만 사용하세요.
+
 1. 사진 속 메뉴 확인
 - '사진 속 메뉴를 보니...'로 시작하여 사진의 음식에 대한 간략한 기본 분석을 진행해 주세요.
 - 실제로 사진에 잡곡밥, 채소 등 칭찬할 요소가 있을 때만 칭찬하고, 없으면 지어내지 마세요.
@@ -81,7 +84,9 @@ def get_advice_prompt(lang):
     # 영어: 전문적·간결한 영어
     en = """Write your entire response in clear, professional English.
 
-Analyze the food in the photo and give blood-sugar management advice in exactly 4 sections, in order, with numbered headings:
+Analyze the food in the photo and give blood-sugar management advice in exactly 4 sections, in order, with numbered headings.
+
+Important: Never claim that something \"prevents\" or \"completely stops\" blood sugar spikes. Instead, use softer language such as \"may help reduce\" or \"can help smooth blood sugar response\".
 
 1. Menu in the photo
 - Start with "In this photo..." and briefly describe the foods.
