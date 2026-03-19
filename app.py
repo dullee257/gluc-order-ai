@@ -804,6 +804,35 @@ st.markdown(f"""
             line-height: 1.5;
         }}
     }}
+
+    /* --- EXPANDER: 아이콘 래퍼 최종 Nuke(하단 규칙이 상단을 덮어씀) + 요약 줄 우측 여백 --- */
+    [data-testid="stExpander"] details summary,
+    [data-testid="stExpander"] summary {{
+        padding: 0.45rem 2.35rem 0.45rem 0.5rem !important;
+        box-sizing: border-box !important;
+    }}
+    [data-testid="stExpander"] details summary i.material-icons,
+    [data-testid="stExpander"] details summary .material-icons,
+    [data-testid="stExpander"] summary i.material-icons,
+    [data-testid="stExpander"] summary .material-icons,
+    [data-testid="stExpander"] [data-testid="stExpanderIconWrapper"],
+    [data-testid="stExpander"] [data-testid="stExpanderIcon"] {{
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        width: 0px !important;
+        height: 0px !important;
+        max-width: 0 !important;
+        max-height: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
+        flex: 0 0 0 !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
