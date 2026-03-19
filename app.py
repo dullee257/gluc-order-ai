@@ -1134,23 +1134,31 @@ if not st.session_state['logged_in']:
       margin-top: 20px;
       display: flex;
       justify-content: center;
+      width: 100%;
+      max-width: 300px;
     }
     .real-spike-svg { overflow: visible; }
-    .spike-left, .spike-right {
-      stroke-dasharray: 200;
-      stroke-dashoffset: 200;
-      animation: draw-graph 0.5s ease-out 1.2s forwards;
+    .bg-grid { opacity: 0; animation: fade-in 0.5s ease-out 1.5s forwards; }
+    .path-base {
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      animation: draw-line 0.7s linear 1.5s forwards;
     }
-    .spike-right {
-      transform-origin: 55px 20px;
+    .path-rise {
+      stroke-dasharray: 50;
+      stroke-dashoffset: 50;
+      animation: draw-line 0.3s ease-in 2.2s forwards;
+    }
+    .path-cut {
+      opacity: 0;
+      transform-origin: 110px 40px;
       will-change: transform, opacity;
-      animation: draw-graph 0.5s ease-out 1.2s forwards,
-                 break-and-fall 0.6s cubic-bezier(0.550, 0.085, 0.680, 0.530) 2.0s forwards;
+      animation: break-and-fall 0.6s cubic-bezier(0.550, 0.085, 0.680, 0.530) 2.5s forwards;
     }
     .slash-effect {
       opacity: 0;
       will-change: transform, opacity;
-      animation: flash-slash 0.3s ease-out 1.9s forwards;
+      animation: flash-slash 0.3s ease-out 2.45s forwards;
     }
     @keyframes tracking-in {
       0% { letter-spacing: 0.5em; opacity: 0; }
@@ -1161,15 +1169,16 @@ if not st.session_state['logged_in']:
       0% { transform: translateY(20px); opacity: 0; }
       100% { transform: translateY(0); opacity: 1; }
     }
-    @keyframes draw-graph { to { stroke-dashoffset: 0; } }
+    @keyframes fade-in { to { opacity: 1; } }
+    @keyframes draw-line { to { stroke-dashoffset: 0; } }
     @keyframes flash-slash {
-      0% { opacity: 0; transform: scale(0.5) translate(-20px, 20px); }
-      50% { opacity: 1; transform: scale(1.2) translate(0, 0); }
-      100% { opacity: 0; transform: scale(1.5) translate(20px, -20px); }
+      0% { opacity: 0; transform: scale(0.5) translate(-10px, 10px); }
+      50% { opacity: 1; transform: scale(1.3) translate(0, 0); }
+      100% { opacity: 0; transform: scale(1.5) translate(10px, -10px); }
     }
     @keyframes break-and-fall {
-      0% { transform: rotate(0) translate(0, 0); opacity: 1; }
-      100% { transform: rotate(60deg) translate(30px, 80px); opacity: 0; }
+      0% { opacity: 1; transform: rotate(0) translate(0, 0); }
+      100% { opacity: 0; transform: rotate(45deg) translate(20px, 60px); }
     }
     .auth-sheet-enter main .block-container { animation: authSlideUp 0.42s ease-out; }
     @keyframes authSlideUp { from { transform: translateY(72%); opacity: 0.65; } to { transform: translateY(0); opacity: 1; } }
@@ -1273,10 +1282,16 @@ if not st.session_state['logged_in']:
               <div class="splash-subtitle-line1">같은 음식인데 결과는 다르다</div>
               <div class="splash-subtitle-line2">먹는 순서가 바꾸는 혈당 변화</div>
               <div class="spike-crash-animation">
-                <svg viewBox="0 0 100 100" width="120" height="120" class="real-spike-svg" aria-hidden="true">
-                  <path class="spike-left" d="M 5,80 L 40,80 L 55,20" stroke="#e74c3c" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                  <path class="spike-right" d="M 55,20 L 70,80 L 95,80" stroke="#e74c3c" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                  <line class="slash-effect" x1="20" y1="60" x2="90" y2="-10" stroke="#ffffff" stroke-width="8" stroke-linecap="round" />
+                <svg viewBox="0 0 200 100" width="100%" height="120" class="real-spike-svg" aria-hidden="true">
+                  <g class="bg-grid" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="4 4">
+                    <line x1="0" y1="20" x2="200" y2="20" />
+                    <line x1="0" y1="50" x2="200" y2="50" />
+                    <line x1="0" y1="80" x2="200" y2="80" />
+                  </g>
+                  <path class="path-base" d="M 10,80 L 90,80" stroke="#2ecc71" stroke-width="6" stroke-linecap="round" fill="none" />
+                  <path class="path-rise" d="M 90,80 L 110,40" stroke="#e74c3c" stroke-width="6" stroke-linecap="round" fill="none" />
+                  <path class="path-cut" d="M 110,40 L 130,0 L 150,80" stroke="#e74c3c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                  <line class="slash-effect" x1="80" y1="60" x2="150" y2="10" stroke="#ffffff" stroke-width="8" stroke-linecap="round" />
                 </svg>
               </div>
             </div>
