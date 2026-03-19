@@ -544,6 +544,66 @@ try {
     blockZoom(window.parent.document);
   }
 } catch (e) {}
+
+/* st.expander: _arrow_right / arrow_right 가 텍스트 노드로만 박힌 경우 제거 (React innerHTML 불변) */
+(function () {
+  function stripGhostTextInSummary(summary) {
+    if (!summary || !summary.ownerDocument) return;
+    var doc = summary.ownerDocument;
+    try {
+      var walker = doc.createTreeWalker(summary, NodeFilter.SHOW_TEXT, null, false);
+      var node;
+      while ((node = walker.nextNode())) {
+        if (!node.nodeValue) continue;
+        var v = node.nodeValue;
+        if (v.indexOf("_arrow_right") === -1 && v.indexOf("arrow_right") === -1) continue;
+        node.nodeValue = v.split("_arrow_right").join("").split("arrow_right").join("");
+      }
+    } catch (err) {}
+  }
+
+  function stripAllExpanderGhostText(doc) {
+    if (!doc || !doc.querySelectorAll) return;
+    var list = doc.querySelectorAll('[data-testid="stExpander"] summary');
+    for (var i = 0; i < list.length; i++) {
+      stripGhostTextInSummary(list[i]);
+    }
+  }
+
+  function installExpanderGhostCleaner(doc) {
+    if (!doc || !doc.documentElement) return;
+    stripAllExpanderGhostText(doc);
+    if (doc.__nutriExpanderGhostObserverInstalled) return;
+    doc.__nutriExpanderGhostObserverInstalled = true;
+    var t = null;
+    function schedule() {
+      if (t) clearTimeout(t);
+      t = setTimeout(function () {
+        stripAllExpanderGhostText(doc);
+        t = null;
+      }, 0);
+    }
+    try {
+      var obs = new MutationObserver(function () {
+        schedule();
+      });
+      obs.observe(doc.documentElement, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    } catch (err) {}
+  }
+
+  try {
+    installExpanderGhostCleaner(document);
+  } catch (e) {}
+  try {
+    if (window.parent && window.parent.document) {
+      installExpanderGhostCleaner(window.parent.document);
+    }
+  } catch (e) {}
+})();
 </script>
 """,
     unsafe_allow_html=True,
