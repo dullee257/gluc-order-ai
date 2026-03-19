@@ -489,21 +489,61 @@ st.markdown(f"""
 <style>
     /* 한글 표시: Noto Sans KR 로드 후 전역 적용 (한글 깨짐 방지) */
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
-    /* Streamlit expander 아이콘이 텍스트(arrow_down/right)로 보이는 현상 방지 */
-    @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
-    .material-icons {{
-        font-family: 'Material Icons' !important;
-        font-weight: normal !important;
-        font-style: normal !important;
-        line-height: 1 !important;
+    /*
+     * st.expander: Material Icons 외부 폰트 제거. 아이콘 글리프가 'arrow_right' 등 텍스트로
+     * 겹쳐 보이는 문제 → 유니코드 화살표(› / ⌄)로 대체 + flex로 라벨·화살표 간격 확보.
+     */
+    [data-testid="stExpander"] details > summary {{
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 0.4rem 0.65rem 0.4rem 0.35rem !important;
+        list-style: none !important;
+    }}
+    [data-testid="stExpander"] details > summary::-webkit-details-marker {{
+        display: none !important;
+    }}
+    [data-testid="stExpander"] .material-icons {{
+        font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
         letter-spacing: normal !important;
         text-transform: none !important;
-        display: inline-block !important;
-        white-space: nowrap !important;
-        word-wrap: normal !important;
-        direction: ltr !important;
-        -webkit-font-feature-settings: 'liga' !important;
-        -webkit-font-smoothing: antialiased !important;
+        width: 1.35em !important;
+        min-width: 1.35em !important;
+        height: 1.35em !important;
+        flex: 0 0 auto !important;
+        position: relative !important;
+        margin-left: 10px !important;
+        overflow: visible !important;
+        color: transparent !important;
+    }}
+    [data-testid="stExpander"] .material-icons::after {{
+        content: '›' !important;
+        font-size: 1.2rem !important;
+        line-height: 1.2 !important;
+        font-weight: 600 !important;
+        color: rgba(49, 51, 63, 0.75) !important;
+        position: absolute !important;
+        right: 0 !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+        display: block !important;
+        width: 1em !important;
+        text-align: center !important;
+    }}
+    [data-testid="stExpander"] details[open] > summary .material-icons::after {{
+        content: '⌄' !important;
+        transform: translateY(-40%) !important;
+    }}
+    [data-testid="stExpander"] details > summary > div:first-child,
+    [data-testid="stExpander"] details > summary .stMarkdown {{
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        padding-right: 6px !important;
     }}
     .stApp, .stApp .stMarkdown, .stApp p, .stApp span, .stApp label, .stApp div[data-testid], 
     [data-testid="stFileUploader"] section::after {{
