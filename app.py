@@ -1265,9 +1265,9 @@ def _save_glucose(uid, type_, value, note=None, timestamp=None):
 
 @st.cache_data(ttl=120)
 def get_today_summary(uid, date_key):
-    """오늘(한국 날짜) 기준 평균 혈당, 탄수화물 합계, 식단 수. date_key 예: '2025-03-15'. 캐시로 Firestore 조회 최소화."""
+    """오늘(한국 날짜) 기준 평균 혈당, 최근(당일) 혈당 1건, 탄수화물 합계, 식단 수. date_key 예: '2025-03-15'."""
     if not uid:
-        return {"avg_glucose": None, "total_carbs": 0, "meal_count": 0}
+        return {"avg_glucose": None, "latest_glucose": None, "total_carbs": 0, "meal_count": 0}
     try:
         import pytz
         seoul = pytz.timezone("Asia/Seoul")
@@ -1280,10 +1280,22 @@ def get_today_summary(uid, date_key):
         glucose_list, meals_list = _get_glucose_and_meals(uid, start_utc, end_utc)
         avg_g = sum(g.get("value", 0) for g in glucose_list) / len(glucose_list) if glucose_list else None
         total_c = sum(m.get("total_carbs", 0) for m in meals_list)
-        return {"avg_glucose": round(avg_g) if avg_g is not None else None, "total_carbs": total_c, "meal_count": len(meals_list)}
+        latest_g = None
+        if glucose_list:
+            latest_row = max(glucose_list, key=lambda g: g.get("timestamp") or start_utc)
+            try:
+                latest_g = int(round(float(latest_row.get("value", 0))))
+            except (TypeError, ValueError):
+                latest_g = None
+        return {
+            "avg_glucose": round(avg_g) if avg_g is not None else None,
+            "latest_glucose": latest_g,
+            "total_carbs": total_c,
+            "meal_count": len(meals_list),
+        }
     except Exception as e:
         sys.stderr.write(f"[get_today_summary] {e}\n")
-        return {"avg_glucose": None, "total_carbs": 0, "meal_count": 0}
+        return {"avg_glucose": None, "latest_glucose": None, "total_carbs": 0, "meal_count": 0}
 
 
 @st.cache_data(ttl=90)
@@ -1634,10 +1646,13 @@ if menu_key == "scanner":
             st.markdown("---")
 
         if st.session_state.get("current_page") == "main":
-            # 1️⃣ 메인 포털: 타이틀 + 슬림 요약 바 + 4구 그리드
+            # 1️⃣ 메인 포털: 환영 인사 + (계정) 오늘의 요약 대시보드 + 액션 그리드
+            if not is_guest:
+                st.markdown(t.get("main_welcome_motivation", "### 🌞 오늘 하루도 완벽한 방어를 응원합니다!"))
+
             title_parts = (t.get("description") or "📈|혈당 스파이크 방지|올바른 섭취 순서").split("|")
             st.markdown(f"""
-                <div style="text-align: center; margin-top: 10px; margin-bottom: 2vh;">
+                <div style="text-align: center; margin-top: 10px; margin-bottom: 1.2vh;">
                     <div style="font-size: clamp(35px, 10vw, 50px); margin-bottom: 1vh;">{title_parts[0]}</div>
                     <div style="font-size: clamp(20px, 6vw, 26px); font-weight: 800; color: #333333; line-height: 1.2;">{title_parts[1]}</div>
                     <div style="font-size: clamp(14px, 4vw, 18px); font-weight: 500; color: #86cc85; margin-top: 1vh;">{title_parts[2]}</div>
@@ -1674,21 +1689,85 @@ if menu_key == "scanner":
                 if is_guest:
                     st.info(get_text("KO", "guest_remaining", n=total_remaining))
 
-                # 슬림 요약 바: 오늘 평균 혈당 | 탄수화물 총량 (컴팩트)
-                if st.session_state.get("login_type") == "google" and st.session_state.get("user_id"):
+                # 오늘의 요약: Firestore(한국 당일) 실시간 조회 → 2x2 메트릭 + 혈당 게이지
+                _uid_main = st.session_state.get("user_id")
+                if (not is_guest) and _uid_main:
                     import pytz
+                    import plotly.graph_objects as go
+
                     _seoul = pytz.timezone("Asia/Seoul")
                     _date_key = datetime.now(_seoul).strftime("%Y-%m-%d")
-                    _sum = get_today_summary(st.session_state["user_id"], _date_key)
-                    _avg_g = _sum.get("avg_glucose")
-                    _total_c = _sum.get("total_carbs", 0)
-                    _g_str = f"{_avg_g}" if _avg_g is not None else "-"
-                    st.markdown(f"""
-                        <div style="font-size: 12px; color: #555; padding: 8px 12px; background: #f0f4f0; border-radius: 10px; margin-bottom: 12px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
-                            <span>{t.get("dashboard_avg_glucose", "오늘 평균 혈당")}: <strong>{_g_str} mg/dL</strong></span>
-                            <span>{t.get("dashboard_total_carbs", "탄수화물 총량")}: <strong>{_total_c}g</strong></span>
-                        </div>
-                    """, unsafe_allow_html=True)
+                    _dash = get_today_summary(_uid_main, _date_key)
+                    _avg_g = _dash.get("avg_glucose")
+                    _latest_g = _dash.get("latest_glucose")
+                    _total_c = int(_dash.get("total_carbs") or 0)
+                    _meal_n = int(_dash.get("meal_count") or 0)
+
+                    st.markdown(f"#### {t.get('dash_today_title', '오늘의 요약')}")
+                    m1, m2 = st.columns(2)
+                    with m1:
+                        st.metric(
+                            t.get("dash_metric_avg_glucose", "오늘 평균 혈당"),
+                            f"{_avg_g} mg/dL" if _avg_g is not None else t.get("dash_no_record", "기록 없음"),
+                        )
+                    with m2:
+                        st.metric(
+                            t.get("dash_metric_total_carbs", "오늘 총 탄수화물"),
+                            f"{_total_c} g",
+                        )
+                    m3, m4 = st.columns(2)
+                    with m3:
+                        st.metric(
+                            t.get("dash_metric_meals", "오늘 식단 기록"),
+                            f"{_meal_n}회",
+                        )
+                    with m4:
+                        st.metric(
+                            t.get("dash_metric_latest_glucose", "최근 측정 혈당"),
+                            f"{_latest_g} mg/dL" if _latest_g is not None else t.get("dash_no_record", "기록 없음"),
+                        )
+
+                    if _latest_g is not None:
+                        _hi = max(250, int(_latest_g) + 40, 300)
+                        _fig_g = go.Figure(
+                            go.Indicator(
+                                mode="gauge+number",
+                                value=float(_latest_g),
+                                title={
+                                    "text": t.get("dash_gauge_title", "혈당 계기판"),
+                                    "font": {"size": 16},
+                                },
+                                number={"suffix": " mg/dL", "font": {"size": 34}},
+                                gauge={
+                                    "axis": {"range": [40, _hi], "tickwidth": 1},
+                                    "bar": {"color": "#2c3e50"},
+                                    "bgcolor": "white",
+                                    "borderwidth": 1,
+                                    "bordercolor": "#ecf0f1",
+                                    "steps": [
+                                        {"range": [40, 90], "color": "#3498db"},
+                                        {"range": [90, 140], "color": "#2ecc71"},
+                                        {"range": [140, _hi], "color": "#e74c3c"},
+                                    ],
+                                    "threshold": {
+                                        "line": {"color": "#111", "width": 2},
+                                        "thickness": 0.8,
+                                        "value": float(_latest_g),
+                                    },
+                                },
+                            )
+                        )
+                        _fig_g.update_layout(
+                            margin=dict(l=8, r=8, t=48, b=8),
+                            height=280,
+                            paper_bgcolor="rgba(0,0,0,0)",
+                        )
+                        st.caption(t.get("dash_gauge_subtitle", "가장 최근 측정값 (오늘)"))
+                        st.plotly_chart(_fig_g, use_container_width=True, config={"displayModeBar": False})
+                    else:
+                        st.caption(t.get("dash_gauge_empty", "오늘 측정한 혈당이 없어 계기판을 표시할 수 없습니다."))
+
+                    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
                 # CSS: 포털 그리드가 모바일 높이 60~70% 내에 들어오도록
                 st.markdown("""
