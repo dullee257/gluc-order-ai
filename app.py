@@ -15,6 +15,11 @@ from datetime import datetime, timezone
 
 from translation import LANG_DICT, get_text, GOAL_INTERNAL_KEYS
 from prompts import get_analysis_prompt
+from firebase_db import (
+    upload_image_to_storage,
+    save_meal_and_summary,
+    get_daily_summary,
+)
 
 # Railway 등 Linux 환경에서 한글 출력 깨짐 방지
 if hasattr(sys.stdout, "reconfigure"):
@@ -1690,37 +1695,22 @@ def _save_glucose(uid, type_, value, note=None, timestamp=None):
 
 @st.cache_data(ttl=120)
 def get_today_summary(uid, date_key):
-    """오늘(한국 날짜) 기준 평균 혈당, 최근(당일) 혈당 1건, 탄수화물 합계, 식단 수. date_key 예: '2025-03-15'."""
+    """오늘 요약: daily_summaries/{date_key} 단일 문서 기반 (대시보드 경량 조회)."""
     if not uid:
-        return {"avg_glucose": None, "latest_glucose": None, "total_carbs": 0, "meal_count": 0}
+        return {"avg_glucose": None, "latest_glucose": None, "total_carbs": 0, "meal_count": 0, "avg_spike": 0}
     try:
-        import pytz
-        seoul = pytz.timezone("Asia/Seoul")
-        from datetime import timedelta
-        y, m, d = [int(x) for x in date_key.split("-")]
-        start_seoul = seoul.localize(datetime(y, m, d, 0, 0, 0))
-        end_seoul = start_seoul + timedelta(days=1)
-        start_utc = start_seoul.astimezone(timezone.utc)
-        end_utc = end_seoul.astimezone(timezone.utc)
-        glucose_list, meals_list = _get_glucose_and_meals(uid, start_utc, end_utc)
-        avg_g = sum(g.get("value", 0) for g in glucose_list) / len(glucose_list) if glucose_list else None
-        total_c = sum(m.get("total_carbs", 0) for m in meals_list)
-        latest_g = None
-        if glucose_list:
-            latest_row = max(glucose_list, key=lambda g: g.get("timestamp") or start_utc)
-            try:
-                latest_g = int(round(float(latest_row.get("value", 0))))
-            except (TypeError, ValueError):
-                latest_g = None
+        s = get_daily_summary(uid, date_key)
+        avg_spike = int(s.get("avg_spike") or 0)
         return {
-            "avg_glucose": round(avg_g) if avg_g is not None else None,
-            "latest_glucose": latest_g,
-            "total_carbs": total_c,
-            "meal_count": len(meals_list),
+            "avg_glucose": avg_spike if avg_spike > 0 else None,
+            "latest_glucose": avg_spike if avg_spike > 0 else None,
+            "total_carbs": int(s.get("total_carbs") or 0),
+            "meal_count": int(s.get("meal_count") or 0),
+            "avg_spike": avg_spike,
         }
     except Exception as e:
         sys.stderr.write(f"[get_today_summary] {e}\n")
-        return {"avg_glucose": None, "latest_glucose": None, "total_carbs": 0, "meal_count": 0}
+        return {"avg_glucose": None, "latest_glucose": None, "total_carbs": 0, "meal_count": 0, "avg_spike": 0}
 
 
 @st.cache_data(ttl=90)
@@ -2124,7 +2114,14 @@ if menu_key == "scanner":
 
                     _seoul = pytz.timezone("Asia/Seoul")
                     _date_key = datetime.now(_seoul).strftime("%Y-%m-%d")
-                    _dash = get_today_summary(_uid_main, _date_key)
+                    _cached_dash = st.session_state.get("daily_summary_today")
+                    _cached_key = st.session_state.get("daily_summary_today_key")
+                    if isinstance(_cached_dash, dict) and _cached_key == _date_key:
+                        _dash = dict(_cached_dash)
+                    else:
+                        _dash = get_today_summary(_uid_main, _date_key)
+                        st.session_state["daily_summary_today"] = dict(_dash)
+                        st.session_state["daily_summary_today_key"] = _date_key
                     _avg_g = _dash.get("avg_glucose")
                     _latest_g = _dash.get("latest_glucose")
                     _total_c = int(_dash.get("total_carbs") or 0)
@@ -3165,6 +3162,25 @@ if menu_key == "scanner":
             st.caption(
                 "* 위 수치는 탄수화물 총량을 기반으로 한 단순 예측치이며, 개인의 대사량과 체질에 따라 다를 수 있습니다. 의학적 진단으로 사용될 수 없습니다."
             )
+            _saving_now = st.session_state.get("meal_save_in_progress", False)
+            _save_meal_click = st.button(
+                "💾 오늘의 식단으로 기록하기",
+                key="save_meal_under_warning",
+                use_container_width=True,
+                disabled=_saving_now or st.session_state.get("login_type") == "guest",
+                help=t["guest_save_disabled_msg"] if st.session_state.get("login_type") == "guest" else None,
+            )
+            if st.session_state.get("login_type") == "guest":
+                st.info(t["guest_save_disabled_msg"])
+                if st.button(t["guest_save_go_login"], key="save_meal_guest_login", use_container_width=True, type="primary"):
+                    st.session_state["logged_in"] = False
+                    st.session_state["login_type"] = None
+                    st.session_state["user_id"] = None
+                    st.session_state["user_email"] = None
+                    st.session_state["history_loaded_uid"] = None
+                    st.session_state["history"] = []
+                    st.session_state["auth_mode"] = "login"
+                    st.rerun()
 
         # ── 4. 음식별 혈당 분석 카드 (GI 바 포함) ──
         st.markdown(f"""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">{t['food_analysis_section']}</div></div>""", unsafe_allow_html=True)
@@ -3220,159 +3236,79 @@ if menu_key == "scanner":
         st.markdown(f"""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">{t['ai_advice_section']}</div></div>""", unsafe_allow_html=True)
         st.info(res['advice'])
 
-        # ── 7. 저장 버튼 (게스트는 비활성화 + 로그인 유도) ──
-        if st.session_state.get("login_type") == "guest":
-            st.button(t["save_btn"], use_container_width=True, disabled=True, help=t["guest_save_disabled_msg"])
-            st.info(t["guest_save_disabled_msg"])
-            if st.button(t["guest_save_go_login"], use_container_width=True, type="primary"):
-                st.session_state["logged_in"] = False
-                st.session_state["login_type"] = None
-                st.session_state["user_id"] = None
-                st.session_state["user_email"] = None
-                st.session_state["history_loaded_uid"] = None
-                st.session_state["history"] = []
-                st.session_state["auth_mode"] = "login"
-                st.rerun()
-        else:
-            if st.button(t["save_btn"], use_container_width=True):
-                _lang = "KO"
+        # ── 7. 저장 실행 처리 (버튼은 스파이크 경고 바로 아래에서 렌더링) ──
+        if st.session_state.get("login_type") != "guest" and _save_meal_click:
+            uid = st.session_state.get("user_id")
+            if not uid:
+                st.toast("로그인된 사용자 정보가 없습니다.")
+            else:
+                st.session_state["meal_save_in_progress"] = True
                 try:
                     import pytz
-                    tz = pytz.timezone(LANG_TIMEZONE.get(_lang) or "UTC")
+
+                    _seoul = pytz.timezone("Asia/Seoul")
                     now_utc = datetime.now(timezone.utc)
+                    date_key = now_utc.astimezone(_seoul).strftime("%Y-%m-%d")
+                    save_date = now_utc.astimezone(_seoul).strftime("%Y-%m-%d %H:%M")
                     save_date_utc = now_utc.isoformat()
-                    save_date = now_utc.astimezone(tz).strftime("%Y-%m-%d %H:%M")
-                except Exception:
-                    now_utc = datetime.now(timezone.utc)
-                    save_date_utc = now_utc.isoformat()
-                    save_date = now_utc.strftime("%Y-%m-%d %H:%M")
-                uid = st.session_state.get("user_id")  # 현재 로그인한 사용자 uid (필수, user_logs 문서에 포함)
-                if not uid:
-                    st.toast("로그인된 사용자 정보가 없습니다.")
-                else:
-                    image_url = None
-                    try:
-                        from firebase_admin import firestore, storage
-                        import firebase_admin
-                        from firebase_admin import credentials
-                        if not firebase_admin._apps:
-                            _FIREBASE_ADMIN_KEYS = [
-                                "type", "project_id", "private_key_id", "private_key",
-                                "client_email", "client_id", "auth_uri", "token_uri",
-                                "auth_provider_x509_cert_url", "client_x509_cert_url",
-                                "universe_domain"
-                            ]
-                            key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
-                            cred = credentials.Certificate(key_dict)
-                            _opts = {}
-                            _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
-                            if _bucket:
-                                _opts["storageBucket"] = _bucket
-                            elif key_dict.get("project_id"):
-                                _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
-                            firebase_admin.initialize_app(cred, _opts)
-                        db = firestore.client()
-                        doc_ref = db.collection("users").document(uid).collection("history").document()
-                        doc_id = doc_ref.id
-                        def _num(v):
-                            if v is None:
-                                return 0
-                            try:
-                                return int(v) if isinstance(v, (int, float)) or hasattr(v, "__int__") else int(float(v))
-                            except (TypeError, ValueError):
-                                return 0
-                        raw_pil = res.get("raw_img")
-                        if raw_pil is not None:
-                            _, img_bytes = compress_image_for_storage(raw_pil, max_width=1024, quality=80)
-                            if img_bytes and isinstance(img_bytes, bytes) and len(img_bytes) > 0:
-                                try:
-                                    bucket = storage.bucket()
-                                    _uid_safe = str(uid).replace("/", "_").replace("\\", "_") if uid else "unknown"
-                                    path = f"users/{_uid_safe}/meals/{doc_id}.jpg"
-                                    blob = bucket.blob(path)
-                                    blob.upload_from_string(img_bytes, content_type="image/jpeg")
-                                    blob.make_public()  # Storage 규칙: 읽기 allow read 또는 공개 링크 허용 필요
-                                    image_url = getattr(blob, "public_url", None) or ""
-                                    if not (image_url and str(image_url).strip().startswith("http")):
-                                        # public_url이 비어있거나 절대 URL이 아니면 bucket+path로 완전 URL 구성
-                                        image_url = _normalize_image_url(path, bucket.name)
-                                except Exception as storage_err:
-                                    traceback.print_exc(file=sys.stderr)
-                                    sys.stderr.write(f"[Storage] {type(storage_err).__name__}: {storage_err}\n")
-                        sorted_items_safe = []
-                        for item in res.get("sorted_items", []):
-                            if not item:
-                                continue
-                            name = str(item[0]).strip() if len(item) > 0 else ""
-                            gi = _num(item[1]) if len(item) > 1 else 0
-                            carbs = _num(item[2]) if len(item) > 2 else 0
-                            protein = _num(item[3]) if len(item) > 3 else 0
-                            color = str(item[4]).strip() if len(item) > 4 else ""
-                            sorted_items_safe.append({
-                                "name": name,
-                                "gi": gi,
-                                "carbs": carbs,
-                                "protein": protein,
-                                "color": color,
-                            })
-                        new_db_record = {
-                            "date": str(save_date),
-                            "saved_at_utc": save_date_utc,
-                            "sorted_items": sorted_items_safe,
-                            "advice": str(res.get("advice", "")),
-                            "blood_sugar_score": _num(res.get("blood_sugar_score")),
-                            "total_carbs": _num(res.get("total_carbs")),
-                            "total_protein": _num(res.get("total_protein")),
-                            "total_fat": _num(res.get("total_fat")),
-                            "total_kcal": _num(res.get("total_kcal")),
-                            "avg_gi": _num(res.get("avg_gi")),
-                            "image_url": image_url if image_url is not None else None,
+
+                    estimated_spike = int(round(float(res.get("total_carbs", 0) or 0) * 2))
+                    meal_data = {
+                        "date": save_date,
+                        "saved_at_utc": save_date_utc,
+                        "sorted_items": res.get("sorted_items", []),
+                        "advice": str(res.get("advice", "")),
+                        "blood_sugar_score": int(res.get("blood_sugar_score", 0) or 0),
+                        "total_carbs": int(res.get("total_carbs", 0) or 0),
+                        "total_protein": int(res.get("total_protein", 0) or 0),
+                        "total_fat": int(res.get("total_fat", 0) or 0),
+                        "total_kcal": int(res.get("total_kcal", 0) or 0),
+                        "avg_gi": int(res.get("avg_gi", 0) or 0),
+                        "estimated_spike": estimated_spike,
+                    }
+
+                    with st.spinner("데이터를 안전하게 금고에 넣는 중입니다..."):
+                        meal_id = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+                        image_url = upload_image_to_storage(uid, meal_id, res.get("raw_img"), max_width=800, quality=85)
+                        meal_data["image_url"] = image_url
+                        _saved_id = save_meal_and_summary(uid, date_key, meal_data)
+                        meal_data["meal_id"] = _saved_id
+
+                    # Optimistic update: 재조회 없이 메모리 대시보드 즉시 누적
+                    _dash_local = st.session_state.get("daily_summary_today")
+                    if not isinstance(_dash_local, dict) or st.session_state.get("daily_summary_today_key") != date_key:
+                        _dash_local = {
+                            "avg_glucose": None,
+                            "latest_glucose": None,
+                            "total_carbs": 0,
+                            "meal_count": 0,
+                            "avg_spike": 0,
+                            "spike_sum": 0,
                         }
-                        doc_ref.set(new_db_record)
-                        now_utc = datetime.now(timezone.utc)
-                        db.collection("user_logs").add({
-                            "user_id": str(uid),
-                            "history_doc_id": doc_id,
-                            "date": str(save_date),
-                            "saved_at_utc": save_date_utc,
-                            "timestamp": now_utc,
-                            "sorted_items": sorted_items_safe,
-                            "advice": new_db_record["advice"],
-                            "blood_sugar_score": new_db_record["blood_sugar_score"],
-                            "total_carbs": new_db_record["total_carbs"],
-                            "total_protein": new_db_record["total_protein"],
-                            "total_fat": new_db_record.get("total_fat", 0),
-                            "total_kcal": new_db_record.get("total_kcal", 0),
-                            "avg_gi": new_db_record["avg_gi"],
-                            "image_url": new_db_record["image_url"],
-                        })
-                    except Exception as e:
-                        traceback.print_exc(file=sys.stderr)
-                        sys.stderr.write(f"[DB 저장] {type(e).__name__}: {e}\n")
-                        err_lower = str(e).lower()
-                        if "permission" in err_lower or "denied" in err_lower:
-                            sys.stderr.write("[Firestore] Permission Denied 가능성. Rules 확인 필요.\n")
-                        st.toast(f"DB 저장 에러: {str(e)}")
-                    else:
-                        st.session_state["history"].append({
-                            "doc_id": doc_id,
-                            "date": save_date,
-                            "saved_at_utc": save_date_utc,
-                            "image": res["raw_img"],
-                            "image_url": image_url,
-                            "sorted_items": res["sorted_items"],
-                            "advice": res["advice"],
-                            "blood_sugar_score": res.get("blood_sugar_score", 0),
-                            "total_carbs": res.get("total_carbs", 0),
-                            "total_protein": res.get("total_protein", 0),
-                            "total_fat": res.get("total_fat", 0),
-                            "total_kcal": res.get("total_kcal", 0),
-                            "avg_gi": res.get("avg_gi", 0),
-                        })
-                        st.balloons()
-                        st.success(t["save_msg"])
-                        st.session_state["nav_menu"] = "history"
-                        st.rerun()
+                    _dash_local["total_carbs"] = int(_dash_local.get("total_carbs", 0)) + int(meal_data["total_carbs"])
+                    _dash_local["meal_count"] = int(_dash_local.get("meal_count", 0)) + 1
+                    _dash_local["spike_sum"] = int(_dash_local.get("spike_sum", 0)) + int(estimated_spike)
+                    _avg_spike = int(round(_dash_local["spike_sum"] / max(1, _dash_local["meal_count"])))
+                    _dash_local["avg_spike"] = _avg_spike
+                    _dash_local["avg_glucose"] = _avg_spike
+                    _dash_local["latest_glucose"] = _avg_spike
+                    st.session_state["daily_summary_today"] = _dash_local
+                    st.session_state["daily_summary_today_key"] = date_key
+
+                    st.session_state["app_stage"] = "main"
+                    st.session_state["current_page"] = "main"
+                    st.session_state["current_analysis"] = None
+                    st.session_state["current_img"] = None
+                    st.session_state["vision_analysis_status"] = "idle"
+                    if "uploader_key" in st.session_state:
+                        st.session_state["uploader_key"] += 1
+                    get_today_summary.clear()
+                    st.rerun()
+                except Exception as e:
+                    traceback.print_exc(file=sys.stderr)
+                    st.error(f"저장 실패: {e}")
+                finally:
+                    st.session_state["meal_save_in_progress"] = False
 
 
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
