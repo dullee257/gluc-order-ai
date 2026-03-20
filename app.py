@@ -904,9 +904,13 @@ st.markdown(f"""
             padding-top: 0.35rem !important;
             padding-left: 0.45rem !important;
             padding-right: 0.45rem !important;
-            padding-bottom: 5.75rem !important;
+            padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
             max-width: 100% !important;
         }}
+    }}
+    /* 하단 고정 바로 인해 콘텐츠가 가려지지 않게 */
+    [data-testid="stAppViewBlockContainer"] {{
+        padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
     }}
     /* Metric이 있는 가로 행: 모바일에서 2열(2x2) 강제 */
     @media screen and (max-width: 768px) {{
@@ -923,32 +927,40 @@ st.markdown(f"""
             font-size: clamp(1.1rem, 4vw, 1.35rem) !important;
         }}
     }}
-    /* 플로팅 액션 버튼 (엄지 존) */
+    /* 모바일: Full-width Bottom Bar */
     .nutri-fab-wrap {{
         position: fixed;
-        z-index: 999998;
+        z-index: 999;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 80px;
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        background: white;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
         display: flex;
         flex-direction: row;
-        gap: 10px;
+        gap: 12px;
         justify-content: center;
         align-items: center;
-        left: 50%;
-        transform: translateX(-50%);
-        bottom: max(16px, env(safe-area-inset-bottom, 0px));
-        width: calc(100% - 20px);
-        max-width: 420px;
-        pointer-events: none;
+        width: 100%;
+        max-width: none;
+        transform: none;
+        pointer-events: auto;
     }}
     .nutri-fab-wrap a {{
         pointer-events: auto;
         flex: 1;
         text-align: center;
         text-decoration: none !important;
-        font-weight: 800;
-        font-size: clamp(13px, 3.6vw, 15px);
-        padding: 14px 10px;
-        border-radius: 999px;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+        font-weight: 900;
+        font-size: clamp(13px, 3.8vw, 16px);
+        padding: 12px 10px;
+        border-radius: 16px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
         border: none;
         white-space: nowrap;
         overflow: hidden;
@@ -964,17 +976,7 @@ st.markdown(f"""
     }}
     @media screen and (min-width: 769px) {{
         .nutri-fab-wrap {{
-            left: auto;
-            right: 16px;
-            transform: none;
-            flex-direction: column;
-            width: auto;
-            max-width: none;
-            bottom: max(24px, env(safe-area-inset-bottom, 0px));
-        }}
-        .nutri-fab-wrap a {{
-            flex: none;
-            min-width: 148px;
+            display: none !important;
         }}
     }}
 
@@ -1982,6 +1984,27 @@ if st.session_state.get("logged_in"):
             pass
         st.rerun()
 
+# Bottom Bar actions (?bottom_action=save|retake)
+try:
+    _ba = st.query_params.get("bottom_action")
+    _ba_nav = None
+    if isinstance(_ba, (list, tuple)) and _ba:
+        _ba_nav = str(_ba[0]).strip().lower()
+    elif isinstance(_ba, str):
+        _ba_nav = _ba.strip().lower()
+
+    if _ba_nav and st.session_state.get("app_stage") == "result":
+        if _ba_nav == "save":
+            st.session_state["meal_save_trigger"] = True
+        elif _ba_nav == "retake":
+            st.session_state["retake_dialog_open"] = True
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
+except Exception:
+    pass
+
 # 5. 메인 화면 - 식단 스캔 / 나의 기록 전환 (사이드바 없이도 항상 노출)
 # 위젯 키(sidebar_menu)는 직접 설정 불가 → nav_menu 사용 후 menu_key 반영
 _nav1, _nav2 = st.columns(2)
@@ -1999,12 +2022,22 @@ st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
 
 _fab_l1 = html_module.escape(t.get("fab_scan_label", "📸 식단 촬영"))
 _fab_l2 = html_module.escape(t.get("fab_glucose_label", "🩸 혈당 입력"))
-st.markdown(
-    f'<div class="nutri-fab-wrap" role="navigation" aria-label="quick actions">'
-    f'<a href="?fab=scan" class="nutri-fab nutri-fab-green">{_fab_l1}</a>'
-    f'<a href="?fab=glucose" class="nutri-fab nutri-fab-mint">{_fab_l2}</a></div>',
-    unsafe_allow_html=True,
-)
+_bar_stage = st.session_state.get("app_stage", "main")
+if menu_key == "scanner":
+    if _bar_stage == "result":
+        st.markdown(
+            f'<div class="nutri-fab-wrap" role="navigation" aria-label="bottom actions">'
+            f'<a href="?bottom_action=save" class="nutri-fab nutri-fab-green">💾 식단 기록하기</a>'
+            f'<a href="?bottom_action=retake" class="nutri-fab nutri-fab-mint">📸 새 식단 촬영</a></div>',
+            unsafe_allow_html=True,
+        )
+    elif _bar_stage == "main":
+        st.markdown(
+            f'<div class="nutri-fab-wrap" role="navigation" aria-label="bottom actions">'
+            f'<a href="?fab=scan" class="nutri-fab nutri-fab-green">{_fab_l1}</a>'
+            f'<a href="?fab=glucose" class="nutri-fab nutri-fab-mint">{_fab_l2}</a></div>',
+            unsafe_allow_html=True,
+        )
 
 # 5-1. 식단 스캐너
 if menu_key == "scanner":
@@ -2046,6 +2079,31 @@ if menu_key == "scanner":
         st.error(t["gemini_key_error"])
         st.stop()
     client = genai.Client(api_key=API_KEY)
+
+    # ── 이탈 방지 모달: 분석 결과에서 "새 식단 촬영" 시 경고 ──
+    @st.dialog("⚠️ 저장하지 않고 이동하시겠습니까?")
+    def confirm_retake_dialog():
+        st.write("아직 식단을 기록하지 않았습니다. 이대로 새 사진을 촬영하면 현재 분석된 혈당 스파이크 데이터가 모두 사라집니다.")
+        c_left, c_right = st.columns(2)
+        with c_left:
+            if st.button("아니요, 돌아가서 저장할게요", key="retake_cancel"):
+                st.session_state["retake_dialog_open"] = False
+        with c_right:
+            if st.button("네, 삭제하고 새로 촬영합니다", key="retake_confirm", type="primary"):
+                # 분석 상태/이미지/결과 정리
+                st.session_state["current_analysis"] = None
+                st.session_state["current_img"] = None
+                st.session_state["vision_analysis_status"] = "idle"
+                st.session_state["meal_save_trigger"] = False
+                st.session_state["meal_save_in_progress"] = False
+                st.session_state["retake_dialog_open"] = False
+                st.session_state["app_stage"] = "main"
+                st.session_state["current_page"] = "diet_scan"
+                if "uploader_key" in st.session_state:
+                    st.session_state["uploader_key"] += 1
+                else:
+                    st.session_state["uploader_key"] = 0
+                st.rerun()
 
     if st.session_state['app_stage'] == 'main':
         is_guest = st.session_state.get('user_id') == 'guest_user_demo'
@@ -3051,6 +3109,8 @@ if menu_key == "scanner":
             st.rerun()
 
         res = st.session_state['current_analysis']
+        if st.session_state.get("retake_dialog_open"):
+            confirm_retake_dialog()
         score = res.get('blood_sugar_score', 50)
         total_carbs = res.get('total_carbs', 0)
         total_protein = res.get('total_protein', 0)
@@ -3162,26 +3222,6 @@ if menu_key == "scanner":
             st.caption(
                 "* 위 수치는 탄수화물 총량을 기반으로 한 단순 예측치이며, 개인의 대사량과 체질에 따라 다를 수 있습니다. 의학적 진단으로 사용될 수 없습니다."
             )
-            _saving_now = st.session_state.get("meal_save_in_progress", False)
-            _save_meal_click = st.button(
-                "💾 오늘의 식단으로 기록하기",
-                key="save_meal_under_warning",
-                use_container_width=True,
-                disabled=_saving_now or st.session_state.get("login_type") == "guest",
-                help=t["guest_save_disabled_msg"] if st.session_state.get("login_type") == "guest" else None,
-            )
-            if st.session_state.get("login_type") == "guest":
-                st.info(t["guest_save_disabled_msg"])
-                if st.button(t["guest_save_go_login"], key="save_meal_guest_login", use_container_width=True, type="primary"):
-                    st.session_state["logged_in"] = False
-                    st.session_state["login_type"] = None
-                    st.session_state["user_id"] = None
-                    st.session_state["user_email"] = None
-                    st.session_state["history_loaded_uid"] = None
-                    st.session_state["history"] = []
-                    st.session_state["auth_mode"] = "login"
-                    st.rerun()
-
         # ── 4. 음식별 혈당 분석 카드 (GI 바 포함) ──
         st.markdown(f"""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">{t['food_analysis_section']}</div></div>""", unsafe_allow_html=True)
 
@@ -3236,12 +3276,13 @@ if menu_key == "scanner":
         st.markdown(f"""<div style="display:flex;align-items:center;margin:12px 0 8px;"><div style="width:5px;height:20px;background:linear-gradient(to bottom,#86cc85,#359f33);border-radius:4px;margin-right:9px;"></div><div style="font-size:16px;font-weight:800;color:#1e293b;">{t['ai_advice_section']}</div></div>""", unsafe_allow_html=True)
         st.info(res['advice'])
 
-        # ── 7. 저장 실행 처리 (버튼은 스파이크 경고 바로 아래에서 렌더링) ──
-        if st.session_state.get("login_type") != "guest" and _save_meal_click:
+        # ── 7. 저장 실행 처리 (Bottom Bar에서 트리거) ──
+        if st.session_state.get("login_type") != "guest" and st.session_state.get("meal_save_trigger"):
             uid = st.session_state.get("user_id")
             if not uid:
                 st.toast("로그인된 사용자 정보가 없습니다.")
             else:
+                st.session_state["meal_save_trigger"] = False
                 st.session_state["meal_save_in_progress"] = True
                 try:
                     import pytz
