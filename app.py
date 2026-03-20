@@ -904,7 +904,7 @@ st.markdown(f"""
             padding-top: 0.35rem !important;
             padding-left: 0.45rem !important;
             padding-right: 0.45rem !important;
-            padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
+            padding-bottom: calc(100px + env(safe-area-inset-bottom, 20px)) !important;
             max-width: 100% !important;
         }}
     }}
@@ -916,8 +916,10 @@ st.markdown(f"""
         right: 0;
         background-color: white;
         z-index: 999;
+        height: 80px;
         padding-bottom: env(safe-area-inset-bottom, 20px);
         padding-top: 10px;
+        box-sizing: border-box;
         box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
     }}
     /* 2. [핵심] 부모 블록은 고정 해제! (자식 중에 anchor가 있는 부모 블록은 원상복구) */
@@ -931,7 +933,39 @@ st.markdown(f"""
     }}
     /* 3. 스크롤 시 하단 바에 내용이 가리지 않도록 메인 앱 영역 여백 확보 */
     div[data-testid="stAppViewBlockContainer"] {{
-        padding-bottom: 120px !important;
+        padding-bottom: calc(100px + env(safe-area-inset-bottom, 20px)) !important;
+    }}
+
+    /* Native Bottom Bar 오버레이: 보기용 HTML 위에 투명 st.button을 덮어쓰기 */
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="column"] {{
+        position: relative;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }}
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="column"] .stButton > button {{
+        opacity: 0 !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-width: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }}
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) .bottom-tab-decor {{
+        pointer-events: none;
+        z-index: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 2px;
+        width: 100%;
     }}
     /* Metric이 있는 가로 행: 모바일에서 2열(2x2) 강제 */
     @media screen and (max-width: 768px) {{
@@ -1467,8 +1501,33 @@ if not st.session_state['logged_in']:
     if _flash:
         st.warning(_flash)
 
+    # 로그인 화면(미니멀): 상단 SVG 로고 + 중앙 정렬
     st.markdown(
-        f"<div style='text-align:center;font-weight:800;font-size:1.15rem;margin-bottom:0.75rem;'>{_t.get('login_sheet_title', '')}</div>",
+        """
+        <div style="text-align:center;margin:0 auto 10px auto;max-width:520px;">
+          <div style="width:120px;height:120px;margin:0 auto 10px auto;">
+            <svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+              <defs>
+                <linearGradient id="g0" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#2ecc71"/>
+                  <stop offset="1" stop-color="#e74c3c"/>
+                </linearGradient>
+              </defs>
+              <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(134,204,133,0.18)" stroke-width="6"/>
+              <path d="M 18 66 L 34 58 L 48 62 L 62 44 L 76 52 L 92 40" fill="none" stroke="url(#g0)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M 18 66 L 34 58 L 48 62 L 62 44 L 76 52 L 92 40"
+                    fill="none" stroke="url(#g0)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"
+                    stroke-dasharray="220" stroke-dashoffset="220"
+                    style="animation: authDraw 1.2s ease-out forwards;"/>
+              <style>
+                @keyframes authDraw { to { stroke-dashoffset: 0; } }
+              </style>
+            </svg>
+          </div>
+          <div style="font-weight:900;font-size:1.25rem;letter-spacing:-0.02em;">{LOGIN_TITLE}</div>
+          <div style="font-size:0.95rem;color:#86cc85;font-weight:700;margin-top:6px;">혈당 관리 시작</div>
+        </div>
+        """.replace("{LOGIN_TITLE}", html_module.escape(_t.get("login_sheet_title", ""))),
         unsafe_allow_html=True,
     )
 
@@ -1514,12 +1573,12 @@ if not st.session_state['logged_in']:
             mode_text = t["btn_login"] if st.session_state["auth_mode"] == "login" else t["btn_signup"]
             submit_label = t["auth_submit_login"] if st.session_state["auth_mode"] == "login" else t["auth_submit_signup"]
             with st.form("auth_form_modern"):
-                st.markdown(f"#### 🔒 {mode_text}")
-                email = st.text_input(t["auth_email_label"], placeholder=t["auth_email_placeholder"])
+                st.markdown(f"### {mode_text}")
+                email = st.text_input("", placeholder=t["auth_email_placeholder"])
                 email_valid = bool(email and ("@" in email))
                 if email and not email_valid:
                     st.caption("🔴 올바른 이메일 형식을 입력해 주세요.")
-                pwd = st.text_input(t["auth_pwd_label"], type="password", placeholder=t["auth_pwd_placeholder"])
+                pwd = st.text_input("", type="password", placeholder=t["auth_pwd_placeholder"])
                 submitted = st.form_submit_button(submit_label, type="primary", use_container_width=True)
                 if submitted:
                     if not email_valid or not pwd:
@@ -1992,7 +2051,7 @@ if st.session_state.get("nav_menu"):
     menu_key = st.session_state["nav_menu"]
 st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
 
-# Native Bottom Bar (st.button) — URL 쿼리/anchor 제거 (Hard refresh 방지)
+# Native Bottom Bar (HTML 데코 + 투명 st.button 오버레이)
 if menu_key == "scanner":
     with st.container():
         st.markdown('<div class="bottom-bar-anchor"></div>', unsafe_allow_html=True)
@@ -2000,27 +2059,76 @@ if menu_key == "scanner":
         _login_type = st.session_state.get("login_type")
         _is_guest = _login_type == "guest"
 
-        col_bb1, col_bb2 = st.columns(2)
-        with col_bb1:
-            if _stage == "main":
-                if st.button("📸 식단 촬영", use_container_width=True, key="btn_scan_main"):
+        if _stage == "main":
+            c_home, c_record, c_capture, c_glucose, c_settings = st.columns(5)
+
+            with c_home:
+                st.markdown(
+                    '<div class="bottom-tab-decor">🏠<div style="font-size:12px;font-weight:700;">홈</div></div>',
+                    unsafe_allow_html=True,
+                )
+                st.button("", use_container_width=True, key="bb_tab_home", disabled=True)
+
+            with c_record:
+                st.markdown(
+                    '<div class="bottom-tab-decor">📊<div style="font-size:12px;font-weight:700;">기록</div></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("", use_container_width=True, key="bb_tab_record"):
+                    st.session_state["nav_menu"] = "history"
+                    st.rerun()
+
+            with c_capture:
+                st.markdown(
+                    '<div class="bottom-tab-decor">📸<div style="font-size:12px;font-weight:700;">촬영</div></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("", use_container_width=True, key="bb_tab_capture"):
                     st.session_state["current_page"] = "diet_scan"
                     st.session_state["app_stage"] = "main"
                     st.rerun()
-            elif _stage == "result":
-                if st.button("💾 식단 기록하기", use_container_width=True, key="btn_save_meal_bb", type="primary", disabled=_is_guest):
-                    st.session_state["meal_save_trigger"] = True
-                    st.session_state["retake_dialog_open"] = False
-                    st.rerun()
-        with col_bb2:
-            if _stage == "main":
-                if st.button("🩸 혈당 입력", use_container_width=True, key="btn_glucose_main"):
+
+            with c_glucose:
+                st.markdown(
+                    '<div class="bottom-tab-decor">🩹<div style="font-size:12px;font-weight:700;">혈당</div></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("", use_container_width=True, key="bb_tab_glucose"):
                     st.session_state["current_page"] = "glucose_input"
                     st.session_state["app_stage"] = "main"
                     st.rerun()
-            elif _stage == "result":
-                if st.button("📸 새 식단 촬영", use_container_width=True, key="btn_retake_meal_bb"):
+
+            with c_settings:
+                st.markdown(
+                    '<div class="bottom-tab-decor">⚙️<div style="font-size:12px;font-weight:700;">설정</div></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("", use_container_width=True, key="bb_tab_settings"):
+                    st.session_state["current_page"] = "settings"
+                    st.session_state["app_stage"] = "main"
+                    st.rerun()
+
+        elif _stage == "result":
+            c_save, c_retake = st.columns(2)
+
+            with c_save:
+                st.markdown(
+                    '<div class="bottom-tab-decor">💾<div style="font-size:12px;font-weight:700;">기록하기</div></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("", use_container_width=True, key="bb_tab_save", type="primary", disabled=_is_guest):
+                    st.session_state["meal_save_trigger"] = True
+                    st.session_state["retake_dialog_open"] = False
+                    st.rerun()
+
+            with c_retake:
+                st.markdown(
+                    '<div class="bottom-tab-decor">📸<div style="font-size:12px;font-weight:700;">다시 촬영</div></div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button("", use_container_width=True, key="bb_tab_retake"):
                     st.session_state["retake_dialog_open"] = True
+                    st.session_state["meal_save_trigger"] = False
                     st.rerun()
 
 # 5-1. 식단 스캐너
