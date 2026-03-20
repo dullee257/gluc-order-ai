@@ -1,0 +1,60 @@
+/**
+ * 혈당스캐너 — 하단 네비(Bottom Bar) 스타일
+ * 실제 적용은 app.py의 st.markdown(<style>) 주입과 동기화해 유지하세요.
+ */
+
+/* 하단 바 컨테이너 고정 */
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: white;
+    z-index: 999;
+    padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+    padding-top: 10px !important;
+    border-top: 1px solid #e0e0e0;
+    box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
+    box-sizing: border-box;
+}
+
+/* 하단 바 안 순정 버튼 → 탭 스타일 */
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 6px 4px !important;
+    height: auto !important;
+    min-height: 0 !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button[kind="primary"] {
+    background: transparent !important;
+    color: inherit !important;
+    border: none !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button p {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+    margin: 0 !important;
+    white-space: pre-line !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+}
+
+/* 부모 세로 블록 붕괴 방지 */
+div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor),
+div[data-testid="stVerticalBlock"]:has(div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {
+    position: static !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+div[data-testid="stAppViewBlockContainer"] {
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
+}
