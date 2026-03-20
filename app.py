@@ -912,6 +912,28 @@ st.markdown(f"""
     [data-testid="stAppViewBlockContainer"] {{
         padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
     }}
+    /* Native Bottom Bar (st.button) — anchor 기반 fixed */
+    .bottom-bar-anchor {{
+        width: 1px;
+        height: 1px;
+    }}
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {{
+        position: fixed !important;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999;
+        height: calc(80px + env(safe-area-inset-bottom, 0px));
+        background: white;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)) 14px;
+        box-sizing: border-box;
+    }}
+    @media screen and (min-width: 769px) {{
+        div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {{
+            display: none !important;
+        }}
+    }}
     /* Metric이 있는 가로 행: 모바일에서 2열(2x2) 강제 */
     @media screen and (max-width: 768px) {{
         div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) {{
@@ -1956,55 +1978,6 @@ def _load_my_history_from_firestore():
 if st.session_state.get("logged_in") and st.session_state.get("login_type") == "google":
     _load_my_history_from_firestore()
 
-# FAB 딥링크 (?fab=scan | ?fab=glucose) → 식단 촬영 / 혈당 입력 화면
-if st.session_state.get("logged_in"):
-    _fab_nav = None
-    try:
-        _fv = st.query_params.get("fab")
-        if isinstance(_fv, (list, tuple)) and _fv:
-            _fab_nav = str(_fv[0]).strip().lower()
-        elif isinstance(_fv, str):
-            _fab_nav = _fv.strip().lower()
-    except Exception:
-        pass
-    if _fab_nav == "scan":
-        st.session_state["current_page"] = "diet_scan"
-        st.session_state["nav_menu"] = "scanner"
-        try:
-            st.query_params.clear()
-        except Exception:
-            pass
-        st.rerun()
-    elif _fab_nav == "glucose":
-        st.session_state["current_page"] = "glucose_input"
-        st.session_state["nav_menu"] = "scanner"
-        try:
-            st.query_params.clear()
-        except Exception:
-            pass
-        st.rerun()
-
-# Bottom Bar actions (?bottom_action=save|retake)
-try:
-    _ba = st.query_params.get("bottom_action")
-    _ba_nav = None
-    if isinstance(_ba, (list, tuple)) and _ba:
-        _ba_nav = str(_ba[0]).strip().lower()
-    elif isinstance(_ba, str):
-        _ba_nav = _ba.strip().lower()
-
-    if _ba_nav and st.session_state.get("app_stage") == "result":
-        if _ba_nav == "save":
-            st.session_state["meal_save_trigger"] = True
-        elif _ba_nav == "retake":
-            st.session_state["retake_dialog_open"] = True
-        try:
-            st.query_params.clear()
-        except Exception:
-            pass
-except Exception:
-    pass
-
 # 5. 메인 화면 - 식단 스캔 / 나의 기록 전환 (사이드바 없이도 항상 노출)
 # 위젯 키(sidebar_menu)는 직접 설정 불가 → nav_menu 사용 후 menu_key 반영
 _nav1, _nav2 = st.columns(2)
@@ -2020,24 +1993,36 @@ if st.session_state.get("nav_menu"):
     menu_key = st.session_state["nav_menu"]
 st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
 
-_fab_l1 = html_module.escape(t.get("fab_scan_label", "📸 식단 촬영"))
-_fab_l2 = html_module.escape(t.get("fab_glucose_label", "🩸 혈당 입력"))
-_bar_stage = st.session_state.get("app_stage", "main")
+# Native Bottom Bar (st.button) — URL 쿼리/anchor 제거 (Hard refresh 방지)
 if menu_key == "scanner":
-    if _bar_stage == "result":
-        st.markdown(
-            f'<div class="nutri-fab-wrap" role="navigation" aria-label="bottom actions">'
-            f'<a href="?bottom_action=save" class="nutri-fab nutri-fab-green">💾 식단 기록하기</a>'
-            f'<a href="?bottom_action=retake" class="nutri-fab nutri-fab-mint">📸 새 식단 촬영</a></div>',
-            unsafe_allow_html=True,
-        )
-    elif _bar_stage == "main":
-        st.markdown(
-            f'<div class="nutri-fab-wrap" role="navigation" aria-label="bottom actions">'
-            f'<a href="?fab=scan" class="nutri-fab nutri-fab-green">{_fab_l1}</a>'
-            f'<a href="?fab=glucose" class="nutri-fab nutri-fab-mint">{_fab_l2}</a></div>',
-            unsafe_allow_html=True,
-        )
+    with st.container():
+        st.markdown('<div class="bottom-bar-anchor"></div>', unsafe_allow_html=True)
+        _stage = st.session_state.get("app_stage", "main")
+        _login_type = st.session_state.get("login_type")
+        _is_guest = _login_type == "guest"
+
+        col_bb1, col_bb2 = st.columns(2)
+        with col_bb1:
+            if _stage == "main":
+                if st.button("📸 식단 촬영", use_container_width=True, key="btn_scan_main"):
+                    st.session_state["current_page"] = "diet_scan"
+                    st.session_state["app_stage"] = "main"
+                    st.rerun()
+            elif _stage == "result":
+                if st.button("💾 식단 기록하기", use_container_width=True, key="btn_save_meal_bb", type="primary", disabled=_is_guest):
+                    st.session_state["meal_save_trigger"] = True
+                    st.session_state["retake_dialog_open"] = False
+                    st.rerun()
+        with col_bb2:
+            if _stage == "main":
+                if st.button("🩸 혈당 입력", use_container_width=True, key="btn_glucose_main"):
+                    st.session_state["current_page"] = "glucose_input"
+                    st.session_state["app_stage"] = "main"
+                    st.rerun()
+            elif _stage == "result":
+                if st.button("📸 새 식단 촬영", use_container_width=True, key="btn_retake_meal_bb"):
+                    st.session_state["retake_dialog_open"] = True
+                    st.rerun()
 
 # 5-1. 식단 스캐너
 if menu_key == "scanner":
