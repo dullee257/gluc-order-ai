@@ -908,31 +908,30 @@ st.markdown(f"""
             max-width: 100% !important;
         }}
     }}
-    /* 하단 고정 바로 인해 콘텐츠가 가려지지 않게 */
-    [data-testid="stAppViewBlockContainer"] {{
-        padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)) !important;
-    }}
-    /* Native Bottom Bar (st.button) — anchor 기반 fixed */
-    .bottom-bar-anchor {{
-        width: 1px;
-        height: 1px;
-    }}
+    /* 1. 먼저 .bottom-bar-anchor를 가진 모든 세로 블록을 하단에 고정 */
     div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {{
         position: fixed !important;
+        bottom: 0;
         left: 0;
         right: 0;
-        bottom: 0;
+        background-color: white;
         z-index: 999;
-        height: calc(80px + env(safe-area-inset-bottom, 0px));
-        background: white;
+        padding-bottom: env(safe-area-inset-bottom, 20px);
+        padding-top: 10px;
         box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-        padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)) 14px;
-        box-sizing: border-box;
     }}
-    @media screen and (min-width: 769px) {{
-        div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {{
-            display: none !important;
-        }}
+    /* 2. [핵심] 부모 블록은 고정 해제! (자식 중에 anchor가 있는 부모 블록은 원상복구) */
+    div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor),
+    div[data-testid="stVerticalBlock"]:has(div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {{
+        position: static !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+        padding-bottom: 0 !important;
+        padding-top: 0 !important;
+    }}
+    /* 3. 스크롤 시 하단 바에 내용이 가리지 않도록 메인 앱 영역 여백 확보 */
+    div[data-testid="stAppViewBlockContainer"] {{
+        padding-bottom: 120px !important;
     }}
     /* Metric이 있는 가로 행: 모바일에서 2열(2x2) 강제 */
     @media screen and (max-width: 768px) {{
