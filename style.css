@@ -1,10 +1,12 @@
 /**
  * 혈당스캐너 — 하단 네비 (app.py <style> 주입본과 동기화)
- * 앵커가 첫 번째 element-container에만 있을 때만 매칭 → 상단 레이아웃 CSS 전염 차단.
+ * 첫 element-container에 .bottom-bar-anchor.main-nav|result-nav 만 매칭 → 본문 stVerticalBlock 전염 차단.
  */
 
-div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor),
-div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) {
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav),
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav),
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav),
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.result-nav) {
     position: fixed !important;
     bottom: 0;
     left: 0;
@@ -25,8 +27,10 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nt
     box-sizing: border-box !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) > div.element-container:nth-child(1),
-div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) > div[data-testid="element-container"]:nth-child(1) {
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(1),
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) > div.element-container:nth-child(1),
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(1),
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.result-nav) > div[data-testid="element-container"]:nth-child(1) {
     display: none !important;
     width: 0 !important;
     flex: 0 0 0 !important;
@@ -36,10 +40,10 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nt
     overflow: hidden !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) > div.element-container,
-div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) > div[data-testid="element-container"],
-div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) > div.element-container,
-div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) > div[data-testid="element-container"] {
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container,
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"],
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container,
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"] {
     width: 20% !important;
     min-width: 20% !important;
     max-width: 20% !important;
@@ -60,8 +64,10 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nt
     flex: 1 1 50% !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) button,
-div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) button {
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) button,
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) button,
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) button,
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.result-nav) button {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
@@ -70,8 +76,10 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nt
     padding: 6px 0 !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) button p,
-div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) button p {
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) button p,
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) button p,
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) button p,
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.result-nav) button p {
     font-size: 13px !important;
     color: #444 !important;
     font-weight: 700 !important;
@@ -120,7 +128,8 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nt
     transform: translateY(-18px) scale(0.95) !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {
+div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor.main-nav),
+div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor.result-nav) {
     position: static !important;
     display: block !important;
     background: transparent !important;
@@ -132,16 +141,18 @@ div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVertical
 }
 
 @media screen and (max-width: 768px) {
-    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor),
-    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) {
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav),
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav),
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav),
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.result-nav) {
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
     }
-    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) > div.element-container,
-    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) > div[data-testid="element-container"],
-    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) > div.element-container,
-    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) > div[data-testid="element-container"] {
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container,
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"],
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container,
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"] {
         width: 20% !important;
         min-width: 20% !important;
         max-width: 20% !important;
@@ -162,7 +173,6 @@ div[data-testid="stAppViewBlockContainer"] {
     padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
 }
 
-/* 상단 중복 탭 제거 후 본문 상단 여백 (app.py 주입본과 동기화) */
 @media screen and (max-width: 768px) {
     .block-container {
         padding-top: 12px !important;
