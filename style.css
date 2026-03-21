@@ -161,3 +161,10 @@ div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVertical
 div[data-testid="stAppViewBlockContainer"] {
     padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
 }
+
+/* 상단 중복 탭 제거 후 본문 상단 여백 (app.py 주입본과 동기화) */
+@media screen and (max-width: 768px) {
+    .block-container {
+        padding-top: 12px !important;
+    }
+}

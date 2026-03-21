@@ -901,7 +901,7 @@ st.markdown(f"""
     /* 모바일: 여백 대폭 축소 + FAB 영역 확보 */
     @media screen and (max-width: 768px) {{
         .block-container {{
-            padding-top: 0.35rem !important;
+            padding-top: 12px !important;
             padding-left: 0.45rem !important;
             padding-right: 0.45rem !important;
             padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
@@ -2160,19 +2160,8 @@ def render_bottom_bar():
                 st.rerun()
 
 
-# 5. 메인 화면 - 식단 스캔 / 나의 기록 전환 (사이드바 없이도 항상 노출)
-# 위젯 키(sidebar_menu)는 직접 설정 불가 → nav_menu 사용 후 menu_key 반영
+# 5. 메인 영역 — 스캐너/기록 전환은 하단 바 + session_state.nav_menu만 사용 (상단 중복 탭 제거)
 menu_key = st.session_state.get("nav_menu") or "scanner"
-_nav1, _nav2 = st.columns(2)
-with _nav1:
-    if st.button(t.get("scanner_menu", "식단 스캐너"), key="nav_scanner", use_container_width=True, type="primary" if menu_key == "scanner" else "secondary"):
-        st.session_state["nav_menu"] = "scanner"
-        st.rerun()
-with _nav2:
-    if st.button(t.get("history_menu", "나의 식단 기록"), key="nav_history", use_container_width=True, type="primary" if menu_key == "history" else "secondary"):
-        st.session_state["nav_menu"] = "history"
-        st.rerun()
-st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
 
 # 5-1. 식단 스캐너
 if menu_key == "scanner":
