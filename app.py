@@ -1034,8 +1034,8 @@ st.markdown(f"""
         }}
     }}
     /*
-     * 하단 바: Streamlit 1.5x 프로덕션 번들에는 stVerticalBlock/stHorizontalBlock
-     * data-testid가 거의 없어 CSS만으로는 선택 불가. 스크립트가 .nutri-bottom-bar-shell / row 부착.
+     * 하단 바: (1) JS가 부착하는 .nutri-bottom-bar-shell / row — Streamlit 1.5x에서 실제 적용.
+     * (2) data-testid 선택자 — 구형/일부 배포에서 폴백.
      */
     .stApp .nutri-bottom-bar-shell {{
         position: fixed !important;
@@ -1044,14 +1044,14 @@ st.markdown(f"""
         right: 0 !important;
         width: 100% !important;
         max-width: 100% !important;
-        background-color: rgba(255, 255, 255, 0.95) !important;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        background-color: rgba(255, 255, 255, 0.96) !important;
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
         z-index: 999 !important;
-        padding-bottom: env(safe-area-inset-bottom, 15px) !important;
-        padding-top: 8px !important;
+        padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+        padding-top: 10px !important;
         border-top: 1px solid rgba(0,0,0,0.08) !important;
-        box-shadow: 0 -4px 15px rgba(0,0,0,0.03) !important;
+        box-shadow: 0 -4px 15px rgba(0,0,0,0.02) !important;
         box-sizing: border-box !important;
     }}
     .stApp .nutri-bottom-bar-row {{
@@ -1067,7 +1067,7 @@ st.markdown(f"""
         overflow: visible !important;
     }}
     .stApp .nutri-bottom-bar-row > div {{
-        flex: 1 1 0% !important;
+        flex: 1 1 0px !important;
         min-width: 0 !important;
         max-width: none !important;
         width: auto !important;
@@ -1075,12 +1075,12 @@ st.markdown(f"""
     @media screen and (max-width: 640px) {{
         .stApp .nutri-bottom-bar-row > div {{
             min-width: 0 !important;
-            flex: 1 1 0% !important;
+            flex: 1 1 0px !important;
         }}
     }}
     .stApp .nutri-bottom-bar-row button {{
         border: none !important; background: transparent !important; box-shadow: none !important;
-        padding: 4px 0 !important; height: auto !important; min-height: 0 !important; margin: 0 auto !important;
+        padding: 2px 0 !important; height: auto !important; min-height: 0 !important; margin: 0 auto !important;
         transition: transform 0.1s ease !important;
     }}
     .stApp .nutri-bottom-bar-row button[kind="primary"] {{
@@ -1093,10 +1093,54 @@ st.markdown(f"""
     }}
     .stApp .nutri-bottom-bar-row button p {{
         font-size: 11px !important; font-weight: 500 !important; color: #555 !important;
-        line-height: 1.5 !important; margin: 0 !important;
+        line-height: 1.4 !important; margin: 0 !important;
         white-space: pre-line !important;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         text-align: center !important;
+    }}
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {{
+        position: fixed !important; bottom: 0; left: 0; right: 0;
+        background-color: rgba(255, 255, 255, 0.96) !important;
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        z-index: 999;
+        padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+        padding-top: 10px !important;
+        border-top: 1px solid rgba(0,0,0,0.08) !important;
+        box-shadow: 0 -4px 15px rgba(0,0,0,0.02) !important;
+        box-sizing: border-box;
+    }}
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="stHorizontalBlock"],
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] {{
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 0 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+    }}
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] [data-testid="column"] {{
+        width: 100% !important;
+        flex: 1 1 0px !important;
+        min-width: 0 !important;
+    }}
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button {{
+        border: none !important; background: transparent !important; box-shadow: none !important;
+        padding: 2px 0 !important; height: auto !important; margin: 0 auto !important;
+    }}
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button p {{
+        font-size: 11px !important; font-weight: 500 !important; color: #555 !important;
+        line-height: 1.4 !important; margin: 0 !important;
+        white-space: pre-line !important;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        text-align: center !important;
+    }}
+    div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {{
+        position: static !important; background: transparent !important; border: none !important;
+        box-shadow: none !important; padding: 0 !important;
     }}
     div[data-testid="stAppViewBlockContainer"] {{
         padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
@@ -1114,58 +1158,6 @@ st.markdown(f"""
         }}
         div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) [data-testid="stMetricValue"] {{
             font-size: clamp(1.1rem, 4vw, 1.35rem) !important;
-        }}
-    }}
-    /* 모바일: Full-width Bottom Bar */
-    .nutri-fab-wrap {{
-        position: fixed;
-        z-index: 999;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: 80px;
-        padding-left: 14px;
-        padding-right: 14px;
-        padding-top: 0;
-        padding-bottom: env(safe-area-inset-bottom, 0px);
-        background: white;
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-        display: flex;
-        flex-direction: row;
-        gap: 12px;
-        justify-content: center;
-        align-items: center;
-        width: 100%;
-        max-width: none;
-        transform: none;
-        pointer-events: auto;
-    }}
-    .nutri-fab-wrap a {{
-        pointer-events: auto;
-        flex: 1;
-        text-align: center;
-        text-decoration: none !important;
-        font-weight: 900;
-        font-size: clamp(13px, 3.8vw, 16px);
-        padding: 12px 10px;
-        border-radius: 16px;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-        border: none;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }}
-    .nutri-fab-green {{
-        background: linear-gradient(135deg, #2e7d32, #43a047);
-        color: #fff !important;
-    }}
-    .nutri-fab-mint {{
-        background: linear-gradient(135deg, #5a9e59, #86cc85);
-        color: #1b2e1b !important;
-    }}
-    @media screen and (min-width: 769px) {{
-        .nutri-fab-wrap {{
-            display: none !important;
         }}
     }}
 
@@ -3055,7 +3047,7 @@ if menu_key == "scanner":
             _b64 = base64.b64encode(_buf.getvalue()).decode()
             st.markdown(f"""
             <div style="max-height:350px;display:flex;justify-content:center;align-items:center;margin-bottom:10px;background:#f8f9fa;border-radius:12px;overflow:hidden;">
-                <img src="data:image/jpeg;base64,{_b64}" style="max-height:350px;width:100%;object-fit:contain;" />
+                <img src="data:image/jpeg;base64,{_b64}" alt="" role="presentation" decoding="async" style="max-height:350px;width:100%;object-fit:contain;" />
             </div>
             """, unsafe_allow_html=True)
         
@@ -3314,7 +3306,7 @@ if menu_key == "scanner":
                 _res_b64 = base64.b64encode(_rb.getvalue()).decode()
                 st.markdown(f"""
                 <div style="max-height:350px;display:flex;justify-content:center;align-items:center;background:#f8f9fa;border-radius:12px;overflow:hidden;">
-                    <img src="data:image/jpeg;base64,{_res_b64}" style="max-height:350px;width:100%;object-fit:contain;" />
+                    <img src="data:image/jpeg;base64,{_res_b64}" alt="" role="presentation" decoding="async" style="max-height:350px;width:100%;object-fit:contain;" />
                 </div>
                 """, unsafe_allow_html=True)
         with col_score:

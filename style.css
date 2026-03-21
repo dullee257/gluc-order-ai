@@ -2,8 +2,8 @@
  * 혈당스캐너 — 하단 네비(Bottom Bar)
  * app.py의 <style> 주입본과 동기화할 것.
  *
- * Streamlit 1.5x: stVerticalBlock/stHorizontalBlock data-testid가 번들에 없을 수 있음.
- * app.py 스크립트가 .nutri-bottom-bar-shell / .nutri-bottom-bar-row 를 DOM에 부착한 뒤 이 규칙이 적용됨.
+ * Streamlit 1.5x: .nutri-bottom-bar-shell / row 는 JS로 부착.
+ * data-testid 규칙은 구형/일부 환경 폴백.
  */
 
 .stApp .nutri-bottom-bar-shell {
@@ -13,14 +13,14 @@
     right: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-    background-color: rgba(255, 255, 255, 0.95) !important;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background-color: rgba(255, 255, 255, 0.96) !important;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
     z-index: 999 !important;
-    padding-bottom: env(safe-area-inset-bottom, 15px) !important;
-    padding-top: 8px !important;
+    padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+    padding-top: 10px !important;
     border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
-    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.03) !important;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.02) !important;
     box-sizing: border-box !important;
 }
 
@@ -38,7 +38,7 @@
 }
 
 .stApp .nutri-bottom-bar-row > div {
-    flex: 1 1 0% !important;
+    flex: 1 1 0px !important;
     min-width: 0 !important;
     max-width: none !important;
     width: auto !important;
@@ -47,7 +47,7 @@
 @media screen and (max-width: 640px) {
     .stApp .nutri-bottom-bar-row > div {
         min-width: 0 !important;
-        flex: 1 1 0% !important;
+        flex: 1 1 0px !important;
     }
 }
 
@@ -55,7 +55,7 @@
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
-    padding: 4px 0 !important;
+    padding: 2px 0 !important;
     height: auto !important;
     min-height: 0 !important;
     margin: 0 auto !important;
@@ -76,7 +76,7 @@
     font-size: 11px !important;
     font-weight: 500 !important;
     color: #555 !important;
-    line-height: 1.5 !important;
+    line-height: 1.4 !important;
     margin: 0 !important;
     white-space: pre-line !important;
     display: flex;
@@ -84,6 +84,72 @@
     align-items: center;
     justify-content: center;
     text-align: center !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(255, 255, 255, 0.96) !important;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    z-index: 999;
+    padding-bottom: env(safe-area-inset-bottom, 20px) !important;
+    padding-top: 10px !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.02) !important;
+    box-sizing: border-box;
+}
+
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="stHorizontalBlock"],
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] [data-testid="column"] {
+    width: 100% !important;
+    flex: 1 1 0px !important;
+    min-width: 0 !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 2px 0 !important;
+    height: auto !important;
+    margin: 0 auto !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button p {
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    color: #555 !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    white-space: pre-line !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {
+    position: static !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
 }
 
 div[data-testid="stAppViewBlockContainer"] {
