@@ -121,13 +121,31 @@ def upload_image_to_storage(uid, meal_id, pil_image, max_width=800, quality=85):
     return image_url
 
 
+def sanitize_for_firestore(data):
+    """Firestore에 저장하기 전, 중첩 배열(Nested Arrays)을 찾아 쉼표 문자열로 평탄화하는 재귀 함수"""
+    if isinstance(data, dict):
+        return {k: sanitize_for_firestore(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        sanitized_list = []
+        for item in data:
+            if isinstance(item, list):
+                sanitized_list.append(", ".join(str(x) for x in item))
+            elif isinstance(item, dict):
+                sanitized_list.append(sanitize_for_firestore(item))
+            else:
+                sanitized_list.append(item)
+        return sanitized_list
+    else:
+        return data
+
+
 def save_meal_and_summary(uid, date_key, meal_data):
     _init_firebase()
     db = firestore.client()
     meal_ref = db.collection("users").document(str(uid)).collection("meals").document()
     summary_ref = db.collection("users").document(str(uid)).collection("daily_summaries").document(str(date_key))
 
-    data = dict(meal_data or {})
+    data = sanitize_for_firestore(dict(meal_data or {}))
     data["created_at"] = firestore.SERVER_TIMESTAMP
     data["date_key"] = str(date_key)
     data["meal_id"] = meal_ref.id
@@ -137,21 +155,20 @@ def save_meal_and_summary(uid, date_key, meal_data):
     total_fat = int(data.get("total_fat", 0) or 0)
     estimated_spike = int(data.get("estimated_spike", 0) or 0)
 
+    summary_payload = {
+        "date_key": str(date_key),
+        "updated_at": firestore.SERVER_TIMESTAMP,
+        "total_carbs": firestore.Increment(total_carbs),
+        "total_protein": firestore.Increment(total_protein),
+        "total_fat": firestore.Increment(total_fat),
+        "spike_sum": firestore.Increment(estimated_spike),
+        "meal_count": firestore.Increment(1),
+    }
+    safe_summary_data = sanitize_for_firestore(summary_payload)
+
     batch = db.batch()
     batch.set(meal_ref, data, merge=True)
-    batch.set(
-        summary_ref,
-        {
-            "date_key": str(date_key),
-            "updated_at": firestore.SERVER_TIMESTAMP,
-            "total_carbs": firestore.Increment(total_carbs),
-            "total_protein": firestore.Increment(total_protein),
-            "total_fat": firestore.Increment(total_fat),
-            "spike_sum": firestore.Increment(estimated_spike),
-            "meal_count": firestore.Increment(1),
-        },
-        merge=True,
-    )
+    batch.set(summary_ref, safe_summary_data, merge=True)
     batch.commit()
     return meal_ref.id
 
