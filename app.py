@@ -1053,25 +1053,34 @@ st.markdown(f"""
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
+        width: 100vw !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
         align-items: center !important;
         justify-content: space-around !important;
-        gap: 0 !important;
-        padding: 0 !important;
-        width: 100% !important;
         min-width: 0 !important;
         overflow: visible !important;
     }}
     .stApp .nutri-bottom-bar-row > div {{
         width: 20% !important;
-        flex: 1 1 0 !important;
-        min-width: 0 !important;
+        min-width: 20% !important;
+        max-width: 20% !important;
+        flex: 1 1 20% !important;
+        margin: 0 !important;
         padding: 0 !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
         box-sizing: border-box !important;
     }}
     .stApp .nutri-bottom-bar-row > div:first-child:nth-last-child(2),
     .stApp .nutri-bottom-bar-row > div:first-child:nth-last-child(2) ~ div {{
         width: 50% !important;
+        min-width: 50% !important;
         max-width: 50% !important;
+        flex: 1 1 50% !important;
     }}
     .stApp .nutri-bottom-bar-row button {{
         background: transparent !important; border: none !important; box-shadow: none !important;
@@ -1112,28 +1121,37 @@ st.markdown(f"""
         box-shadow: 0 -2px 10px rgba(0,0,0,0.05) !important;
         box-sizing: border-box;
     }}
+    /* [핵심] 모바일 @media 의 column 100% 팽창 무력화: min/max-width 20% 족쇄 */
     div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] {{
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
+        width: 100vw !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
         align-items: center !important;
         justify-content: space-around !important;
-        gap: 0 !important;
-        padding: 0 !important;
-        width: 100% !important;
         min-width: 0 !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="column"] {{
         width: 20% !important;
-        flex: 1 1 0 !important;
-        min-width: 0 !important;
+        min-width: 20% !important;
+        max-width: 20% !important;
+        flex: 1 1 20% !important;
+        margin: 0 !important;
         padding: 0 !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
         box-sizing: border-box !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child:nth-last-child(2),
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child:nth-last-child(2) ~ div[data-testid="column"] {{
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(2):last-child) div[data-testid="column"] {{
         width: 50% !important;
+        min-width: 50% !important;
         max-width: 50% !important;
+        flex: 1 1 50% !important;
     }}
     div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button {{
         background: transparent !important; border: none !important; box-shadow: none !important;
@@ -1164,6 +1182,54 @@ st.markdown(f"""
     div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {{
         position: static !important; background: transparent !important; border: none !important;
         padding: 0 !important; box-shadow: none !important;
+    }}
+    /* 동일 규칙을 모바일 미디어 안에서 재선언 → Streamlit 기본 column 스택 규칙보다 우선 */
+    @media screen and (max-width: 768px) {{
+        .stApp .nutri-bottom-bar-row {{
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            width: 100vw !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            gap: 0 !important;
+        }}
+        .stApp .nutri-bottom-bar-row > div {{
+            width: 20% !important;
+            min-width: 20% !important;
+            max-width: 20% !important;
+            flex: 1 1 20% !important;
+        }}
+        .stApp .nutri-bottom-bar-row > div:first-child:nth-last-child(2),
+        .stApp .nutri-bottom-bar-row > div:first-child:nth-last-child(2) ~ div {{
+            width: 50% !important;
+            min-width: 50% !important;
+            max-width: 50% !important;
+            flex: 1 1 50% !important;
+        }}
+        div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] {{
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            width: 100vw !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            gap: 0 !important;
+        }}
+        div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="column"] {{
+            width: 20% !important;
+            min-width: 20% !important;
+            max-width: 20% !important;
+            flex: 1 1 20% !important;
+        }}
+        div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(2):last-child) div[data-testid="column"] {{
+            width: 50% !important;
+            min-width: 50% !important;
+            max-width: 50% !important;
+            flex: 1 1 50% !important;
+        }}
     }}
     div[data-testid="stAppViewBlockContainer"] {{
         padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
@@ -2224,7 +2290,7 @@ def render_bottom_bar():
         _is_guest = _login_type == "guest"
 
         if menu_key == "scanner" and _stage == "result":
-            c_save, c_retake = st.columns(2)
+            c_save, c_retake = st.columns(2, gap="xxsmall")
             with c_save:
                 if st.button(
                     "💾\n기록하기",
@@ -2239,7 +2305,7 @@ def render_bottom_bar():
                 if st.button("📸\n다시 촬영", key="bb_tab_retake", use_container_width=True):
                     confirm_retake_dialog()
         else:
-            c_home, c_record, c_capture, c_glucose, c_settings = st.columns(5)
+            c_home, c_record, c_capture, c_glucose, c_settings = st.columns(5, gap="xxsmall")
             with c_home:
                 if st.button("🏠\n홈", key="bb_nav_home", use_container_width=True):
                     st.session_state["nav_menu"] = "scanner"

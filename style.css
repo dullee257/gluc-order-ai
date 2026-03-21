@@ -1,6 +1,6 @@
 /**
  * 혈당스캐너 — 하단 네비 (app.py <style> 주입본과 동기화)
- * 모바일 column 스택 → flex-direction: row 강제 + Center FAB(3열)
+ * 모바일 @media 의 column 100% 팽창 무력화 → min/max-width 20% 족쇄 + Center FAB(3열)
  */
 
 .stApp .nutri-bottom-bar-shell {
@@ -22,27 +22,36 @@
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
+    width: 100vw !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
     align-items: center !important;
     justify-content: space-around !important;
-    gap: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
     min-width: 0 !important;
     overflow: visible !important;
 }
 
 .stApp .nutri-bottom-bar-row > div {
     width: 20% !important;
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
+    min-width: 20% !important;
+    max-width: 20% !important;
+    flex: 1 1 20% !important;
+    margin: 0 !important;
     padding: 0 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
     box-sizing: border-box !important;
 }
 
 .stApp .nutri-bottom-bar-row > div:first-child:nth-last-child(2),
 .stApp .nutri-bottom-bar-row > div:first-child:nth-last-child(2) ~ div {
     width: 50% !important;
+    min-width: 50% !important;
     max-width: 50% !important;
+    flex: 1 1 50% !important;
 }
 
 .stApp .nutri-bottom-bar-row button {
@@ -109,26 +118,34 @@ div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHo
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
+    width: 100vw !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
     align-items: center !important;
     justify-content: space-around !important;
-    gap: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
     min-width: 0 !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="column"] {
     width: 20% !important;
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
+    min-width: 20% !important;
+    max-width: 20% !important;
+    flex: 1 1 20% !important;
+    margin: 0 !important;
     padding: 0 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
     box-sizing: border-box !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child:nth-last-child(2),
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child:nth-last-child(2) ~ div[data-testid="column"] {
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(2):last-child) div[data-testid="column"] {
     width: 50% !important;
+    min-width: 50% !important;
     max-width: 50% !important;
+    flex: 1 1 50% !important;
 }
 
 div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button {
@@ -179,6 +196,54 @@ div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVertical
     border: none !important;
     padding: 0 !important;
     box-shadow: none !important;
+}
+
+@media screen and (max-width: 768px) {
+    .stApp .nutri-bottom-bar-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        width: 100vw !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+    }
+    .stApp .nutri-bottom-bar-row > div {
+        width: 20% !important;
+        min-width: 20% !important;
+        max-width: 20% !important;
+        flex: 1 1 20% !important;
+    }
+    .stApp .nutri-bottom-bar-row > div:first-child:nth-last-child(2),
+    .stApp .nutri-bottom-bar-row > div:first-child:nth-last-child(2) ~ div {
+        width: 50% !important;
+        min-width: 50% !important;
+        max-width: 50% !important;
+        flex: 1 1 50% !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        width: 100vw !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="column"] {
+        width: 20% !important;
+        min-width: 20% !important;
+        max-width: 20% !important;
+        flex: 1 1 20% !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(2):last-child) div[data-testid="column"] {
+        width: 50% !important;
+        min-width: 50% !important;
+        max-width: 50% !important;
+        flex: 1 1 50% !important;
+    }
 }
 
 div[data-testid="stAppViewBlockContainer"] {
