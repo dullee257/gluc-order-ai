@@ -34,11 +34,27 @@ div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="
     min-width: 0 !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+/* Streamlit 640px 이하: 컬럼 기본 min-width ~100% → 하단바는 후손 선택자로 덮어씀 */
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] [data-testid="column"] {
     flex: 1 1 0% !important;
     min-width: 0 !important;
     max-width: none !important;
     width: auto !important;
+}
+
+@media screen and (max-width: 640px) {
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important;
+        overflow-x: visible !important;
+        overflow: visible !important;
+    }
+
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] [data-testid="column"] {
+        min-width: 0 !important;
+        max-width: none !important;
+        flex: 1 1 0% !important;
+        width: auto !important;
+    }
 }
 
 div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button {

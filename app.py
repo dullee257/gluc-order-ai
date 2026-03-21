@@ -937,11 +937,30 @@ st.markdown(f"""
         width: 100% !important;
         min-width: 0 !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
+    /*
+     * Streamlit StyledColumn: @media (max-width: 640px) 에서
+     * min-width: calc(100% - …) 가 들어가 모바일에서 컬럼이 '풀폭'으로 취급됨.
+     * flex-wrap: nowrap 인 가로 행에서는 가로 넘침 → overflow 숨김 시 첫 칸만 보임(스크린샷 현상).
+     * 직계 자식(>)이 아닐 수 있어 후손 선택자 + 640px 구간에서 재강제.
+     */
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] [data-testid="column"] {{
         flex: 1 1 0% !important;
         min-width: 0 !important;
         max-width: none !important;
         width: auto !important;
+    }}
+    @media screen and (max-width: 640px) {{
+        div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] {{
+            flex-wrap: nowrap !important;
+            overflow-x: visible !important;
+            overflow: visible !important;
+        }}
+        div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] [data-testid="column"] {{
+            min-width: 0 !important;
+            max-width: none !important;
+            flex: 1 1 0% !important;
+            width: auto !important;
+        }}
     }}
     div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button {{
         border: none !important; background: transparent !important; box-shadow: none !important;
