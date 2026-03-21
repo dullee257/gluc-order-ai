@@ -2,6 +2,7 @@
 """NutriSort AI - 한글 기본, UTF-8 소스·출력 통일."""
 import sys
 import os
+import time
 import json
 import traceback
 import urllib.parse
@@ -60,6 +61,7 @@ def _reset_meal_feed_state():
     st.session_state["last_doc"] = None
     st.session_state["has_more"] = False
     st.session_state["meal_feed_uid"] = None
+    st.session_state["meal_feed_hydrated_uid"] = None
 
 
 def _meal_feed_display_time(rec):
@@ -538,6 +540,8 @@ if "has_more" not in st.session_state:
     st.session_state["has_more"] = False
 if "meal_feed_uid" not in st.session_state:
     st.session_state["meal_feed_uid"] = None
+if "meal_feed_hydrated_uid" not in st.session_state:
+    st.session_state["meal_feed_hydrated_uid"] = None
 if 'current_analysis' not in st.session_state:
     st.session_state['current_analysis'] = None
 if 'logged_in' not in st.session_state:
@@ -1855,6 +1859,31 @@ def get_today_summary(uid, date_key):
     except Exception as e:
         sys.stderr.write(f"[get_today_summary] {e}\n")
         return {"avg_glucose": None, "latest_glucose": None, "total_carbs": 0, "meal_count": 0, "avg_spike": 0}
+
+
+def _hydrate_history_daily_from_firestore(uid):
+    """일지 탭: daily_summary 세션이 비었거나 날짜가 바뀌었으면 Firestore에서 오늘 요약을 보충."""
+    if not uid:
+        return
+    try:
+        import pytz
+
+        _seoul = pytz.timezone("Asia/Seoul")
+        _date_key = datetime.now(_seoul).strftime("%Y-%m-%d")
+        _cached = st.session_state.get("daily_summary_today")
+        _key = st.session_state.get("daily_summary_today_key")
+        if isinstance(_cached, dict) and _key == _date_key:
+            return
+        _dash = get_today_summary(uid, _date_key)
+        st.session_state["daily_summary_today"] = dict(_dash)
+        st.session_state["daily_summary_today_key"] = _date_key
+        ds = get_daily_summary(uid, _date_key)
+        st.session_state["daily_meals_count"] = int(ds.get("meal_count") or 0)
+        st.session_state["daily_carbs"] = int(ds.get("total_carbs") or 0)
+        st.session_state["daily_protein"] = int(ds.get("total_protein") or 0)
+        st.session_state["daily_blood_sugar_score"] = int(ds.get("avg_spike") or 0)
+    except Exception as e:
+        sys.stderr.write(f"[일지 오늘 요약 hydrate] {e}\n")
 
 
 @st.cache_data(ttl=90)
@@ -3292,9 +3321,11 @@ if menu_key == "scanner":
             uid = st.session_state.get("user_id")
             if not uid:
                 st.toast("로그인된 사용자 정보가 없습니다.")
+                st.session_state["meal_save_trigger"] = False
             else:
                 st.session_state["meal_save_trigger"] = False
                 st.session_state["meal_save_in_progress"] = True
+                st.toast("⏳ 데이터를 금고에 안전하게 저장 중입니다...", icon="⏳")
                 try:
                     import pytz
 
@@ -3319,12 +3350,11 @@ if menu_key == "scanner":
                         "estimated_spike": estimated_spike,
                     }
 
-                    with st.spinner("데이터를 안전하게 금고에 넣는 중입니다..."):
-                        meal_id = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
-                        image_url = upload_image_to_storage(uid, meal_id, res.get("raw_img"), max_width=800, quality=85)
-                        meal_data["image_url"] = image_url
-                        _saved_id = save_meal_and_summary(uid, date_key, meal_data)
-                        meal_data["meal_id"] = _saved_id
+                    meal_id = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+                    image_url = upload_image_to_storage(uid, meal_id, res.get("raw_img"), max_width=800, quality=85)
+                    meal_data["image_url"] = image_url
+                    _saved_id = save_meal_and_summary(uid, date_key, meal_data)
+                    meal_data["meal_id"] = _saved_id
 
                     # Optimistic update: 재조회 없이 메모리 대시보드 즉시 누적
                     _dash_local = st.session_state.get("daily_summary_today")
@@ -3347,6 +3377,10 @@ if menu_key == "scanner":
                     st.session_state["daily_summary_today"] = _dash_local
                     st.session_state["daily_summary_today_key"] = date_key
 
+                    st.toast("✅ 저장 완료되었습니다!", icon="🎉")
+                    time.sleep(0.8)
+
+                    st.session_state["nav_menu"] = "history"
                     st.session_state["app_stage"] = "main"
                     st.session_state["current_page"] = "main"
                     st.session_state["current_analysis"] = None
@@ -3359,7 +3393,7 @@ if menu_key == "scanner":
                     st.rerun()
                 except Exception as e:
                     traceback.print_exc(file=sys.stderr)
-                    st.error(f"저장 실패: {e}")
+                    st.toast("❌ 저장에 실패했습니다. 다시 시도해 주세요.", icon="🚨")
                 finally:
                     st.session_state["meal_save_in_progress"] = False
 
@@ -3391,6 +3425,9 @@ elif menu_key == "history":
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
     st.title(f"📅 {t['history_menu']}")
+
+    if _lt_h == "google" and st.session_state.get("user_id"):
+        _hydrate_history_daily_from_firestore(st.session_state.get("user_id"))
 
     # 오늘 하루 요약 대시보드
     if st.session_state['daily_meals_count'] > 0:
@@ -3442,19 +3479,20 @@ elif menu_key == "history":
     _google_hist = st.session_state.get("login_type") == "google"
 
     if _google_hist and _uid_hist:
-        if st.session_state.get("meal_feed_uid") != str(_uid_hist):
+        _uid_s = str(_uid_hist)
+        if st.session_state.get("meal_feed_hydrated_uid") != _uid_s:
             try:
                 _items, _last = get_meal_feed(_uid_hist, 5, None)
                 st.session_state["feed_items"] = _items
                 st.session_state["last_doc"] = _last.id if _last else None
                 st.session_state["has_more"] = len(_items) >= 5
-                st.session_state["meal_feed_uid"] = str(_uid_hist)
+                st.session_state["meal_feed_hydrated_uid"] = _uid_s
+                st.session_state["meal_feed_uid"] = _uid_s
             except Exception as _e:
                 traceback.print_exc(file=sys.stderr)
                 st.session_state["feed_items"] = []
                 st.session_state["last_doc"] = None
                 st.session_state["has_more"] = False
-                st.session_state["meal_feed_uid"] = str(_uid_hist)
                 st.error(f"일지를 불러오지 못했습니다: {_e}")
 
     st.markdown('<div class="meal-feed-root">', unsafe_allow_html=True)

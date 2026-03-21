@@ -53,7 +53,7 @@ def _ko():
         "risk_caution": "주의",
         "risk_danger": "위험",
         "reset_today": "오늘 기록 초기화",
-        "no_history_msg": "저장된 식단 기록이 없습니다. 분석 후 '저장하기' 버튼을 눌러 보세요.",
+        "no_history_msg": "저장된 식단 기록이 없습니다. 분석 후 '기록하기' 버튼을 눌러 보세요.",
         "delete_record": "🗑️ 기록 삭제",
         "delete_record_done": "기록과 이미지가 삭제되었습니다.",
         "delete_record_full": "기록이 완전히 삭제되었습니다.",
