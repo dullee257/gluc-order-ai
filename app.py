@@ -908,8 +908,14 @@ st.markdown(f"""
             max-width: 100% !important;
         }}
     }}
-    /* 1. 하단 바 최상위 컨테이너 고정 및 스타일링 */
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {{
+    /*
+     * 하단 바: Streamlit은 VerticalBlock과 HorizontalBlock 사이에 래퍼 div가 있어
+     * '> stHorizontalBlock' 선택자는 매칭되지 않음 → 후손 선택자 사용.
+     * 또한 :has(.bottom-bar-anchor)만 쓰면 마크다운용 내부 VerticalBlock도 고정 스타일이
+     * 겹치고, 섹션5의 광범위 규칙이 바깥 컨테이너까지 static으로 덮어 fixed가 무효화됨.
+     * → 앵커 + 가로 컬럼 행이 '같은' VerticalBlock 안에 있을 때만 하단 바로 인식.
+     */
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) {{
         position: fixed !important; bottom: 0; left: 0; right: 0;
         background-color: rgba(255, 255, 255, 0.95) !important;
         backdrop-filter: blur(10px);
@@ -921,8 +927,7 @@ st.markdown(f"""
         box-shadow: 0 -4px 15px rgba(0,0,0,0.03) !important;
         box-sizing: border-box;
     }}
-    /* 2. 모바일 세로 꺾임(Wrap) 방지 & 가로 정렬 강제 */
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="stHorizontalBlock"] {{
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] {{
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
@@ -930,45 +935,38 @@ st.markdown(f"""
         align-items: center !important;
         gap: 0 !important;
         width: 100% !important;
-    }}
-    /* 3. 각 탭(컬럼) 너비 균등 분할 */
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
-        width: 100% !important;
-        flex: 1 1 0px !important;
         min-width: 0 !important;
     }}
-    /* 4. 버튼 텍스트 및 아이콘 */
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button {{
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        width: auto !important;
+    }}
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button {{
         border: none !important; background: transparent !important; box-shadow: none !important;
         padding: 4px 0 !important; height: auto !important; min-height: 0 !important; margin: 0 auto !important;
         transition: transform 0.1s ease !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button[kind="primary"] {{
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button[kind="primary"] {{
         background: transparent !important;
         color: inherit !important;
         border: none !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button:active {{
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button:active {{
         transform: scale(0.92) !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button p {{
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button p {{
         font-size: 11px !important; font-weight: 500 !important; color: #555 !important;
         line-height: 1.5 !important; margin: 0 !important;
         white-space: pre-line !important;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         text-align: center !important;
     }}
-    /* 5. 부모 컨테이너 붕괴 방지 */
-    div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {{
+    /* 메인 레이아웃만: 깊게 중첩된 앵커 조상 래퍼 (하단 바 본체는 위 :has(stHorizontalBlock)로 제외됨) */
+    div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor):not(:has(div[data-testid="stHorizontalBlock"])) {{
         position: static !important; background: transparent !important; border: none !important;
         box-shadow: none !important; padding: 0 !important;
-    }}
-    div[data-testid="stVerticalBlock"]:has(div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {{
-        position: static !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
     }}
     div[data-testid="stAppViewBlockContainer"] {{
         padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;

@@ -1,10 +1,13 @@
 /**
- * 혈당스캐너 — 하단 네비(Bottom Bar) 스타일
- * 실제 적용은 app.py의 st.markdown(<style>) 주입과 동기화해 유지하세요.
+ * 혈당스캐너 — 하단 네비(Bottom Bar)
+ * app.py의 <style> 주입본과 동기화할 것.
+ *
+ * 핵심: VerticalBlock > (래퍼) > HorizontalBlock 구조라 직계 자식(>) 선택자로는
+ * 가로 행에 스타일이 안 먹을 수 있음. 또한 하단 바는
+ * :has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) 로만 스코프.
  */
 
-/* 1. 하단 바 최상위 컨테이너 고정 및 스타일링 */
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) {
     position: fixed !important;
     bottom: 0;
     left: 0;
@@ -20,8 +23,7 @@ div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {
     box-sizing: border-box;
 }
 
-/* 2. 모바일 세로 꺾임(Wrap) 방지 & 가로 정렬 강제 */
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="stHorizontalBlock"] {
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
@@ -29,17 +31,17 @@ div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="st
     align-items: center !important;
     gap: 0 !important;
     width: 100% !important;
-}
-
-/* 3. 각 탭(컬럼) 너비 균등 분할 */
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-    width: 100% !important;
-    flex: 1 1 0px !important;
     min-width: 0 !important;
 }
 
-/* 4. 버튼 텍스트 및 아이콘 */
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button {
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    width: auto !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button {
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -50,17 +52,17 @@ div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button {
     transition: transform 0.1s ease !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button[kind="primary"] {
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button[kind="primary"] {
     background: transparent !important;
     color: inherit !important;
     border: none !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button:active {
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button:active {
     transform: scale(0.92) !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button p {
+div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button p {
     font-size: 11px !important;
     font-weight: 500 !important;
     color: #555 !important;
@@ -74,16 +76,7 @@ div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button p {
     text-align: center !important;
 }
 
-/* 5. 부모 컨테이너 붕괴 방지 */
-div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {
-    position: static !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-}
-
-div[data-testid="stVerticalBlock"]:has(div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {
+div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor):not(:has(div[data-testid="stHorizontalBlock"])) {
     position: static !important;
     background: transparent !important;
     border: none !important;
