@@ -1,13 +1,20 @@
 /**
- * 혈당스캐너 — 하단 네비 (app.py <style> 주입본과 동기화)
- * 첫 element-container에 .bottom-bar-anchor.main-nav|result-nav 만 매칭 → 본문 stVerticalBlock 전염 차단.
+ * 혈당스캐너 — app.py <style> 주입본과 동기화
  */
 
-div[data-testid="stMetricValue"],
-div[data-testid="stMetricLabel"] {
+div[data-testid="stMetricLabel"] *,
+div[data-testid="stMetricValue"] * {
+    white-space: normal !important;
     word-break: keep-all !important;
     overflow-wrap: break-word !important;
-    white-space: normal !important;
+}
+
+div[data-testid="stMetricLabel"] * {
+    font-size: 13px !important;
+}
+
+div[data-testid="stMetricValue"] * {
+    font-size: 18px !important;
 }
 
 div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav),
@@ -22,16 +29,20 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nt
     flex-direction: row !important;
     flex-wrap: nowrap !important;
     justify-content: space-around !important;
-    align-items: flex-end !important;
+    align-items: center !important;
+    height: 65px !important;
+    min-height: 65px !important;
     background: #f4f5f7 !important;
     backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
     z-index: 99999 !important;
-    padding: 5px 0 env(safe-area-inset-bottom, 15px) 0 !important;
+    padding: 0 !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
     border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
     box-shadow: 0 -3px 15px rgba(0, 0, 0, 0.04) !important;
     gap: 0 !important;
-    box-sizing: border-box !important;
+    box-sizing: content-box !important;
+    overflow: visible !important;
 }
 
 div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(1),
@@ -57,8 +68,20 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nt
     flex: 1 1 20% !important;
     display: flex !important;
     justify-content: center !important;
-    align-items: flex-end !important;
+    align-items: center !important;
     box-sizing: border-box !important;
+}
+
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4),
+div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4),
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4),
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) {
+    position: relative !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    height: 100% !important;
+    min-height: 0 !important;
 }
 
 div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) > div.element-container:not(:nth-child(1)),
@@ -71,7 +94,7 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nt
     flex: 1 1 50% !important;
     display: flex !important;
     justify-content: center !important;
-    align-items: flex-end !important;
+    align-items: center !important;
     box-sizing: border-box !important;
 }
 
@@ -84,7 +107,7 @@ div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nt
     box-shadow: none !important;
     width: 100% !important;
     height: 100% !important;
-    padding: 6px 0 !important;
+    padding: 10px 0 !important;
 }
 
 div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) button p,
@@ -107,19 +130,21 @@ div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bot
 div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button,
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button,
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button {
+    position: absolute !important;
+    left: 50% !important;
+    bottom: 10px !important;
+    transform: translateX(-50%) !important;
+    width: 65px !important;
+    height: 65px !important;
+    min-height: 65px !important;
     background: #2ecc71 !important;
     border-radius: 50% !important;
-    width: 68px !important;
-    height: 68px !important;
-    min-height: 68px !important;
-    transform: translateY(-8px) !important;
-    align-self: flex-end !important;
-    margin: 0 auto 5px auto !important;
     box-shadow: 0 4px 12px rgba(46, 204, 113, 0.4) !important;
     display: flex !important;
     justify-content: center !important;
     align-items: center !important;
     padding: 0 !important;
+    margin: 0 !important;
 }
 
 div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button p,
@@ -137,7 +162,7 @@ div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bot
 div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button:active,
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button:active,
 div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button:active {
-    transform: translateY(-8px) scale(0.95) !important;
+    transform: translateX(-50%) scale(0.95) !important;
 }
 
 div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor.main-nav),
@@ -179,19 +204,22 @@ div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVertical
         max-width: 50% !important;
         flex: 1 1 50% !important;
     }
-}
-
-div[data-testid="stAppViewBlockContainer"] {
-    padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
-}
-
-@media screen and (max-width: 768px) {
+    div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) {
+        flex-wrap: nowrap !important;
+        gap: 0.25rem !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div[data-testid="column"] {
+        flex: 1 1 calc(50% - 4px) !important;
+        min-width: 0 !important;
+        max-width: 50% !important;
+    }
     .block-container {
         padding-top: 12px !important;
         padding-left: 0.3rem !important;
         padding-right: 0.3rem !important;
     }
-    div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div[data-testid="column"] {
-        min-width: 0 !important;
-    }
+}
+
+div[data-testid="stAppViewBlockContainer"] {
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
 }

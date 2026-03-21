@@ -19,7 +19,7 @@ def _ko():
     return {
         "title": "혈당스캐너 AI",
         "sidebar_title": "💡 NutriSort 관리",
-        "description": "📈|혈당 스파이크 방지|올바른 섭취 순서",
+        "description": "📈|혈당 관리|올바른 섭취 순서",
         "uploader_label": "음식 스캔하기",
         "uploader_placeholder": "식단 스캔 시작",
         "analyze_btn": "혈당 관리 솔루션 및 섭취 순서 분석",
@@ -138,7 +138,7 @@ def _ko():
         "google_oauth_err_network": "🚨 구글 로그인 서버와의 통신 중 오류가 발생했습니다!\n{err}",
         "oauth_open_in_browser": "* 만약 에러 시, 화면 우측 상단 ⋮ 메뉴에서\n'기본 브라우저에서 열기'를 눌러주세요.",
         # 스플래시 / 약관 / 소셜 (KR 고정)
-        "splash_main_copy": "먹는 순서만 바꿨을 뿐인데,<br>혈당 스파이크가 멈춥니다.",
+        "splash_main_copy": "먹는 순서만 바꿨을 뿐인데,<br>혈당 스파이크를 줄이는 데 도움이 될 수 있습니다.",
         "splash_start_btn": "시작하기",
         "login_sheet_title": "계정으로 시작하기",
         "terms_modal_title": "약관 동의",
