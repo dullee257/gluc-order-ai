@@ -909,9 +909,10 @@ st.markdown(f"""
         }}
     }}
     /*
-     * 하단 바 (No-Columns): st.columns 미사용 — stVerticalBlock을 flex row로 고정, Center FAB는 nth-child(4).
+     * 하단 바 (No-Columns): 앵커가 첫 번째 element-container에만 있을 때만 매칭 → 상단 레이아웃 CSS 전염 차단.
      */
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {{
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor),
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) {{
         position: fixed !important;
         bottom: 0;
         left: 0;
@@ -921,17 +922,18 @@ st.markdown(f"""
         flex-wrap: nowrap !important;
         justify-content: space-around !important;
         align-items: center !important;
-        background: rgba(255, 255, 255, 0.96) !important;
+        background: #f4f5f7 !important;
         backdrop-filter: blur(15px);
         -webkit-backdrop-filter: blur(15px);
         z-index: 99999 !important;
-        padding: 8px 0 env(safe-area-inset-bottom, 15px) 0 !important;
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05) !important;
+        padding: 5px 0 env(safe-area-inset-bottom, 15px) 0 !important;
+        border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+        box-shadow: 0 -3px 15px rgba(0, 0, 0, 0.04) !important;
         gap: 0 !important;
         box-sizing: border-box !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div.element-container:has(.bottom-bar-anchor),
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="element-container"]:has(.bottom-bar-anchor) {{
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) > div.element-container:nth-child(1),
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) > div[data-testid="element-container"]:nth-child(1) {{
         display: none !important;
         width: 0 !important;
         flex: 0 0 0 !important;
@@ -940,8 +942,10 @@ st.markdown(f"""
         margin: 0 !important;
         overflow: hidden !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.main-nav) > div.element-container,
-    div[data-testid="stVerticalBlock"]:has(.main-nav) > div[data-testid="element-container"] {{
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) > div.element-container,
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) > div[data-testid="element-container"],
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) > div.element-container,
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) > div[data-testid="element-container"] {{
         width: 20% !important;
         min-width: 20% !important;
         max-width: 20% !important;
@@ -951,30 +955,30 @@ st.markdown(f"""
         align-items: center !important;
         box-sizing: border-box !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.result-nav) > div.element-container:not(:has(.bottom-bar-anchor)),
-    div[data-testid="stVerticalBlock"]:has(.result-nav) > div[data-testid="element-container"]:not(:has(.bottom-bar-anchor)) {{
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) > div.element-container:not(:nth-child(1)),
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) > div[data-testid="element-container"]:not(:nth-child(1)),
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.result-nav) > div.element-container:not(:nth-child(1)),
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.result-nav) > div[data-testid="element-container"]:not(:nth-child(1)) {{
         width: 50% !important;
         min-width: 50% !important;
         max-width: 50% !important;
         flex: 1 1 50% !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        box-sizing: border-box !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button {{
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) button,
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) button {{
         background: transparent !important;
         border: none !important;
         box-shadow: none !important;
         width: 100% !important;
         height: 100% !important;
-        padding: 5px 0 !important;
+        padding: 6px 0 !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button p {{
-        font-size: 11px !important;
-        color: #666 !important;
-        font-weight: bold !important;
-        line-height: 1.3 !important;
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) button p,
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) button p {{
+        font-size: 13px !important;
+        color: #444 !important;
+        font-weight: 700 !important;
+        line-height: 1.4 !important;
         margin: 0 !important;
         white-space: pre-line !important;
         display: flex;
@@ -982,14 +986,16 @@ st.markdown(f"""
         align-items: center;
         text-align: center !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.main-nav) > div.element-container:nth-child(4) button,
-    div[data-testid="stVerticalBlock"]:has(.main-nav) > div[data-testid="element-container"]:nth-child(4) button {{
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button,
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button,
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button,
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button {{
         background: #2ecc71 !important;
         border-radius: 50% !important;
-        width: 55px !important;
-        height: 55px !important;
-        min-height: 55px !important;
-        transform: translateY(-15px) !important;
+        width: 58px !important;
+        height: 58px !important;
+        min-height: 58px !important;
+        transform: translateY(-18px) !important;
         box-shadow: 0 4px 12px rgba(46, 204, 113, 0.4) !important;
         display: flex !important;
         justify-content: center !important;
@@ -997,17 +1003,21 @@ st.markdown(f"""
         margin: 0 auto !important;
         padding: 0 !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.main-nav) > div.element-container:nth-child(4) button p,
-    div[data-testid="stVerticalBlock"]:has(.main-nav) > div[data-testid="element-container"]:nth-child(4) button p {{
-        font-size: 24px !important;
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button p,
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button p,
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button p,
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button p {{
+        font-size: 26px !important;
         color: white !important;
         margin: 0 !important;
-        font-weight: bold !important;
+        font-weight: 700 !important;
         line-height: 1 !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.main-nav) > div.element-container:nth-child(4) button:active,
-    div[data-testid="stVerticalBlock"]:has(.main-nav) > div[data-testid="element-container"]:nth-child(4) button:active {{
-        transform: translateY(-15px) scale(0.95) !important;
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button:active,
+    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button:active,
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button:active,
+    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button:active {{
+        transform: translateY(-18px) scale(0.95) !important;
     }}
     div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {{
         position: static !important;
@@ -1015,24 +1025,30 @@ st.markdown(f"""
         background: transparent !important;
         box-shadow: none !important;
         padding: 0 !important;
+        border-top: none !important;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
     }}
     @media screen and (max-width: 768px) {{
-        div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {{
+        div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor),
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) {{
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
         }}
-        div[data-testid="stVerticalBlock"]:has(.main-nav) > div.element-container,
-        div[data-testid="stVerticalBlock"]:has(.main-nav) > div[data-testid="element-container"] {{
+        div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) > div.element-container,
+        div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor) > div[data-testid="element-container"],
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) > div.element-container,
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor) > div[data-testid="element-container"] {{
             width: 20% !important;
             min-width: 20% !important;
             max-width: 20% !important;
             flex: 1 1 20% !important;
         }}
-        div[data-testid="stVerticalBlock"]:has(.result-nav) > div.element-container:not(:has(.bottom-bar-anchor)),
-        div[data-testid="stVerticalBlock"]:has(.result-nav) > div[data-testid="element-container"]:not(:has(.bottom-bar-anchor)) {{
+        div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) > div.element-container:not(:nth-child(1)),
+        div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) > div[data-testid="element-container"]:not(:nth-child(1)),
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.result-nav) > div.element-container:not(:nth-child(1)),
+        div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.result-nav) > div[data-testid="element-container"]:not(:nth-child(1)) {{
             width: 50% !important;
             min-width: 50% !important;
             max-width: 50% !important;
