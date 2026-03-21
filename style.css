@@ -2,28 +2,29 @@
  * 혈당스캐너 — 하단 네비(Bottom Bar)
  * app.py의 <style> 주입본과 동기화할 것.
  *
- * 핵심: VerticalBlock > (래퍼) > HorizontalBlock 구조라 직계 자식(>) 선택자로는
- * 가로 행에 스타일이 안 먹을 수 있음. 또한 하단 바는
- * :has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) 로만 스코프.
+ * Streamlit 1.5x: stVerticalBlock/stHorizontalBlock data-testid가 번들에 없을 수 있음.
+ * app.py 스크립트가 .nutri-bottom-bar-shell / .nutri-bottom-bar-row 를 DOM에 부착한 뒤 이 규칙이 적용됨.
  */
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) {
+.stApp .nutri-bottom-bar-shell {
     position: fixed !important;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
     background-color: rgba(255, 255, 255, 0.95) !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    z-index: 999;
+    z-index: 999 !important;
     padding-bottom: env(safe-area-inset-bottom, 15px) !important;
     padding-top: 8px !important;
     border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
     box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.03) !important;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] {
+.stApp .nutri-bottom-bar-row {
     display: flex !important;
     flex-direction: row !important;
     flex-wrap: nowrap !important;
@@ -32,10 +33,11 @@ div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="
     gap: 0 !important;
     width: 100% !important;
     min-width: 0 !important;
+    overflow-x: visible !important;
+    overflow: visible !important;
 }
 
-/* Streamlit 640px 이하: 컬럼 기본 min-width ~100% → 하단바는 후손 선택자로 덮어씀 */
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] [data-testid="column"] {
+.stApp .nutri-bottom-bar-row > div {
     flex: 1 1 0% !important;
     min-width: 0 !important;
     max-width: none !important;
@@ -43,21 +45,13 @@ div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="
 }
 
 @media screen and (max-width: 640px) {
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] {
-        flex-wrap: nowrap !important;
-        overflow-x: visible !important;
-        overflow: visible !important;
-    }
-
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] [data-testid="column"] {
+    .stApp .nutri-bottom-bar-row > div {
         min-width: 0 !important;
-        max-width: none !important;
         flex: 1 1 0% !important;
-        width: auto !important;
     }
 }
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button {
+.stApp .nutri-bottom-bar-row button {
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -68,17 +62,17 @@ div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="
     transition: transform 0.1s ease !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button[kind="primary"] {
+.stApp .nutri-bottom-bar-row button[kind="primary"] {
     background: transparent !important;
     color: inherit !important;
     border: none !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button:active {
+.stApp .nutri-bottom-bar-row button:active {
     transform: scale(0.92) !important;
 }
 
-div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button p {
+.stApp .nutri-bottom-bar-row button p {
     font-size: 11px !important;
     font-weight: 500 !important;
     color: #555 !important;
@@ -90,14 +84,6 @@ div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="
     align-items: center;
     justify-content: center;
     text-align: center !important;
-}
-
-div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor):not(:has(div[data-testid="stHorizontalBlock"])) {
-    position: static !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 0 !important;
 }
 
 div[data-testid="stAppViewBlockContainer"] {

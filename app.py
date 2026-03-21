@@ -743,6 +743,131 @@ try {
     }
   } catch (e) {}
 })();
+
+/* 하단 네비: Streamlit 1.5x 번들에 stVerticalBlock/stHorizontalBlock data-testid가 없어 CSS만으로는 레이아웃 고정 불가 → DOM 탐색 후 클래스 부착 */
+(function () {
+  function isFlexRow(el) {
+    if (!el || el.nodeType !== 1) return false;
+    var s = window.getComputedStyle(el);
+    return s.display === "flex" && (s.flexDirection === "row" || s.flexDirection === "row-reverse");
+  }
+  function isFlexCol(el) {
+    if (!el || el.nodeType !== 1) return false;
+    var s = window.getComputedStyle(el);
+    return s.display === "flex" && (s.flexDirection === "column" || s.flexDirection === "column-reverse");
+  }
+  function clearOldMarks(doc) {
+    var a = doc.querySelectorAll(".nutri-bottom-bar-shell, .nutri-bottom-bar-row");
+    for (var i = 0; i < a.length; i++) {
+      a[i].classList.remove("nutri-bottom-bar-shell");
+      a[i].classList.remove("nutri-bottom-bar-row");
+    }
+  }
+  function matchRow(ch, anchor, strictCount) {
+    if (!isFlexRow(ch)) return false;
+    var n = ch.querySelectorAll("button").length;
+    if (strictCount) {
+      if (n !== 5 && n !== 2) return false;
+    } else {
+      if (n < 2 || n > 8) return false;
+    }
+    try {
+      if (ch.contains(anchor)) return false;
+    } catch (e2) {
+      return false;
+    }
+    return true;
+  }
+  function fixBottomBarInDoc(doc) {
+    if (!doc || !doc.querySelector) return;
+    var anchor = doc.querySelector(".bottom-bar-anchor");
+    if (!anchor) return;
+    clearOldMarks(doc);
+    var found = null;
+    var el = anchor;
+    for (var up = 0; up < 35 && el; up++) {
+      var parent = el.parentElement;
+      if (!parent) break;
+      for (var j = 0; j < parent.children.length; j++) {
+        var sib = parent.children[j];
+        try {
+          if (sib.contains && sib.contains(anchor)) continue;
+        } catch (e1) {
+          continue;
+        }
+        if (!matchRow(sib, anchor, true) && !matchRow(sib, anchor, false)) continue;
+        var shell = parent;
+        if (!isFlexCol(shell)) {
+          var walk = parent;
+          for (var w = 0; w < 12 && walk; w++) {
+            if (isFlexCol(walk)) {
+              shell = walk;
+              break;
+            }
+            walk = walk.parentElement;
+          }
+        }
+        found = { shell: shell, row: sib };
+        break;
+      }
+      if (found) break;
+      el = parent;
+    }
+    if (!found) {
+      el = anchor.parentElement;
+      for (var up2 = 0; up2 < 45 && el; up2++) {
+        if (isFlexCol(el)) {
+          for (var j2 = el.children.length - 1; j2 >= 0; j2--) {
+            var ch = el.children[j2];
+            if (matchRow(ch, anchor, true) || matchRow(ch, anchor, false)) {
+              found = { shell: el, row: ch };
+              break;
+            }
+          }
+        }
+        if (found) break;
+        el = el.parentElement;
+      }
+    }
+    if (!found || !found.shell || !found.row) return;
+    found.shell.classList.add("nutri-bottom-bar-shell");
+    found.row.classList.add("nutri-bottom-bar-row");
+  }
+  function install(doc) {
+    if (!doc || !doc.documentElement) return;
+    function run() {
+      try {
+        fixBottomBarInDoc(doc);
+      } catch (e) {}
+    }
+    run();
+    if (doc.__nutriBottomBarObserverInstalled) return;
+    doc.__nutriBottomBarObserverInstalled = true;
+    var t = null;
+    function schedule() {
+      if (t) clearTimeout(t);
+      t = setTimeout(function () {
+        run();
+        t = null;
+      }, 50);
+    }
+    try {
+      var obs = new MutationObserver(function () {
+        schedule();
+      });
+      obs.observe(doc.documentElement, { childList: true, subtree: true });
+    } catch (err) {}
+    for (var i = 1; i <= 12; i++) {
+      setTimeout(run, i * 120);
+    }
+  }
+  try {
+    install(document);
+  } catch (e) {}
+  try {
+    if (window.parent && window.parent.document) install(window.parent.document);
+  } catch (e) {}
+})();
 </script>
 """,
     unsafe_allow_html=True,
@@ -909,25 +1034,27 @@ st.markdown(f"""
         }}
     }}
     /*
-     * 하단 바: Streamlit은 VerticalBlock과 HorizontalBlock 사이에 래퍼 div가 있어
-     * '> stHorizontalBlock' 선택자는 매칭되지 않음 → 후손 선택자 사용.
-     * 또한 :has(.bottom-bar-anchor)만 쓰면 마크다운용 내부 VerticalBlock도 고정 스타일이
-     * 겹치고, 섹션5의 광범위 규칙이 바깥 컨테이너까지 static으로 덮어 fixed가 무효화됨.
-     * → 앵커 + 가로 컬럼 행이 '같은' VerticalBlock 안에 있을 때만 하단 바로 인식.
+     * 하단 바: Streamlit 1.5x 프로덕션 번들에는 stVerticalBlock/stHorizontalBlock
+     * data-testid가 거의 없어 CSS만으로는 선택 불가. 스크립트가 .nutri-bottom-bar-shell / row 부착.
      */
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) {{
-        position: fixed !important; bottom: 0; left: 0; right: 0;
+    .stApp .nutri-bottom-bar-shell {{
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
         background-color: rgba(255, 255, 255, 0.95) !important;
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-        z-index: 999;
+        z-index: 999 !important;
         padding-bottom: env(safe-area-inset-bottom, 15px) !important;
         padding-top: 8px !important;
         border-top: 1px solid rgba(0,0,0,0.08) !important;
         box-shadow: 0 -4px 15px rgba(0,0,0,0.03) !important;
-        box-sizing: border-box;
+        box-sizing: border-box !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] {{
+    .stApp .nutri-bottom-bar-row {{
         display: flex !important;
         flex-direction: row !important;
         flex-wrap: nowrap !important;
@@ -936,56 +1063,40 @@ st.markdown(f"""
         gap: 0 !important;
         width: 100% !important;
         min-width: 0 !important;
+        overflow-x: visible !important;
+        overflow: visible !important;
     }}
-    /*
-     * Streamlit StyledColumn: @media (max-width: 640px) 에서
-     * min-width: calc(100% - …) 가 들어가 모바일에서 컬럼이 '풀폭'으로 취급됨.
-     * flex-wrap: nowrap 인 가로 행에서는 가로 넘침 → overflow 숨김 시 첫 칸만 보임(스크린샷 현상).
-     * 직계 자식(>)이 아닐 수 있어 후손 선택자 + 640px 구간에서 재강제.
-     */
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] [data-testid="column"] {{
+    .stApp .nutri-bottom-bar-row > div {{
         flex: 1 1 0% !important;
         min-width: 0 !important;
         max-width: none !important;
         width: auto !important;
     }}
     @media screen and (max-width: 640px) {{
-        div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] {{
-            flex-wrap: nowrap !important;
-            overflow-x: visible !important;
-            overflow: visible !important;
-        }}
-        div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) div[data-testid="stHorizontalBlock"] [data-testid="column"] {{
+        .stApp .nutri-bottom-bar-row > div {{
             min-width: 0 !important;
-            max-width: none !important;
             flex: 1 1 0% !important;
-            width: auto !important;
         }}
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button {{
+    .stApp .nutri-bottom-bar-row button {{
         border: none !important; background: transparent !important; box-shadow: none !important;
         padding: 4px 0 !important; height: auto !important; min-height: 0 !important; margin: 0 auto !important;
         transition: transform 0.1s ease !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button[kind="primary"] {{
+    .stApp .nutri-bottom-bar-row button[kind="primary"] {{
         background: transparent !important;
         color: inherit !important;
         border: none !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button:active {{
+    .stApp .nutri-bottom-bar-row button:active {{
         transform: scale(0.92) !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor):has(div[data-testid="stHorizontalBlock"]) button p {{
+    .stApp .nutri-bottom-bar-row button p {{
         font-size: 11px !important; font-weight: 500 !important; color: #555 !important;
         line-height: 1.5 !important; margin: 0 !important;
         white-space: pre-line !important;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
         text-align: center !important;
-    }}
-    /* 메인 레이아웃만: 깊게 중첩된 앵커 조상 래퍼 (하단 바 본체는 위 :has(stHorizontalBlock)로 제외됨) */
-    div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor):not(:has(div[data-testid="stHorizontalBlock"])) {{
-        position: static !important; background: transparent !important; border: none !important;
-        box-shadow: none !important; padding: 0 !important;
     }}
     div[data-testid="stAppViewBlockContainer"] {{
         padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
