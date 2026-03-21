@@ -893,11 +893,17 @@ st.markdown(f"""
     @media screen and (max-width: 768px) {{
         .block-container {{
             padding-top: 12px !important;
-            padding-left: 0.45rem !important;
-            padding-right: 0.45rem !important;
+            padding-left: 0.3rem !important;
+            padding-right: 0.3rem !important;
             padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
             max-width: 100% !important;
         }}
+    }}
+    /* 대시보드(stMetric) 라벨·값 잘림 방지 */
+    div[data-testid="stMetricValue"], div[data-testid="stMetricLabel"] {{
+        word-break: keep-all !important;
+        overflow-wrap: break-word !important;
+        white-space: normal !important;
     }}
     /*
      * 하단 바: :has(> 첫째 element-container .bottom-bar-anchor.main-nav|result-nav) 만 매칭 → 본문 stVerticalBlock 전염 차단.
@@ -914,7 +920,7 @@ st.markdown(f"""
         flex-direction: row !important;
         flex-wrap: nowrap !important;
         justify-content: space-around !important;
-        align-items: center !important;
+        align-items: flex-end !important;
         background: #f4f5f7 !important;
         backdrop-filter: blur(15px);
         -webkit-backdrop-filter: blur(15px);
@@ -947,7 +953,7 @@ st.markdown(f"""
         flex: 1 1 20% !important;
         display: flex !important;
         justify-content: center !important;
-        align-items: center !important;
+        align-items: flex-end !important;
         box-sizing: border-box !important;
     }}
     div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) > div.element-container:not(:nth-child(1)),
@@ -958,6 +964,10 @@ st.markdown(f"""
         min-width: 50% !important;
         max-width: 50% !important;
         flex: 1 1 50% !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: flex-end !important;
+        box-sizing: border-box !important;
     }}
     div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) button,
     div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) button,
@@ -991,22 +1001,23 @@ st.markdown(f"""
     div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button {{
         background: #2ecc71 !important;
         border-radius: 50% !important;
-        width: 58px !important;
-        height: 58px !important;
-        min-height: 58px !important;
-        transform: translateY(-18px) !important;
+        width: 68px !important;
+        height: 68px !important;
+        min-height: 68px !important;
+        transform: translateY(-8px) !important;
+        align-self: flex-end !important;
+        margin: 0 auto 5px auto !important;
         box-shadow: 0 4px 12px rgba(46, 204, 113, 0.4) !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
-        margin: 0 auto !important;
         padding: 0 !important;
     }}
     div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button p,
     div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button p,
     div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button p,
     div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button p {{
-        font-size: 26px !important;
+        font-size: 28px !important;
         color: white !important;
         margin: 0 !important;
         font-weight: 700 !important;
@@ -1016,7 +1027,7 @@ st.markdown(f"""
     div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button:active,
     div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button:active,
     div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button:active {{
-        transform: translateY(-18px) scale(0.95) !important;
+        transform: translateY(-8px) scale(0.95) !important;
     }}
     div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor.main-nav),
     div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor.result-nav) {{
@@ -1068,7 +1079,7 @@ st.markdown(f"""
         }}
         div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > div[data-testid="column"] {{
             flex: 1 1 calc(50% - 4px) !important;
-            min-width: calc(50% - 4px) !important;
+            min-width: 0 !important;
             max-width: 50% !important;
         }}
         div[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) [data-testid="stMetricValue"] {{
