@@ -2197,23 +2197,11 @@ def confirm_retake_dialog():
             st.rerun()
 
 
-# 5. 메인 화면 - 식단 스캔 / 나의 기록 전환 (사이드바 없이도 항상 노출)
-# 위젯 키(sidebar_menu)는 직접 설정 불가 → nav_menu 사용 후 menu_key 반영
-_nav1, _nav2 = st.columns(2)
-with _nav1:
-    if st.button(t.get("scanner_menu", "식단 스캐너"), key="nav_scanner", use_container_width=True, type="primary" if menu_key == "scanner" else "secondary"):
-        st.session_state["nav_menu"] = "scanner"
-        st.rerun()
-with _nav2:
-    if st.button(t.get("history_menu", "나의 식단 기록"), key="nav_history", use_container_width=True, type="primary" if menu_key == "history" else "secondary"):
-        st.session_state["nav_menu"] = "history"
-        st.rerun()
-if st.session_state.get("nav_menu"):
-    menu_key = st.session_state["nav_menu"]
-st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-
-# Native Bottom Bar (순정 st.button + CSS 고정)
-if menu_key in ("scanner", "history"):
+def render_bottom_bar():
+    """하단 네비. 스크립트 맨 끝에서 호출해 DOM상 본문 아래에 두고, st.stop() 직전에도 호출 가능."""
+    menu_key = st.session_state.get("nav_menu") or "scanner"
+    if menu_key not in ("scanner", "history"):
+        return
     with st.container():
         st.markdown('<div class="bottom-bar-anchor"></div>', unsafe_allow_html=True)
         _stage = st.session_state.get("app_stage", "main")
@@ -2267,6 +2255,21 @@ if menu_key in ("scanner", "history"):
                     st.session_state["app_stage"] = "main"
                     st.rerun()
 
+
+# 5. 메인 화면 - 식단 스캔 / 나의 기록 전환 (사이드바 없이도 항상 노출)
+# 위젯 키(sidebar_menu)는 직접 설정 불가 → nav_menu 사용 후 menu_key 반영
+menu_key = st.session_state.get("nav_menu") or "scanner"
+_nav1, _nav2 = st.columns(2)
+with _nav1:
+    if st.button(t.get("scanner_menu", "식단 스캐너"), key="nav_scanner", use_container_width=True, type="primary" if menu_key == "scanner" else "secondary"):
+        st.session_state["nav_menu"] = "scanner"
+        st.rerun()
+with _nav2:
+    if st.button(t.get("history_menu", "나의 식단 기록"), key="nav_history", use_container_width=True, type="primary" if menu_key == "history" else "secondary"):
+        st.session_state["nav_menu"] = "history"
+        st.rerun()
+st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+
 # 5-1. 식단 스캐너
 if menu_key == "scanner":
     # 환영 문구를 로그아웃 버튼 위에 표시
@@ -2305,6 +2308,7 @@ if menu_key == "scanner":
     API_KEY = _get_secret("GEMINI_API_KEY")
     if not API_KEY:
         st.error(t["gemini_key_error"])
+        render_bottom_bar()
         st.stop()
     client = genai.Client(api_key=API_KEY)
 
@@ -3671,3 +3675,6 @@ elif menu_key == "history":
                         st.toast(t.get("delete_record_failed", "삭제에 실패했습니다."))
     else:
         st.info(t["no_history_msg"])
+
+# Native Bottom Bar: 본문(스캐너/기록) 이후 렌더 → DOM 맨 아래 (fixed 미적용 시에도 상단에 깔리지 않음)
+render_bottom_bar()
