@@ -908,49 +908,64 @@ st.markdown(f"""
             max-width: 100% !important;
         }}
     }}
-    /* 하단 바 컨테이너 고정 (순정 st.button) */
+    /* 1. 하단 바 최상위 컨테이너 고정 및 스타일링 */
     div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) {{
-        position: fixed !important;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background-color: white;
+        position: fixed !important; bottom: 0; left: 0; right: 0;
+        background-color: rgba(255, 255, 255, 0.95) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         z-index: 999;
-        padding-bottom: env(safe-area-inset-bottom, 20px) !important;
-        padding-top: 10px !important;
-        border-top: 1px solid #e0e0e0;
-        box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+        padding-bottom: env(safe-area-inset-bottom, 15px) !important;
+        padding-top: 8px !important;
+        border-top: 1px solid rgba(0,0,0,0.08) !important;
+        box-shadow: 0 -4px 15px rgba(0,0,0,0.03) !important;
         box-sizing: border-box;
     }}
-    /* 하단 바 안 순정 버튼 → 탭 스타일 */
+    /* 2. 모바일 세로 꺾임(Wrap) 방지 & 가로 정렬 강제 */
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="stHorizontalBlock"] {{
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 0 !important;
+        width: 100% !important;
+    }}
+    /* 3. 각 탭(컬럼) 너비 균등 분할 */
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) > div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {{
+        width: 100% !important;
+        flex: 1 1 0px !important;
+        min-width: 0 !important;
+    }}
+    /* 4. 버튼 텍스트 및 아이콘 */
     div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button {{
-        border: none !important;
-        background: transparent !important;
-        box-shadow: none !important;
-        padding: 6px 4px !important;
-        height: auto !important;
-        min-height: 0 !important;
+        border: none !important; background: transparent !important; box-shadow: none !important;
+        padding: 4px 0 !important; height: auto !important; min-height: 0 !important; margin: 0 auto !important;
+        transition: transform 0.1s ease !important;
     }}
     div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button[kind="primary"] {{
         background: transparent !important;
         color: inherit !important;
         border: none !important;
     }}
+    div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button:active {{
+        transform: scale(0.92) !important;
+    }}
     div[data-testid="stVerticalBlock"]:has(.bottom-bar-anchor) button p {{
-        font-size: 12px !important;
-        line-height: 1.35 !important;
-        margin: 0 !important;
+        font-size: 11px !important; font-weight: 500 !important; color: #555 !important;
+        line-height: 1.5 !important; margin: 0 !important;
         white-space: pre-line !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
         text-align: center !important;
     }}
-    /* 부모 세로 블록 붕괴 방지 */
-    div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor),
+    /* 5. 부모 컨테이너 붕괴 방지 */
+    div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {{
+        position: static !important; background: transparent !important; border: none !important;
+        box-shadow: none !important; padding: 0 !important;
+    }}
     div[data-testid="stVerticalBlock"]:has(div[data-testid="stVerticalBlock"] .bottom-bar-anchor) {{
         position: static !important;
-        background-color: transparent !important;
+        background: transparent !important;
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
@@ -2081,7 +2096,7 @@ if menu_key in ("scanner", "history"):
             c_save, c_retake = st.columns(2)
             with c_save:
                 if st.button(
-                    "💾\n식단 기록하기",
+                    "💾\n기록하기",
                     key="bb_tab_save",
                     type="primary",
                     use_container_width=True,
@@ -2112,7 +2127,7 @@ if menu_key in ("scanner", "history"):
                     st.session_state["app_stage"] = "main"
                     st.rerun()
             with c_glucose:
-                if st.button("🩸\n혈당", key="bb_nav_glucose", use_container_width=True):
+                if st.button("🩹\n혈당", key="bb_nav_glucose", use_container_width=True):
                     st.session_state["nav_menu"] = "scanner"
                     st.session_state["current_page"] = "glucose_input"
                     st.session_state["app_stage"] = "main"
