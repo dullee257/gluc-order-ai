@@ -4,12 +4,15 @@
 import io
 import json
 import os
+import re
+import sys
 import urllib.parse
 from datetime import datetime, timezone
 
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore, storage
+from google.cloud.firestore import Query
 from PIL import Image
 
 
@@ -151,6 +154,157 @@ def save_meal_and_summary(uid, date_key, meal_data):
     )
     batch.commit()
     return meal_ref.id
+
+
+def _blob_paths_for_meal_image(uid, doc_id, data, bucket_name):
+    """삭제 시 시도할 Storage 객체 경로 목록(중복 제거)."""
+    uid_safe = str(uid).replace("/", "_").replace("\\", "_")
+    paths = []
+    image_url = (data or {}).get("image_url") or ""
+    if image_url and isinstance(image_url, str) and image_url.strip():
+        u = image_url.strip()
+        base = f"https://storage.googleapis.com/{bucket_name}/"
+        if u.startswith(base):
+            paths.append(urllib.parse.unquote(u[len(base) :]))
+        else:
+            m = re.match(r"https://storage\.googleapis\.com/([^/]+)/(.+)", u)
+            if m and m.group(1) == bucket_name:
+                paths.append(urllib.parse.unquote(m.group(2)))
+    paths.append(f"users/{uid_safe}/meals/{doc_id}.jpg")
+    mid = (data or {}).get("meal_id")
+    if mid and str(mid) != str(doc_id):
+        paths.append(f"users/{uid_safe}/meals/{mid}.jpg")
+    seen = set()
+    out = []
+    for p in paths:
+        if p and p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
+def get_meal_feed(uid, limit=5, start_after_doc=None):
+    """
+    users/{uid}/meals 피드: created_at(저장 시각) 기준 최신순.
+    반환: (문서 dict 리스트, 마지막 문서 DocumentSnapshot 또는 None)
+    start_after_doc: DocumentSnapshot 또는 이전 페이지 마지막 문서 ID(str).
+    """
+    _init_firebase()
+    db = firestore.client()
+    col = db.collection("users").document(str(uid)).collection("meals")
+    q = col.order_by("created_at", direction=Query.DESCENDING)
+    if start_after_doc is not None:
+        snap = None
+        if hasattr(start_after_doc, "reference") and getattr(start_after_doc, "exists", False):
+            snap = start_after_doc
+        else:
+            snap = col.document(str(start_after_doc)).get()
+        if snap is not None and getattr(snap, "exists", False):
+            q = q.start_after(snap)
+        elif isinstance(start_after_doc, str):
+            sys.stderr.write(f"[get_meal_feed] 커서 문서 없음 id={start_after_doc!r}\n")
+            return [], None
+    docs = list(q.limit(limit).stream())
+    bucket_name = None
+    try:
+        bucket_name = storage.bucket().name
+    except Exception:
+        pass
+    loaded = []
+    for d in docs:
+        data = d.to_dict() or {}
+        raw_url = data.get("image_url")
+        image_url = _normalize_image_url(raw_url, bucket_name) if raw_url else None
+        items = data.get("sorted_items", [])
+        if items and isinstance(items, list) and isinstance(items[0], dict):
+            sorted_lists = [
+                [
+                    item.get("name", ""),
+                    item.get("gi", 0),
+                    item.get("carbs", 0),
+                    item.get("protein", 0),
+                    item.get("color", ""),
+                ]
+                for item in items
+            ]
+        else:
+            sorted_lists = items
+        loaded.append(
+            {
+                "doc_id": d.id,
+                "date": data.get("date", ""),
+                "saved_at_utc": data.get("saved_at_utc"),
+                "image": None,
+                "image_url": image_url,
+                "sorted_items": sorted_lists,
+                "advice": data.get("advice", ""),
+                "blood_sugar_score": int(data.get("blood_sugar_score", 0) or 0),
+                "total_carbs": int(data.get("total_carbs", 0) or 0),
+                "total_protein": int(data.get("total_protein", 0) or 0),
+                "total_fat": int(data.get("total_fat", 0) or 0),
+                "total_kcal": int(data.get("total_kcal", 0) or 0),
+                "avg_gi": int(data.get("avg_gi", 0) or 0),
+                "estimated_spike": int(data.get("estimated_spike", 0) or 0),
+            }
+        )
+    last_snap = docs[-1] if docs else None
+    return loaded, last_snap
+
+
+def delete_meal_record(uid, doc_id):
+    """
+    meals 문서 삭제 + 일일 요약 역산 + Storage 이미지 정리.
+    성공 시 (True, None), 실패 시 (False, 단계 문자열).
+    """
+    if not uid or not doc_id:
+        return False, "uid/doc_id"
+    _init_firebase()
+    db = firestore.client()
+    bucket = storage.bucket()
+    bucket_name = bucket.name
+    ref = db.collection("users").document(str(uid)).collection("meals").document(str(doc_id))
+    snap = ref.get()
+    if not snap.exists:
+        return False, "not_found"
+    data = snap.to_dict() or {}
+    date_key = str(data.get("date_key") or "")
+    total_carbs = int(data.get("total_carbs", 0) or 0)
+    total_protein = int(data.get("total_protein", 0) or 0)
+    total_fat = int(data.get("total_fat", 0) or 0)
+    estimated_spike = int(data.get("estimated_spike", 0) or 0)
+
+    batch = db.batch()
+    batch.delete(ref)
+    if date_key:
+        summary_ref = (
+            db.collection("users").document(str(uid)).collection("daily_summaries").document(date_key)
+        )
+        batch.set(
+            summary_ref,
+            {
+                "date_key": date_key,
+                "updated_at": firestore.SERVER_TIMESTAMP,
+                "total_carbs": firestore.Increment(-total_carbs),
+                "total_protein": firestore.Increment(-total_protein),
+                "total_fat": firestore.Increment(-total_fat),
+                "spike_sum": firestore.Increment(-estimated_spike),
+                "meal_count": firestore.Increment(-1),
+            },
+            merge=True,
+        )
+    try:
+        batch.commit()
+    except Exception as e:
+        sys.stderr.write(f"[delete_meal_record] batch 실패: {e}\n")
+        return False, "Firestore"
+
+    for path in _blob_paths_for_meal_image(uid, doc_id, data, bucket_name):
+        try:
+            blob = bucket.blob(path)
+            blob.delete()
+        except Exception as e:
+            sys.stderr.write(f"[delete_meal_record] Storage 삭제 {path!r}: {type(e).__name__}: {e}\n")
+    return True, None
 
 
 def get_daily_summary(uid, date_key):

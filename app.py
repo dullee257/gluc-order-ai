@@ -19,6 +19,8 @@ from firebase_db import (
     upload_image_to_storage,
     save_meal_and_summary,
     get_daily_summary,
+    get_meal_feed,
+    delete_meal_record,
 )
 
 # Railway 등 Linux 환경에서 한글 출력 깨짐 방지
@@ -37,6 +39,65 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
     menu_items={"Get Help": None, "Report a bug": None, "About": None},
 )
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_cached_image(url):
+    import requests
+
+    if not url or not isinstance(url, str) or not url.strip():
+        return None
+    try:
+        response = requests.get(url.strip(), timeout=5)
+        response.raise_for_status()
+        return io.BytesIO(response.content)
+    except Exception:
+        return None
+
+
+def _reset_meal_feed_state():
+    st.session_state["feed_items"] = []
+    st.session_state["last_doc"] = None
+    st.session_state["has_more"] = False
+    st.session_state["meal_feed_uid"] = None
+
+
+def _meal_feed_display_time(rec):
+    """일지 카드 헤더용 YYYY-MM-DD HH:MM (서울)."""
+    try:
+        import pytz
+
+        seoul = pytz.timezone("Asia/Seoul")
+        saved = rec.get("saved_at_utc")
+        if saved:
+            s = str(saved).strip().replace("Z", "+00:00")
+            dt_utc = datetime.fromisoformat(s)
+            if dt_utc.tzinfo is None:
+                dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+            return dt_utc.astimezone(seoul).strftime("%Y-%m-%d %H:%M")
+        date_str = (rec.get("date") or "").strip()
+        if date_str and len(date_str) >= 16:
+            dt_naive = datetime.strptime(date_str[:16], "%Y-%m-%d %H:%M")
+            localized = seoul.localize(dt_naive)
+            return localized.strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        pass
+    return (rec.get("date") or "") or str(rec.get("saved_at_utc") or "")
+
+
+def _read_meal_feed_css():
+    try:
+        _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "style.css")
+        with open(_p, "r", encoding="utf-8") as _f:
+            _s = _f.read()
+        _a = _s.find("/* ===== MEAL_FEED_ISOLATED_CSS_START =====")
+        _b = _s.find("/* ===== MEAL_FEED_ISOLATED_CSS_END =====", _a)
+        if _a >= 0 and _b > _a:
+            return _s[_a:_b]
+    except Exception:
+        pass
+    return ""
+
 
 # --- Railway 등에서 환경 변수로 시크릿 읽기 (Streamlit Cloud는 st.secrets 유지) ---
 def _get_secret(key, default=None):
@@ -469,8 +530,14 @@ def compress_image_for_storage(img, max_width=1024, quality=80):
 
 
 # 2. 세션 상태 초기화
-if 'history' not in st.session_state:
-    st.session_state['history'] = []
+if "feed_items" not in st.session_state:
+    st.session_state["feed_items"] = []
+if "last_doc" not in st.session_state:
+    st.session_state["last_doc"] = None
+if "has_more" not in st.session_state:
+    st.session_state["has_more"] = False
+if "meal_feed_uid" not in st.session_state:
+    st.session_state["meal_feed_uid"] = None
 if 'current_analysis' not in st.session_state:
     st.session_state['current_analysis'] = None
 if 'logged_in' not in st.session_state:
@@ -493,8 +560,6 @@ if 'daily_protein' not in st.session_state:
     st.session_state['daily_protein'] = 0
 if 'daily_meals_count' not in st.session_state:
     st.session_state['daily_meals_count'] = 0
-if "history_loaded_uid" not in st.session_state:
-    st.session_state["history_loaded_uid"] = None
 if 'user_goal' not in st.session_state:
     st.session_state['user_goal'] = '일반 관리'
 # KR 단일 타겟팅: 언어는 KO로 고정
@@ -535,8 +600,7 @@ with st.sidebar:
             st.session_state["login_type"] = None
             st.session_state["user_id"] = None
             st.session_state["user_email"] = None
-            st.session_state["history_loaded_uid"] = None
-            st.session_state["history"] = []
+            _reset_meal_feed_state()
             st.session_state["auth_mode"] = "login"
             st.rerun()
     elif _lt == "google":
@@ -545,8 +609,7 @@ with st.sidebar:
             st.session_state["login_type"] = None
             st.session_state["user_id"] = None
             st.session_state["user_email"] = None
-            st.session_state["history_loaded_uid"] = None
-            st.session_state["history"] = []
+            _reset_meal_feed_state()
             st.session_state["auth_mode"] = "login"
             st.rerun()
     st.divider()
@@ -1699,75 +1762,6 @@ def _normalize_image_url(url, bucket_name=None):
     return url
 
 
-def _delete_history_record(uid, doc_id):
-    """Firestore(history + user_logs) 문서 및 Storage 이미지 삭제. 성공 시 (True, None), 실패 시 (False, '단계명')."""
-    if not uid or not doc_id:
-        sys.stderr.write("[기록 삭제] uid 또는 doc_id 없음\n")
-        return False, None
-    uid = str(uid)
-    doc_id = str(doc_id)
-    _FIREBASE_ADMIN_KEYS = [
-        "type", "project_id", "private_key_id", "private_key",
-        "client_email", "client_id", "auth_uri", "token_uri",
-        "auth_provider_x509_cert_url", "client_x509_cert_url",
-        "universe_domain"
-    ]
-    key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
-    if not key_dict.get("project_id"):
-        sys.stderr.write("[기록 삭제] project_id 없음\n")
-        return False, None
-    try:
-        from google.cloud import firestore as gcf
-        from google.oauth2 import service_account
-        creds = service_account.Credentials.from_service_account_info(key_dict)
-        fs_client = gcf.Client(project=key_dict["project_id"], credentials=creds)
-    except Exception as e:
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.write(f"[기록 삭제] Firestore 클라이언트 초기화 실패: {e}\n")
-        return False, "Firestore(초기화)"
-
-    # 1) Firestore users/{uid}/history/{doc_id} 문서 삭제 (doc_id는 해당 컬렉션의 문서 ID와 일치)
-    try:
-        ref = fs_client.collection("users").document(uid).collection("history").document(doc_id)
-        ref.delete()
-    except Exception as e:
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.write(f"[기록 삭제] Firestore(history) 단계 실패 doc_id={doc_id!r}: {e}\n")
-        return False, "Firestore(history)"
-
-    # 2) Storage 이미지 삭제
-    _uid_safe = uid.replace("/", "_").replace("\\", "_")
-    _storage_path = f"users/{_uid_safe}/meals/{doc_id}.jpg"
-    try:
-        import firebase_admin
-        from firebase_admin import storage, credentials
-        if not firebase_admin._apps:
-            _opts = {}
-            _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
-            if _bucket:
-                _opts["storageBucket"] = _bucket
-            else:
-                _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
-            firebase_admin.initialize_app(credentials.Certificate(key_dict), _opts)
-        bucket = storage.bucket()
-        blob = bucket.blob(_storage_path)
-        blob.delete()
-    except Exception as e:
-        sys.stderr.write(f"[기록 삭제] Storage 단계 실패 path={_storage_path!r}: {type(e).__name__}: {e}\n")
-
-    # 3) Firestore user_logs 컬렉션에서 history_doc_id가 doc_id인 문서 삭제
-    try:
-        q = fs_client.collection("user_logs").where("history_doc_id", "==", doc_id).where("user_id", "==", uid).stream()
-        for doc in q:
-            doc.reference.delete()
-    except Exception as e:
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.write(f"[기록 삭제] Firestore(user_logs) 단계 실패 doc_id={doc_id!r}: {e}\n")
-        return False, "Firestore(user_logs)"
-
-    return True, None
-
-
 def _get_firestore_db():
     """Firestore 클라이언트 반환 (필요 시 초기화)."""
     from firebase_admin import firestore, credentials
@@ -2030,81 +2024,6 @@ def _warn_similar_food_glucose(uid, food_names, total_carbs):
         return None
 
 
-# 4-2. 로그인 성공 직후 Firestore에서 해당 uid 기록 불러오기 (새로고침 후 재로그인 시에도 표시)
-def _load_my_history_from_firestore():
-    uid = st.session_state.get("user_id")
-    if not uid or st.session_state.get("login_type") != "google":
-        return
-    if st.session_state.get("history_loaded_uid") == uid:
-        return
-    try:
-        from firebase_admin import firestore, storage
-        import firebase_admin
-        from firebase_admin import credentials
-        if not firebase_admin._apps:
-            _FIREBASE_ADMIN_KEYS = [
-                "type", "project_id", "private_key_id", "private_key",
-                "client_email", "client_id", "auth_uri", "token_uri",
-                "auth_provider_x509_cert_url", "client_x509_cert_url",
-                "universe_domain"
-            ]
-            key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
-            cred = credentials.Certificate(key_dict)
-            _opts = {}
-            _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
-            if _bucket:
-                _opts["storageBucket"] = _bucket
-            elif key_dict.get("project_id"):
-                _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
-            firebase_admin.initialize_app(cred, _opts)
-        db = firestore.client()
-        bucket_name = None
-        try:
-            bucket_name = storage.bucket().name
-        except Exception:
-            pass
-        ref = db.collection("users").document(uid).collection("history").stream()
-        def _sort_key(d):
-            data = d.to_dict()
-            return data.get("saved_at_utc") or data.get("date", "")
-        docs = sorted(list(ref), key=_sort_key, reverse=True)
-    except Exception as e:
-        err_lower = str(e).lower()
-        if "permission" in err_lower or "denied" in err_lower:
-            sys.stderr.write(f"[Firestore 불러오기] Permission Denied 가능성: {e}\n")
-            traceback.print_exc(file=sys.stderr)
-        return
-    loaded = []
-    for d in docs:
-        data = d.to_dict()
-        raw_url = data.get("image_url")
-        image_url = _normalize_image_url(raw_url, bucket_name) if raw_url else None
-        items = data.get("sorted_items", [])
-        if items and isinstance(items[0], dict):
-            sorted_lists = [[item.get("name",""), item.get("gi",0), item.get("carbs",0), item.get("protein",0), item.get("color","")] for item in items]
-        else:
-            sorted_lists = items
-        loaded.append({
-            "doc_id": d.id,
-            "date": data.get("date", ""),
-            "saved_at_utc": data.get("saved_at_utc"),
-            "image": None,
-            "image_url": image_url,
-            "sorted_items": sorted_lists,
-            "advice": data.get("advice", ""),
-            "blood_sugar_score": data.get("blood_sugar_score", 0),
-            "total_carbs": data.get("total_carbs", 0),
-            "total_protein": data.get("total_protein", 0),
-            "avg_gi": data.get("avg_gi", 0),
-        })
-    st.session_state["history"] = loaded
-    st.session_state["history_loaded_uid"] = uid
-
-
-if st.session_state.get("logged_in") and st.session_state.get("login_type") == "google":
-    _load_my_history_from_firestore()
-
-
 @st.dialog("⚠️ 저장하지 않고 이동하시겠습니까?")
 def confirm_retake_dialog():
     """분석 결과 화면에서 '다시 촬영' 시 이탈 방지 (하단 바에서 직접 호출 가능하도록 전역 정의)."""
@@ -2206,8 +2125,7 @@ if menu_key == "scanner":
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
                 st.session_state["user_email"] = None
-                st.session_state["history_loaded_uid"] = None
-                st.session_state["history"] = []
+                _reset_meal_feed_state()
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
         elif _lt == "google":
@@ -2216,8 +2134,7 @@ if menu_key == "scanner":
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
                 st.session_state["user_email"] = None
-                st.session_state["history_loaded_uid"] = None
-                st.session_state["history"] = []
+                _reset_meal_feed_state()
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
     if 'app_stage' not in st.session_state:
@@ -2285,8 +2202,7 @@ if menu_key == "scanner":
                     st.session_state['login_type'] = None
                     st.session_state['user_id'] = None
                     st.session_state['user_email'] = None
-                    st.session_state["history_loaded_uid"] = None
-                    st.session_state["history"] = []
+                    _reset_meal_feed_state()
                     st.session_state['auth_mode'] = 'signup'
                     st.rerun()
             else:
@@ -2938,8 +2854,7 @@ if menu_key == "scanner":
                     st.session_state["login_type"] = None
                     st.session_state["user_id"] = None
                     st.session_state["user_email"] = None
-                    st.session_state["history_loaded_uid"] = None
-                    st.session_state["history"] = []
+                    _reset_meal_feed_state()
                     st.session_state["auth_mode"] = "login"
                     st.session_state["current_page"] = "main"
                     st.rerun()
@@ -2949,8 +2864,7 @@ if menu_key == "scanner":
                     st.session_state["login_type"] = None
                     st.session_state["user_id"] = None
                     st.session_state["user_email"] = None
-                    st.session_state["history_loaded_uid"] = None
-                    st.session_state["history"] = []
+                    _reset_meal_feed_state()
                     st.session_state["auth_mode"] = "login"
                     st.session_state["current_page"] = "main"
                     st.rerun()
@@ -3441,6 +3355,7 @@ if menu_key == "scanner":
                     if "uploader_key" in st.session_state:
                         st.session_state["uploader_key"] += 1
                     get_today_summary.clear()
+                    _reset_meal_feed_state()
                     st.rerun()
                 except Exception as e:
                     traceback.print_exc(file=sys.stderr)
@@ -3463,8 +3378,7 @@ elif menu_key == "history":
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
                 st.session_state["user_email"] = None
-                st.session_state["history_loaded_uid"] = None
-                st.session_state["history"] = []
+                _reset_meal_feed_state()
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
         elif _lt_h == "google":
@@ -3473,8 +3387,7 @@ elif menu_key == "history":
                 st.session_state["login_type"] = None
                 st.session_state["user_id"] = None
                 st.session_state["user_email"] = None
-                st.session_state["history_loaded_uid"] = None
-                st.session_state["history"] = []
+                _reset_meal_feed_state()
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
     st.title(f"📅 {t['history_menu']}")
@@ -3520,83 +3433,97 @@ elif menu_key == "history":
             st.rerun()
         st.markdown("---")
 
-    # st.expander: 이력 목록은 버튼 토글로 펼침 (CSS는 전역 <style>의 stExpander 규칙 적용)
-    if st.session_state['history']:
-        for i, rec in enumerate(reversed(st.session_state['history'])):
-            rec_score = rec.get('blood_sugar_score', 0)
-            rec_carbs = rec.get('total_carbs', 0)
-            rec_gi = rec.get('avg_gi', 0)
+    # ── meals 피드 (Firestore users/{uid}/meals, 페이지네이션) ──
+    _mcss = _read_meal_feed_css()
+    if _mcss:
+        st.markdown(f"<style>{_mcss}</style>", unsafe_allow_html=True)
+
+    _uid_hist = st.session_state.get("user_id")
+    _google_hist = st.session_state.get("login_type") == "google"
+
+    if _google_hist and _uid_hist:
+        if st.session_state.get("meal_feed_uid") != str(_uid_hist):
+            try:
+                _items, _last = get_meal_feed(_uid_hist, 5, None)
+                st.session_state["feed_items"] = _items
+                st.session_state["last_doc"] = _last.id if _last else None
+                st.session_state["has_more"] = len(_items) >= 5
+                st.session_state["meal_feed_uid"] = str(_uid_hist)
+            except Exception as _e:
+                traceback.print_exc(file=sys.stderr)
+                st.session_state["feed_items"] = []
+                st.session_state["last_doc"] = None
+                st.session_state["has_more"] = False
+                st.session_state["meal_feed_uid"] = str(_uid_hist)
+                st.error(f"일지를 불러오지 못했습니다: {_e}")
+
+    st.markdown('<div class="meal-feed-root">', unsafe_allow_html=True)
+    if _google_hist and _uid_hist and st.session_state.get("feed_items"):
+        for i, rec in enumerate(st.session_state["feed_items"]):
+            rec_score = int(rec.get("blood_sugar_score", 0) or 0)
+            rec_carbs = int(rec.get("total_carbs", 0) or 0)
+            rec_protein = int(rec.get("total_protein", 0) or 0)
+            rec_fat = int(rec.get("total_fat", 0) or 0)
+            est_spike = int(rec.get("estimated_spike", 0) or 0)
             rc = "#4CAF50" if rec_score <= 40 else "#FFB300" if rec_score <= 65 else "#F44336"
             rl = t["risk_safe"] if rec_score <= 40 else t["risk_caution"] if rec_score <= 65 else t["risk_danger"]
-            _key = f"hist_open_{i}"
-            if _key not in st.session_state:
-                st.session_state[_key] = False
-            _lang = "KO"
-            _date = _format_record_date(rec.get("date", ""), rec.get("saved_at_utc"), _lang)
-            _btn_label = f"🍴 {_date}  ·  혈당 {rec_score} ({rl})  ·  탄수화물 {rec_carbs}g"
-            if st.button(_btn_label, key=_key + "_btn", use_container_width=True, type="secondary"):
-                st.session_state[_key] = not st.session_state[_key]
-                st.rerun()
-            if st.session_state[_key]:
-                st.markdown(f"**{_date}** · {t['blood_score_label']} **{rec_score}** ({rl}) · {t['carbs']} **{rec_carbs}g**")
-                _img_url = rec.get("image_url")
-                if _img_url and isinstance(_img_url, str) and _img_url.strip():
-                    try:
-                        st.image(_img_url, use_container_width=True)
-                    except Exception as img_err:
-                        sys.stderr.write(f"[이미지 로드] URL 표시 실패 (Storage 권한 또는 CORS 확인): {img_err}\n")
-                        st.caption("(이미지를 불러올 수 없습니다. Storage 읽기 권한을 확인해 주세요.)")
-                elif rec.get("image"):
-                    st.image(rec["image"], use_container_width=True)
-                st.markdown(f"""
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:10px 0;">
-                    <div style="background:{rc}11;border:1px solid {rc}33;border-radius:10px;padding:10px;text-align:center;">
-                        <div style="font-size:18px;font-weight:900;color:{rc};">{rec_score}</div>
-                        <div style="font-size:10px;color:#888;">{t['blood_score']}</div>
-                    </div>
-                    <div style="background:#f8f9fa;border-radius:10px;padding:10px;text-align:center;">
-                        <div style="font-size:18px;font-weight:900;color:#333;">{rec_carbs}g</div>
-                        <div style="font-size:10px;color:#888;">{t['carbs']}</div>
-                    </div>
-                    <div style="background:#f8f9fa;border-radius:10px;padding:10px;text-align:center;">
-                        <div style="font-size:18px;font-weight:900;color:#333;">{rec_gi}</div>
-                        <div style="font-size:10px;color:#888;">{t['avg_gi_label']}</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-                for item in rec['sorted_items']:
-                    if isinstance(item, dict):
-                        name = str(item.get("name", "")).replace("*", "").strip()
-                        color_str = str(item.get("color", ""))
-                        gi_val = item.get("gi", "-")
-                    else:
-                        name = str(item[0]).replace('*', '').strip() if item else ''
-                        color_str = str(item[4]) if len(item) > 4 else (str(item[1]) if len(item) > 1 else '노랑')
-                        gi_val = item[1] if len(item) > 1 and isinstance(item[1], int) else '-'
-                    ic = "#4CAF50" if any(x in color_str for x in ["초록","Green"]) else "#FFB300" if any(x in color_str for x in ["노랑","Yellow"]) else "#F44336"
-                    st.markdown(f"""
-                    <div style="display:flex;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;">
-                        <div style="width:12px;height:12px;background:{ic};border-radius:50%;margin-right:9px;flex-shrink:0;"></div>
-                        <span style="font-size:14px;font-weight:500;">{name}</span>
-                        <span style="margin-left:auto;font-size:12px;color:#888;">GI {gi_val}</span>
-                    </div>""", unsafe_allow_html=True)
-                st.divider()
-                st.info(rec['advice'])
-                _doc_id = rec.get("doc_id")
-                if _doc_id and st.button(t.get("delete_record", "🗑️ 기록 삭제"), key=f"hist_del_{i}", type="secondary"):
-                    _uid = st.session_state.get("user_id")
-                    if _uid:
-                        ok, failed_step = _delete_history_record(_uid, _doc_id)
-                        if ok:
-                            st.session_state["history"] = [h for h in st.session_state["history"] if h.get("doc_id") != _doc_id]
+            _when = _meal_feed_display_time(rec)
+            _doc_id = rec.get("doc_id") or ""
+            with st.container(border=True):
+                st.markdown('<p class="meal-feed-card-marker" aria-hidden="true"></p>', unsafe_allow_html=True)
+                h1, h2 = st.columns([5, 1])
+                with h1:
+                    st.markdown(f'<div class="meal-card-headline">{html_module.escape(_when)}</div>', unsafe_allow_html=True)
+                with h2:
+                    if _doc_id and st.button("🗑️", key=f"meal_del_{_doc_id}_{i}", help=t.get("delete_record", "기록 삭제")):
+                        ok_del, failed_step = delete_meal_record(_uid_hist, _doc_id)
+                        if ok_del:
+                            _reset_meal_feed_state()
                             st.success(t.get("delete_record_full", "기록이 완전히 삭제되었습니다."))
                             st.rerun()
                         else:
-                            st.error(t.get("delete_record_failed", "삭제에 실패했습니다.") + (f" ({failed_step})" if failed_step else ""))
-                    else:
-                        st.toast(t.get("delete_record_failed", "삭제에 실패했습니다."))
+                            st.error(
+                                t.get("delete_record_failed", "삭제에 실패했습니다.")
+                                + (f" ({failed_step})" if failed_step else "")
+                            )
+                _img_buf = get_cached_image(rec.get("image_url"))
+                if _img_buf is not None:
+                    st.image(_img_buf, use_container_width=True)
+                elif rec.get("image_url"):
+                    st.caption("이미지를 불러올 수 없습니다.")
+                else:
+                    st.caption("저장된 이미지가 없습니다.")
+                st.markdown(
+                    f'<div class="meal-card-spike"><span class="meal-card-spike-label">🔥 스파이크 방어 코멘트</span> '
+                    f'<span class="meal-card-risk" style="color:{rc};">(위험도: {html_module.escape(rl)})</span> '
+                    f'<span class="meal-card-spike-val">· 예측 스파이크 {est_spike}</span></div>',
+                    unsafe_allow_html=True,
+                )
+                _adv = str(rec.get("advice") or "")
+                if _adv:
+                    st.markdown(f'<div class="meal-card-advice">{html_module.escape(_adv)}</div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div class="meal-card-macros">🍚 {t["carbs_short"]} <b>{rec_carbs}g</b> &nbsp;·&nbsp; '
+                    f'💪 {t["protein_short"]} <b>{rec_protein}g</b> &nbsp;·&nbsp; 🧈 지방 <b>{rec_fat}g</b></div>',
+                    unsafe_allow_html=True,
+                )
+
+        if st.session_state.get("has_more") and _uid_hist:
+            if st.button("더 보기 🔽", key="meal_feed_load_more", use_container_width=True):
+                try:
+                    more, last_snap = get_meal_feed(_uid_hist, 5, st.session_state.get("last_doc"))
+                    st.session_state["feed_items"].extend(more)
+                    st.session_state["last_doc"] = last_snap.id if last_snap else None
+                    st.session_state["has_more"] = len(more) >= 5
+                except Exception as _e2:
+                    traceback.print_exc(file=sys.stderr)
+                    st.error(f"추가 불러오기 실패: {_e2}")
+                st.rerun()
+    elif not _google_hist or not _uid_hist:
+        st.info(t.get("no_history_msg", "기록이 없습니다."))
     else:
         st.info(t["no_history_msg"])
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # Native Bottom Bar: 본문(스캐너/기록) 이후 렌더 → DOM 맨 아래 (fixed 미적용 시에도 상단에 깔리지 않음)
 render_bottom_bar()
