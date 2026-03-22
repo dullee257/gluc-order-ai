@@ -7,7 +7,7 @@ import os
 import re
 import sys
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import streamlit as st
 import firebase_admin
@@ -66,9 +66,17 @@ def _get_firebase_config():
 
 
 def _normalize_image_url(path, bucket_name):
+    """저장값이 이미 절대 URL이면 그대로 두고, 상대 경로만 GCS 공개 URL로 만든다."""
     if not path:
         return ""
-    path_encoded = urllib.parse.quote(path, safe="/")
+    s = str(path).strip()
+    if s.startswith("http://") or s.startswith("https://"):
+        return s
+    if s.startswith("data:image"):
+        return s
+    if not bucket_name:
+        return s
+    path_encoded = urllib.parse.quote(s, safe="/")
     return f"https://storage.googleapis.com/{bucket_name}/{path_encoded}"
 
 
@@ -111,13 +119,23 @@ def upload_image_to_storage(uid, meal_id, pil_image, max_width=800, quality=85):
     path = f"users/{uid_safe}/meals/{meal_id}.jpg"
     blob = bucket.blob(path)
     blob.upload_from_string(img_bytes, content_type="image/jpeg")
+    image_url = None
     try:
-        blob.make_public()
-    except Exception:
-        pass
-    image_url = getattr(blob, "public_url", None) or ""
+        image_url = blob.generate_signed_url(
+            version="v4",
+            expiration=timedelta(days=365),
+            method="GET",
+        )
+    except Exception as e:
+        sys.stderr.write(f"[upload_image_to_storage] signed URL 생성 실패, 공개 URL로 대체: {e}\n")
     if not (image_url and str(image_url).strip().startswith("http")):
-        image_url = _normalize_image_url(path, bucket.name)
+        try:
+            blob.make_public()
+        except Exception:
+            pass
+        image_url = getattr(blob, "public_url", None) or ""
+        if not (image_url and str(image_url).strip().startswith("http")):
+            image_url = _normalize_image_url(path, bucket.name)
     return image_url
 
 

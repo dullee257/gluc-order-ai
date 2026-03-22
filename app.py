@@ -11,6 +11,7 @@ import re
 from collections import defaultdict
 import statistics
 import io
+import base64
 from PIL import Image
 from datetime import datetime, timezone
 
@@ -127,6 +128,48 @@ def _meal_feed_display_time(rec):
     except Exception:
         pass
     return (rec.get("date") or "") or str(rec.get("saved_at_utc") or rec.get("created_at") or "")
+
+
+def _render_feed_image(image_url):
+    """피드 이미지: 브라우저가 http(s) URL을 직접 로드하거나 data:/base64 디코딩. 디버그 캡션 + 형식 오류 시 폴백."""
+    if image_url is None:
+        st.info("첨부된 식단 이미지가 없습니다.")
+        return
+    s = str(image_url).strip()
+    if not s:
+        st.info("첨부된 식단 이미지가 없습니다.")
+        return
+
+    st.caption(f"🔍 URL 체크: {s[:100]}{'...' if len(s) > 100 else ''}")
+
+    if s.startswith("data:image") and "base64," in s:
+        try:
+            raw = s.split("base64,", 1)[1]
+            data = base64.b64decode(raw)
+            st.image(data, use_container_width=True)
+        except Exception:
+            st.caption("이미지 데이터를 디코딩할 수 없습니다.")
+        return
+
+    if s.startswith(("http://", "https://")):
+        try:
+            st.image(s, use_container_width=True)
+        except Exception:
+            st.error("이미지를 불러오는 중 오류가 발생했습니다.")
+        return
+
+    compact = re.sub(r"\s+", "", s)
+    if len(compact) >= 80 and re.match(r"^[A-Za-z0-9+/]+=*$", compact):
+        try:
+            pad = (-len(compact)) % 4
+            data = base64.b64decode(compact + "=" * pad, validate=False)
+            if len(data) >= 64:
+                st.image(data, use_container_width=True)
+                return
+        except Exception:
+            pass
+
+    st.caption("이미지 주소 형식을 인식할 수 없습니다.")
 
 
 def _read_meal_feed_css():
@@ -3588,14 +3631,7 @@ elif menu_key == "history":
                                 t.get("delete_record_failed", "삭제에 실패했습니다.")
                                 + (f" ({failed_step})" if failed_step else "")
                             )
-                image_url = rec.get("image_url")
-                if image_url:
-                    try:
-                        st.image(str(image_url).strip(), use_container_width=True)
-                    except Exception:
-                        st.error("이미지를 불러오는 중 오류가 발생했습니다.")
-                else:
-                    st.info("첨부된 식단 이미지가 없습니다.")
+                _render_feed_image(rec.get("image_url"))
                 st.markdown(
                     f'<div class="meal-card-spike"><span class="meal-card-spike-label">🔥 스파이크 방어 코멘트</span> '
                     f'<span class="meal-card-risk" style="color:{rc};">(위험도: {html_module.escape(rl)})</span> '
