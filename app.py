@@ -3454,13 +3454,44 @@ if menu_key == "scanner":
 
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
 elif menu_key == "history":
-    _uid_hist_entry = st.session_state.get("user_id")
+    # 1. 로그인 UID (앱 전역은 st.session_state["user_id"] 사용 — Firebase UID / 게스트 demo ID)
+    current_uid = st.session_state.get("user_id")
+    current_uid_str = str(current_uid) if current_uid else ""
+
+    if current_uid:
+        # 2. [강제 직결] daily_summary 없으면 Firestore에서 즉시 채움 (login_type 분기와 무관)
+        if st.session_state.get("daily_summary") is None:
+            st.session_state["daily_summary"] = get_daily_summary(current_uid, get_today_str())
+            st.session_state["daily_summary_date_key"] = get_today_str()
+        _hydrate_history_daily_from_firestore(current_uid)
+
+        _MEAL_FEED_LOGIC_V = 2
+        if st.session_state.get("_meal_feed_client_v") != _MEAL_FEED_LOGIC_V:
+            st.session_state["_meal_feed_client_v"] = _MEAL_FEED_LOGIC_V
+            st.session_state["meal_feed_hydrated_uid"] = None
+            st.session_state["meal_feed_sort_field"] = None
+
+        # 3. [강제 직결] 이 세션·유저에서 피드 미로드면 get_meal_feed (hydrated_uid는 문자열로 통일)
+        if str(st.session_state.get("meal_feed_hydrated_uid")) != current_uid_str:
+            try:
+                feed, last_snap, used_sf = get_meal_feed(current_uid, 5, None, sort_field=None)
+                if used_sf:
+                    st.session_state["meal_feed_sort_field"] = used_sf
+                st.session_state["feed_items"] = feed
+                st.session_state["last_doc"] = last_snap.id if last_snap else None
+                st.session_state["has_more"] = len(feed) >= 5
+                st.session_state["meal_feed_hydrated_uid"] = current_uid_str
+                st.session_state["meal_feed_uid"] = current_uid_str
+            except Exception as _hydr_feed_e:
+                traceback.print_exc(file=sys.stderr)
+                st.session_state["feed_items"] = []
+                st.session_state["last_doc"] = None
+                st.session_state["has_more"] = False
+                st.error(f"일지를 불러오지 못했습니다: {_hydr_feed_e}")
+    else:
+        st.error("🚨 진단: 유저 인증 ID를 세션에서 찾을 수 없습니다. (Key 오류)")
+
     _lt_h = st.session_state.get("login_type")
-    # 최상단 트리거: 구글 + UID 있을 때 항상 Firestore에서 오늘 요약 동기화 (하드 리프레시 직후 포함)
-    if _lt_h == "google" and _uid_hist_entry:
-        _hydrate_history_daily_from_firestore(_uid_hist_entry)
-        if not st.session_state.get("daily_summary"):
-            st.session_state["daily_summary"] = get_daily_summary(_uid_hist_entry, get_today_str())
     with st.expander("🔧 진단", expanded=False):
         st.write("현재 daily_summary 상태:", st.session_state.get("daily_summary"))
         st.write(f"현재 세션 feed_items 개수: {len(st.session_state.get('feed_items', []))}")
@@ -3540,31 +3571,6 @@ elif menu_key == "history":
 
     _uid_hist = st.session_state.get("user_id")
     _google_hist = st.session_state.get("login_type") == "google"
-
-    _MEAL_FEED_LOGIC_V = 2
-    if st.session_state.get("_meal_feed_client_v") != _MEAL_FEED_LOGIC_V:
-        st.session_state["_meal_feed_client_v"] = _MEAL_FEED_LOGIC_V
-        st.session_state["meal_feed_hydrated_uid"] = None
-        st.session_state["meal_feed_sort_field"] = None
-
-    if _google_hist and _uid_hist:
-        _uid_s = str(_uid_hist)
-        if st.session_state.get("meal_feed_hydrated_uid") != _uid_s:
-            try:
-                _items, _last, _used_sf = get_meal_feed(_uid_hist, 5, None, sort_field=None)
-                if _used_sf:
-                    st.session_state["meal_feed_sort_field"] = _used_sf
-                st.session_state["feed_items"] = _items
-                st.session_state["last_doc"] = _last.id if _last else None
-                st.session_state["has_more"] = len(_items) >= 5
-                st.session_state["meal_feed_hydrated_uid"] = _uid_s
-                st.session_state["meal_feed_uid"] = _uid_s
-            except Exception as _e:
-                traceback.print_exc(file=sys.stderr)
-                st.session_state["feed_items"] = []
-                st.session_state["last_doc"] = None
-                st.session_state["has_more"] = False
-                st.error(f"일지를 불러오지 못했습니다: {_e}")
 
     st.markdown('<div class="meal-feed-root">', unsafe_allow_html=True)
     if _google_hist and _uid_hist and st.session_state.get("feed_items"):
