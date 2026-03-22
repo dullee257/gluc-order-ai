@@ -64,6 +64,13 @@ def _reset_meal_feed_state():
     st.session_state["meal_feed_hydrated_uid"] = None
 
 
+def get_today_str():
+    """한국(서울) 기준 오늘 날짜 키 YYYY-MM-DD."""
+    import pytz
+
+    return datetime.now(pytz.timezone("Asia/Seoul")).strftime("%Y-%m-%d")
+
+
 def _meal_feed_display_time(rec):
     """일지 카드 헤더용 YYYY-MM-DD HH:MM (서울)."""
     try:
@@ -77,6 +84,18 @@ def _meal_feed_display_time(rec):
             if dt_utc.tzinfo is None:
                 dt_utc = dt_utc.replace(tzinfo=timezone.utc)
             return dt_utc.astimezone(seoul).strftime("%Y-%m-%d %H:%M")
+        ca = rec.get("created_at")
+        if ca is not None:
+            if hasattr(ca, "timestamp"):
+                dt_utc = datetime.fromtimestamp(ca.timestamp(), tz=timezone.utc)
+            elif isinstance(ca, datetime):
+                dt_utc = ca if ca.tzinfo else ca.replace(tzinfo=timezone.utc)
+                if dt_utc.tzinfo is None:
+                    dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+            else:
+                dt_utc = None
+            if dt_utc is not None:
+                return dt_utc.astimezone(seoul).strftime("%Y-%m-%d %H:%M")
         date_str = (rec.get("date") or "").strip()
         if date_str and len(date_str) >= 16:
             dt_naive = datetime.strptime(date_str[:16], "%Y-%m-%d %H:%M")
@@ -84,7 +103,7 @@ def _meal_feed_display_time(rec):
             return localized.strftime("%Y-%m-%d %H:%M")
     except Exception:
         pass
-    return (rec.get("date") or "") or str(rec.get("saved_at_utc") or "")
+    return (rec.get("date") or "") or str(rec.get("saved_at_utc") or rec.get("created_at") or "")
 
 
 def _read_meal_feed_css():
@@ -966,11 +985,25 @@ st.markdown(f"""
             max-width: 100% !important;
         }}
     }}
-    /* 대시보드(stMetric) 줄바꿈·nowrap 무력화 (내부 노드까지) */
+    /* 메트릭 내부 요소 텍스트 짤림 완벽 방지 */
+    div[data-testid="stMetricValue"] > div,
+    div[data-testid="stMetricLabel"] > div,
+    div[data-testid="stMetricValue"],
+    div[data-testid="stMetricLabel"] {{
+        white-space: normal !important;
+        word-break: keep-all !important;
+        overflow-wrap: break-word !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        line-height: 1.2 !important;
+    }}
     div[data-testid="stMetricLabel"] *, div[data-testid="stMetricValue"] * {{
         white-space: normal !important;
         word-break: keep-all !important;
         overflow-wrap: break-word !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        line-height: 1.2 !important;
     }}
     div[data-testid="stMetricLabel"] * {{ font-size: 13px !important; }}
     div[data-testid="stMetricValue"] * {{ font-size: 18px !important; }}
@@ -1862,7 +1895,7 @@ def get_today_summary(uid, date_key):
 
 
 def _hydrate_history_daily_from_firestore(uid):
-    """일지 탭: daily_summary 세션이 비었거나 날짜가 바뀌었으면 Firestore에서 오늘 요약을 보충."""
+    """일지 탭: daily_summary·대시보드 스칼라를 Firestore(오늘)와 동기화. daily_summary_today 캐시가 있어도 스칼라는 항상 맞춤."""
     if not uid:
         return
     try:
@@ -1872,12 +1905,14 @@ def _hydrate_history_daily_from_firestore(uid):
         _date_key = datetime.now(_seoul).strftime("%Y-%m-%d")
         _cached = st.session_state.get("daily_summary_today")
         _key = st.session_state.get("daily_summary_today_key")
-        if isinstance(_cached, dict) and _key == _date_key:
-            return
-        _dash = get_today_summary(uid, _date_key)
-        st.session_state["daily_summary_today"] = dict(_dash)
-        st.session_state["daily_summary_today_key"] = _date_key
-        ds = get_daily_summary(uid, _date_key)
+        if not (isinstance(_cached, dict) and _key == _date_key):
+            _dash = get_today_summary(uid, _date_key)
+            st.session_state["daily_summary_today"] = dict(_dash)
+            st.session_state["daily_summary_today_key"] = _date_key
+        if not st.session_state.get("daily_summary") or st.session_state.get("daily_summary_date_key") != _date_key:
+            st.session_state["daily_summary"] = get_daily_summary(uid, _date_key)
+            st.session_state["daily_summary_date_key"] = _date_key
+        ds = st.session_state["daily_summary"]
         st.session_state["daily_meals_count"] = int(ds.get("meal_count") or 0)
         st.session_state["daily_carbs"] = int(ds.get("total_carbs") or 0)
         st.session_state["daily_protein"] = int(ds.get("total_protein") or 0)
@@ -3400,6 +3435,10 @@ if menu_key == "scanner":
 
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
 elif menu_key == "history":
+    _uid_hist_entry = st.session_state.get("user_id")
+    if st.session_state.get("login_type") == "google" and _uid_hist_entry:
+        if not st.session_state.get("daily_summary"):
+            st.session_state["daily_summary"] = get_daily_summary(_uid_hist_entry, get_today_str())
     # 환영 문구를 로그아웃 버튼 위에 표시
     render_login_badge()
     # 메인 상단: 1페이지로 가기 버튼

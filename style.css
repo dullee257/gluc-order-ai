@@ -2,11 +2,27 @@
  * 혈당스캐너 — app.py <style> 주입본과 동기화
  */
 
+/* 메트릭 내부 요소 텍스트 짤림 완벽 방지 */
+div[data-testid="stMetricValue"] > div,
+div[data-testid="stMetricLabel"] > div,
+div[data-testid="stMetricValue"],
+div[data-testid="stMetricLabel"] {
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: break-word !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.2 !important;
+}
+
 div[data-testid="stMetricLabel"] *,
 div[data-testid="stMetricValue"] * {
     white-space: normal !important;
     word-break: keep-all !important;
     overflow-wrap: break-word !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    line-height: 1.2 !important;
 }
 
 div[data-testid="stMetricLabel"] * {

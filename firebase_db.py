@@ -202,14 +202,15 @@ def _blob_paths_for_meal_image(uid, doc_id, data, bucket_name):
 
 def get_meal_feed(uid, limit=5, start_after_doc=None):
     """
-    users/{uid}/meals 피드: saved_at_utc(ISO 문자열) 기준 최신순.
+    users/{uid}/meals 피드: save_meal_and_summary가 기록하는 created_at(SERVER_TIMESTAMP) 기준 최신순.
+    (저장 필드명과 order_by 필드명을 일치 — saved_at_utc만 있고 created_at이 없는 구문서는 이 쿼리에 포함되지 않을 수 있음.)
     반환: (문서 dict 리스트, 마지막 문서 DocumentSnapshot 또는 None)
     start_after_doc: DocumentSnapshot 또는 이전 페이지 마지막 문서 ID(str).
     """
     _init_firebase()
     db = firestore.client()
     col = db.collection("users").document(str(uid)).collection("meals")
-    q = col.order_by("saved_at_utc", direction=Query.DESCENDING)
+    q = col.order_by("created_at", direction=Query.DESCENDING)
     if start_after_doc is not None:
         snap = None
         if hasattr(start_after_doc, "reference") and getattr(start_after_doc, "exists", False):
@@ -250,6 +251,7 @@ def get_meal_feed(uid, limit=5, start_after_doc=None):
             {
                 "doc_id": d.id,
                 "date": data.get("date", ""),
+                "created_at": data.get("created_at"),
                 "saved_at_utc": data.get("saved_at_utc"),
                 "image": None,
                 "image_url": image_url,
