@@ -3570,11 +3570,12 @@ elif menu_key == "history":
         st.markdown(f"<style>{_mcss}</style>", unsafe_allow_html=True)
 
     _uid_hist = st.session_state.get("user_id")
-    _google_hist = st.session_state.get("login_type") == "google"
 
     st.markdown('<div class="meal-feed-root">', unsafe_allow_html=True)
-    if _google_hist and _uid_hist and st.session_state.get("feed_items"):
-        for i, rec in enumerate(st.session_state["feed_items"]):
+    feed_items = st.session_state.get("feed_items", [])
+
+    if len(feed_items) > 0:
+        for i, rec in enumerate(feed_items):
             rec_score = int(rec.get("blood_sugar_score", 0) or 0)
             rec_carbs = int(rec.get("total_carbs", 0) or 0)
             rec_protein = int(rec.get("total_protein", 0) or 0)
@@ -3643,10 +3644,15 @@ elif menu_key == "history":
                     traceback.print_exc(file=sys.stderr)
                     st.error(f"추가 불러오기 실패: {_e2}")
                 st.rerun()
-    elif not _google_hist or not _uid_hist:
+    elif not _uid_hist:
         st.info(t.get("no_history_msg", "기록이 없습니다."))
     else:
-        st.info(t["no_history_msg"])
+        st.info(
+            t.get(
+                "history_empty_feed_hint",
+                "저장된 식단 기록이 없습니다. 분석 후 '기록하기' 버튼을 눌러 보세요.",
+            )
+        )
     st.markdown("</div>", unsafe_allow_html=True)
 
 # Native Bottom Bar: 본문(스캐너/기록) 이후 렌더 → DOM 맨 아래 (fixed 미적용 시에도 상단에 깔리지 않음)
