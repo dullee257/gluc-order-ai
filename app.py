@@ -42,20 +42,6 @@ st.set_page_config(
 )
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def get_cached_image(url):
-    import requests
-
-    if not url or not isinstance(url, str) or not url.strip():
-        return None
-    try:
-        response = requests.get(url.strip(), timeout=5)
-        response.raise_for_status()
-        return io.BytesIO(response.content)
-    except Exception:
-        return None
-
-
 def _reset_meal_feed_state():
     st.session_state["feed_items"] = []
     st.session_state["last_doc"] = None
@@ -3602,13 +3588,14 @@ elif menu_key == "history":
                                 t.get("delete_record_failed", "삭제에 실패했습니다.")
                                 + (f" ({failed_step})" if failed_step else "")
                             )
-                _img_buf = get_cached_image(rec.get("image_url"))
-                if _img_buf is not None:
-                    st.image(_img_buf, use_container_width=True)
-                elif rec.get("image_url"):
-                    st.caption("이미지를 불러올 수 없습니다.")
+                image_url = rec.get("image_url")
+                if image_url:
+                    try:
+                        st.image(str(image_url).strip(), use_container_width=True)
+                    except Exception:
+                        st.error("이미지를 불러오는 중 오류가 발생했습니다.")
                 else:
-                    st.caption("저장된 이미지가 없습니다.")
+                    st.info("첨부된 식단 이미지가 없습니다.")
                 st.markdown(
                     f'<div class="meal-card-spike"><span class="meal-card-spike-label">🔥 스파이크 방어 코멘트</span> '
                     f'<span class="meal-card-risk" style="color:{rc};">(위험도: {html_module.escape(rl)})</span> '
