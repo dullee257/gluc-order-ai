@@ -200,29 +200,91 @@ def _blob_paths_for_meal_image(uid, doc_id, data, bucket_name):
     return out
 
 
-def get_meal_feed(uid, limit=5, start_after_doc=None):
+def get_meal_feed(uid, limit=5, start_after_doc=None, sort_field=None):
     """
-    users/{uid}/meals 피드: save_meal_and_summary가 기록하는 created_at(SERVER_TIMESTAMP) 기준 최신순.
-    (저장 필드명과 order_by 필드명을 일치 — saved_at_utc만 있고 created_at이 없는 구문서는 이 쿼리에 포함되지 않을 수 있음.)
-    반환: (문서 dict 리스트, 마지막 문서 DocumentSnapshot 또는 None)
+    users/{uid}/meals 피드 최신순.
+    - 첫 페이지(sort_field None, start_after None): created_at → saved_at_utc → __name__ 순으로 시도.
+      (구문서에 created_at이 없으면 첫 쿼리가 0건이 될 수 있어 폴백 필요.)
+    - 다음 페이지: 반드시 첫 응답에서 쓴 sort_field를 동일하게 넘겨야 start_after가 유효함.
+    반환: (문서 dict 리스트, 마지막 DocumentSnapshot 또는 None, 사용한 정렬 필드명 또는 None)
     start_after_doc: DocumentSnapshot 또는 이전 페이지 마지막 문서 ID(str).
     """
     _init_firebase()
     db = firestore.client()
     col = db.collection("users").document(str(uid)).collection("meals")
-    q = col.order_by("created_at", direction=Query.DESCENDING)
-    if start_after_doc is not None:
-        snap = None
+    uid_str = str(uid)
+
+    def _resolve_snap():
+        if start_after_doc is None:
+            return None
         if hasattr(start_after_doc, "reference") and getattr(start_after_doc, "exists", False):
-            snap = start_after_doc
-        else:
-            snap = col.document(str(start_after_doc)).get()
+            return start_after_doc
+        snap = col.document(str(start_after_doc)).get()
         if snap is not None and getattr(snap, "exists", False):
-            q = q.start_after(snap)
-        elif isinstance(start_after_doc, str):
+            return snap
+        if isinstance(start_after_doc, str):
             sys.stderr.write(f"[get_meal_feed] 커서 문서 없음 id={start_after_doc!r}\n")
-            return [], None
-    docs = list(q.limit(limit).stream())
+            print(f"[get_meal_feed] 커서 문서 없음 id={start_after_doc!r}", flush=True)
+        return "missing"
+
+    snap = _resolve_snap()
+    if snap == "missing":
+        return [], None, None
+
+    def _stream_for_field(field):
+        q = col.order_by(field, direction=Query.DESCENDING)
+        if snap is not None:
+            q = q.start_after(snap)
+        return list(q.limit(limit).stream())
+
+    if start_after_doc is not None and not sort_field:
+        err = "[get_meal_feed] 페이지네이션에는 첫 페이지에서 확정한 sort_field가 필요합니다."
+        sys.stderr.write(err + "\n")
+        print(err, flush=True)
+        return [], None, None
+    if sort_field:
+        fields_to_try = [sort_field]
+    else:
+        fields_to_try = ["created_at", "saved_at_utc", "__name__"]
+
+    docs = []
+    used_field = None
+    for field in fields_to_try:
+        try:
+            docs = _stream_for_field(field)
+        except Exception as e:
+            msg = f"[get_meal_feed] uid={uid_str!r} order_by({field!r}) error: {e}"
+            sys.stderr.write(msg + "\n")
+            print(msg, flush=True)
+            docs = []
+        sample_ids = [d.id for d in docs[:3]]
+        print(
+            f"[get_meal_feed] uid={uid_str!r} field={field!r} start_after={start_after_doc!r} "
+            f"n_docs={len(docs)} sample_ids={sample_ids}",
+            flush=True,
+        )
+        if docs:
+            used_field = field
+            break
+        if sort_field:
+            break
+        if start_after_doc is not None and field == fields_to_try[-1]:
+            break
+
+    if not docs and start_after_doc is None:
+        try:
+            probe = list(col.limit(3).stream())
+            pids = [d.id for d in probe]
+            print(f"[get_meal_feed] unordered_probe n={len(probe)} ids={pids}", flush=True)
+            for d in probe:
+                raw = d.to_dict() or {}
+                print(
+                    f"[get_meal_feed] doc {d.id!r} keys has created_at={('created_at' in raw)} "
+                    f"has saved_at_utc={('saved_at_utc' in raw)}",
+                    flush=True,
+                )
+        except Exception as e:
+            print(f"[get_meal_feed] unordered_probe failed: {e}", flush=True)
     bucket_name = None
     try:
         bucket_name = storage.bucket().name
@@ -267,7 +329,7 @@ def get_meal_feed(uid, limit=5, start_after_doc=None):
             }
         )
     last_snap = docs[-1] if docs else None
-    return loaded, last_snap
+    return loaded, last_snap, used_field
 
 
 def delete_meal_record(uid, doc_id):

@@ -62,6 +62,43 @@ def _reset_meal_feed_state():
     st.session_state["has_more"] = False
     st.session_state["meal_feed_uid"] = None
     st.session_state["meal_feed_hydrated_uid"] = None
+    st.session_state["meal_feed_sort_field"] = None
+
+
+def _render_dash_today_metrics_cards(t, avg_glucose, latest_glucose, total_carbs, meal_n):
+    """홈 '오늘의 요약' — st.metric 대신 HTML(줄바꿈·잘림 완전 통제)."""
+    esc = html_module.escape
+    no_rec = esc(t.get("dash_no_record", "기록 없음"))
+    v_avg = esc(f"{avg_glucose} mg/dL") if avg_glucose is not None else no_rec
+    v_carbs = esc(f"{total_carbs} g")
+    v_meals = esc(f"{meal_n}회")
+    v_latest = esc(f"{latest_glucose} mg/dL") if latest_glucose is not None else no_rec
+    lbl_avg = esc(t.get("dash_metric_avg_glucose", "오늘 평균 혈당"))
+    lbl_carbs = esc(t.get("dash_metric_total_carbs", "오늘 총 탄수화물"))
+    lbl_meals = esc(t.get("dash_metric_meals", "오늘 식단 기록"))
+    lbl_latest = esc(t.get("dash_metric_latest_glucose", "최근 측정 혈당"))
+    return f"""
+    <div class="dash-today-metrics-root" style="width:100%;box-sizing:border-box;">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;width:100%;">
+        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;">
+          <div style="font-size:12px;color:#64748b;line-height:1.4;word-break:keep-all;white-space:normal;">{lbl_avg}</div>
+          <div style="font-size:clamp(20px,4.5vw,28px);font-weight:800;color:#0f172a;line-height:1.25;margin-top:6px;word-break:break-word;overflow-wrap:anywhere;white-space:normal;">{v_avg}</div>
+        </div>
+        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;">
+          <div style="font-size:12px;color:#64748b;line-height:1.4;word-break:keep-all;white-space:normal;">{lbl_carbs}</div>
+          <div style="font-size:clamp(20px,4.5vw,28px);font-weight:800;color:#0f172a;line-height:1.25;margin-top:6px;word-break:break-word;overflow-wrap:anywhere;white-space:normal;">{v_carbs}</div>
+        </div>
+        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;">
+          <div style="font-size:12px;color:#64748b;line-height:1.4;word-break:keep-all;white-space:normal;">{lbl_meals}</div>
+          <div style="font-size:clamp(20px,4.5vw,28px);font-weight:800;color:#0f172a;line-height:1.25;margin-top:6px;word-break:break-word;overflow-wrap:anywhere;white-space:normal;">{v_meals}</div>
+        </div>
+        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;">
+          <div style="font-size:12px;color:#64748b;line-height:1.4;word-break:keep-all;white-space:normal;">{lbl_latest}</div>
+          <div style="font-size:clamp(20px,4.5vw,28px);font-weight:800;color:#0f172a;line-height:1.25;margin-top:6px;word-break:break-word;overflow-wrap:anywhere;white-space:normal;">{v_latest}</div>
+        </div>
+      </div>
+    </div>
+    """
 
 
 def get_today_str():
@@ -2295,28 +2332,10 @@ if menu_key == "scanner":
                     _meal_n = int(_dash.get("meal_count") or 0)
 
                     st.markdown(f"#### {t.get('dash_today_title', '오늘의 요약')}")
-                    m1, m2 = st.columns(2)
-                    with m1:
-                        st.metric(
-                            t.get("dash_metric_avg_glucose", "오늘 평균 혈당"),
-                            f"{_avg_g} mg/dL" if _avg_g is not None else t.get("dash_no_record", "기록 없음"),
-                        )
-                    with m2:
-                        st.metric(
-                            t.get("dash_metric_total_carbs", "오늘 총 탄수화물"),
-                            f"{_total_c} g",
-                        )
-                    m3, m4 = st.columns(2)
-                    with m3:
-                        st.metric(
-                            t.get("dash_metric_meals", "오늘 식단 기록"),
-                            f"{_meal_n}회",
-                        )
-                    with m4:
-                        st.metric(
-                            t.get("dash_metric_latest_glucose", "최근 측정 혈당"),
-                            f"{_latest_g} mg/dL" if _latest_g is not None else t.get("dash_no_record", "기록 없음"),
-                        )
+                    st.markdown(
+                        _render_dash_today_metrics_cards(t, _avg_g, _latest_g, _total_c, _meal_n),
+                        unsafe_allow_html=True,
+                    )
 
                     if _latest_g is not None:
                         _hi = max(250, int(_latest_g) + 40, 300)
@@ -3436,13 +3455,21 @@ if menu_key == "scanner":
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
 elif menu_key == "history":
     _uid_hist_entry = st.session_state.get("user_id")
-    if st.session_state.get("login_type") == "google" and _uid_hist_entry:
+    _lt_h = st.session_state.get("login_type")
+    # 최상단 트리거: 구글 + UID 있을 때 항상 Firestore에서 오늘 요약 동기화 (하드 리프레시 직후 포함)
+    if _lt_h == "google" and _uid_hist_entry:
+        _hydrate_history_daily_from_firestore(_uid_hist_entry)
         if not st.session_state.get("daily_summary"):
             st.session_state["daily_summary"] = get_daily_summary(_uid_hist_entry, get_today_str())
+    with st.expander("🔧 진단", expanded=False):
+        st.write("현재 daily_summary 상태:", st.session_state.get("daily_summary"))
+        st.write(f"현재 세션 feed_items 개수: {len(st.session_state.get('feed_items', []))}")
+        st.write("daily_meals_count:", st.session_state.get("daily_meals_count"))
+        st.write("meal_feed_hydrated_uid:", st.session_state.get("meal_feed_hydrated_uid"))
+        st.write("meal_feed_sort_field:", st.session_state.get("meal_feed_sort_field"))
     # 환영 문구를 로그아웃 버튼 위에 표시
     render_login_badge()
     # 메인 상단: 1페이지로 가기 버튼
-    _lt_h = st.session_state.get("login_type")
     c1, c2 = st.columns([5, 1])
     with c2:
         if _lt_h == "guest":
@@ -3464,9 +3491,6 @@ elif menu_key == "history":
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
     st.title(f"📅 {t['history_menu']}")
-
-    if _lt_h == "google" and st.session_state.get("user_id"):
-        _hydrate_history_daily_from_firestore(st.session_state.get("user_id"))
 
     # 오늘 하루 요약 대시보드
     if st.session_state['daily_meals_count'] > 0:
@@ -3517,11 +3541,19 @@ elif menu_key == "history":
     _uid_hist = st.session_state.get("user_id")
     _google_hist = st.session_state.get("login_type") == "google"
 
+    _MEAL_FEED_LOGIC_V = 2
+    if st.session_state.get("_meal_feed_client_v") != _MEAL_FEED_LOGIC_V:
+        st.session_state["_meal_feed_client_v"] = _MEAL_FEED_LOGIC_V
+        st.session_state["meal_feed_hydrated_uid"] = None
+        st.session_state["meal_feed_sort_field"] = None
+
     if _google_hist and _uid_hist:
         _uid_s = str(_uid_hist)
         if st.session_state.get("meal_feed_hydrated_uid") != _uid_s:
             try:
-                _items, _last = get_meal_feed(_uid_hist, 5, None)
+                _items, _last, _used_sf = get_meal_feed(_uid_hist, 5, None, sort_field=None)
+                if _used_sf:
+                    st.session_state["meal_feed_sort_field"] = _used_sf
                 st.session_state["feed_items"] = _items
                 st.session_state["last_doc"] = _last.id if _last else None
                 st.session_state["has_more"] = len(_items) >= 5
@@ -3588,10 +3620,19 @@ elif menu_key == "history":
         if st.session_state.get("has_more") and _uid_hist:
             if st.button("더 보기 🔽", key="meal_feed_load_more", use_container_width=True):
                 try:
-                    more, last_snap = get_meal_feed(_uid_hist, 5, st.session_state.get("last_doc"))
-                    st.session_state["feed_items"].extend(more)
-                    st.session_state["last_doc"] = last_snap.id if last_snap else None
-                    st.session_state["has_more"] = len(more) >= 5
+                    _sf = st.session_state.get("meal_feed_sort_field")
+                    if not _sf:
+                        st.error("정렬 필드가 없어 추가 페이지를 불러올 수 없습니다.")
+                    else:
+                        more, last_snap, _ = get_meal_feed(
+                            _uid_hist,
+                            5,
+                            st.session_state.get("last_doc"),
+                            sort_field=_sf,
+                        )
+                        st.session_state["feed_items"].extend(more)
+                        st.session_state["last_doc"] = last_snap.id if last_snap else None
+                        st.session_state["has_more"] = len(more) >= 5
                 except Exception as _e2:
                     traceback.print_exc(file=sys.stderr)
                     st.error(f"추가 불러오기 실패: {_e2}")
