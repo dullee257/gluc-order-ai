@@ -1850,21 +1850,31 @@ def _get_firestore_db():
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_image_bytes_direct(image_url):
-    """Firebase Admin SDK를 통해 URL 검증 없이 직접 원본 바이트를 가져오는 마스터 함수."""
-    if not image_url or "users/" not in str(image_url):
-        return None
+    """URL에서 정교하게 버킷과 경로를 추출해 Admin SDK로 다운로드하는 함수."""
+    if not image_url:
+        return None, "URL이 없습니다."
     try:
         _get_firestore_db()
         s = str(image_url).strip()
-        path_part = s.split("users/", 1)[1].split("?", 1)[0]
-        blob_path = "users/" + urllib.parse.unquote(path_part)
-        bucket = firebase_admin_storage.bucket()
+        match = re.search(r"(users(?:%2F|/)[^?]+)", s)
+        if not match:
+            return None, "URL에서 'users/' 경로를 파싱할 수 없습니다."
+        blob_path = urllib.parse.unquote(match.group(1))
+        bucket_name = None
+        if "storage.googleapis.com/" in s:
+            bucket_name = s.split("storage.googleapis.com/")[1].split("/")[0]
+        elif "/b/" in s:
+            bucket_name = s.split("/b/")[1].split("/")[0]
+        if bucket_name:
+            bucket = firebase_admin_storage.bucket(bucket_name)
+        else:
+            bucket = firebase_admin_storage.bucket()
         blob = bucket.blob(blob_path)
         if blob.exists():
-            return blob.download_as_bytes()
+            return blob.download_as_bytes(), "성공"
+        return None, f"해당 경로에 파일이 존재하지 않음: {blob_path}"
     except Exception as e:
-        print(f"Admin SDK 바이트 다운로드 실패: {e}")
-    return None
+        return None, f"Admin SDK 다운로드 에러: {str(e)}"
 
 
 def _save_glucose(uid, type_, value, note=None, timestamp=None):
@@ -3612,15 +3622,13 @@ elif menu_key == "history":
                             )
                 image_url = rec.get("image_url")
                 if image_url:
-                    image_bytes = fetch_image_bytes_direct(image_url)
+                    image_bytes, debug_msg = fetch_image_bytes_direct(image_url)
                     if image_bytes:
                         st.image(image_bytes, use_container_width=True)
                     else:
-                        _src = html_module.escape(str(image_url).strip(), quote=True)
-                        st.markdown(
-                            f'<img src="{_src}" style="width: 100%; border-radius: 8px; object-fit: cover;" alt="" />',
-                            unsafe_allow_html=True,
-                        )
+                        st.error(f"🚨 이미지 로드 실패: {debug_msg}")
+                        _u = str(image_url)
+                        st.caption(f"원본 URL: {_u[:60]}{'...' if len(_u) > 60 else ''}")
                 else:
                     st.info("첨부된 식단 이미지가 없습니다.")
                 st.markdown(
