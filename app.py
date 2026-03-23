@@ -25,6 +25,7 @@ from firebase_db import (
     get_daily_summary,
     get_meal_feed,
     delete_meal_record,
+    get_glucose_records,
 )
 
 # Railway 등 Linux 환경에서 한글 출력 깨짐 방지
@@ -2172,7 +2173,7 @@ def confirm_retake_dialog():
 def render_bottom_bar():
     """하단 네비 (No-Columns): st.columns 없이 버튼만 나열, CSS가 stVerticalBlock을 flex row로 고정."""
     menu_key = st.session_state.get("nav_menu") or "scanner"
-    if menu_key not in ("scanner", "history"):
+    if menu_key not in ("scanner", "history", "glucose"):
         return
     bottom_bar_container = st.container()
     with bottom_bar_container:
@@ -2216,8 +2217,8 @@ def render_bottom_bar():
                 st.session_state["app_stage"] = "main"
                 st.rerun()
             if st.button("🩹\n혈당", key="bb_nav_glucose", use_container_width=True):
-                st.session_state["nav_menu"] = "scanner"
-                st.session_state["current_page"] = "glucose_input"
+                st.session_state["nav_menu"] = "glucose"
+                st.session_state["current_page"] = "main"
                 st.session_state["app_stage"] = "main"
                 st.rerun()
             if st.button("⚙️\n설정", key="bb_nav_settings", use_container_width=True):
@@ -3469,6 +3470,60 @@ if menu_key == "scanner":
                 finally:
                     st.session_state["meal_save_in_progress"] = False
 
+
+# ── 혈당 탭 (기간 필터 + 산점도) ──
+elif menu_key == "glucose":
+    current_uid = st.session_state.get("user_id")
+    render_login_badge()
+    _lt_gl = st.session_state.get("login_type")
+    _gc1, _gc2 = st.columns([5, 1])
+    with _gc2:
+        if _lt_gl == "guest":
+            if st.button(f"🔐 {t['sidebar_go_login']}", key="glucose_go_login", use_container_width=True):
+                st.session_state["logged_in"] = False
+                st.session_state["login_type"] = None
+                st.session_state["user_id"] = None
+                st.session_state["user_email"] = None
+                _reset_meal_feed_state()
+                st.session_state["auth_mode"] = "login"
+                st.rerun()
+        elif _lt_gl == "google":
+            if st.button(f"🚪 {t['sidebar_logout']}", key="glucose_logout", use_container_width=True):
+                st.session_state["logged_in"] = False
+                st.session_state["login_type"] = None
+                st.session_state["user_id"] = None
+                st.session_state["user_email"] = None
+                _reset_meal_feed_state()
+                st.session_state["auth_mode"] = "login"
+                st.rerun()
+    st.title(f"🩹 {t.get('glucose_menu', '혈당')}")
+
+    st.markdown("### 📈 혈당 트렌드")
+    period = st.radio(
+        "조회 기간",
+        ["오늘", "주간", "월간", "연간"],
+        horizontal=True,
+        label_visibility="collapsed",
+        index=1,
+    )
+
+    if not current_uid:
+        st.info("로그인 후 혈당 트렌드를 확인할 수 있습니다.")
+    else:
+        records = get_glucose_records(current_uid, period)
+        if records:
+            import pandas as pd
+
+            df = pd.DataFrame(records)
+            df["recorded_at_utc"] = pd.to_datetime(df["recorded_at_utc"], utc=True)
+            df["시간"] = df["recorded_at_utc"].dt.tz_convert("Asia/Seoul")
+            if period in ["오늘", "주간"]:
+                df["시간표시"] = df["시간"].dt.strftime("%m-%d %H:%M")
+            else:
+                df["시간표시"] = df["시간"].dt.strftime("%m-%d")
+            st.scatter_chart(df, x="시간표시", y="value", color="type", use_container_width=True)
+        else:
+            st.info(f"'{period}' 기간 내에 기록된 혈당 데이터가 없습니다.")
 
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
 elif menu_key == "history":

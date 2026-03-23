@@ -431,3 +431,54 @@ def get_daily_summary(uid, date_key):
         "spike_sum": spike_sum,
         "avg_spike": avg_spike,
     }
+
+
+def get_glucose_records(uid, period="주간"):
+    """선택한 기간에 해당하는 혈당 기록을 가져온다. Firestore 필드는 `timestamp`(UTC)."""
+    if not uid:
+        return []
+    try:
+        _init_firebase()
+        db = firestore.client()
+        now = datetime.now(timezone.utc)
+        if period == "오늘":
+            start_date = now - timedelta(days=1)
+        elif period == "주간":
+            start_date = now - timedelta(days=7)
+        elif period == "월간":
+            start_date = now - timedelta(days=30)
+        elif period == "연간":
+            start_date = now - timedelta(days=365)
+        else:
+            start_date = now - timedelta(days=7)
+
+        col = db.collection("users").document(str(uid)).collection("glucose")
+        q = (
+            col.where("timestamp", ">=", start_date)
+            .where("timestamp", "<=", now)
+            .order_by("timestamp", direction=Query.ASCENDING)
+        )
+        out = []
+        for doc in q.stream():
+            data = doc.to_dict() or {}
+            ts = data.get("timestamp")
+            if ts is None:
+                continue
+            if hasattr(ts, "timestamp"):
+                ts_utc = datetime.fromtimestamp(ts.timestamp(), tz=timezone.utc)
+            elif hasattr(ts, "astimezone"):
+                ts_utc = ts.astimezone(timezone.utc)
+            else:
+                continue
+            out.append(
+                {
+                    "type": data.get("type") or "",
+                    "value": int(data.get("value") or 0),
+                    "recorded_at_utc": ts_utc.isoformat(),
+                }
+            )
+        return out
+    except Exception as e:
+        sys.stderr.write(f"[get_glucose_records] {e}\n")
+        print(f"혈당 기록 로드 실패: {e}")
+        return []
