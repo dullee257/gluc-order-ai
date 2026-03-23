@@ -131,7 +131,7 @@ def _meal_feed_display_time(rec):
 
 
 def _render_feed_image(image_url):
-    """피드 이미지: 브라우저가 http(s) URL을 직접 로드하거나 data:/base64 디코딩. 디버그 캡션 + 형식 오류 시 폴백."""
+    """피드 이미지: 브라우저가 http(s) URL을 직접 로드하거나 data:/base64 디코딩. 형식 오류 시 폴백."""
     if image_url is None:
         st.info("첨부된 식단 이미지가 없습니다.")
         return
@@ -139,8 +139,6 @@ def _render_feed_image(image_url):
     if not s:
         st.info("첨부된 식단 이미지가 없습니다.")
         return
-
-    st.caption(f"🔍 URL 체크: {s[:100]}{'...' if len(s) > 100 else ''}")
 
     if s.startswith("data:image") and "base64," in s:
         try:
