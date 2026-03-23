@@ -15,6 +15,8 @@ import base64
 from PIL import Image
 from datetime import datetime, timezone
 
+from firebase_admin import storage as firebase_admin_storage
+
 from translation import LANG_DICT, get_text, GOAL_INTERNAL_KEYS
 from prompts import get_analysis_prompt
 from firebase_db import (
@@ -128,46 +130,6 @@ def _meal_feed_display_time(rec):
     except Exception:
         pass
     return (rec.get("date") or "") or str(rec.get("saved_at_utc") or rec.get("created_at") or "")
-
-
-def _render_feed_image(image_url):
-    """피드 이미지: 브라우저가 http(s) URL을 직접 로드하거나 data:/base64 디코딩. 형식 오류 시 폴백."""
-    if image_url is None:
-        st.info("첨부된 식단 이미지가 없습니다.")
-        return
-    s = str(image_url).strip()
-    if not s:
-        st.info("첨부된 식단 이미지가 없습니다.")
-        return
-
-    if s.startswith("data:image") and "base64," in s:
-        try:
-            raw = s.split("base64,", 1)[1]
-            data = base64.b64decode(raw)
-            st.image(data, use_container_width=True)
-        except Exception:
-            st.caption("이미지 데이터를 디코딩할 수 없습니다.")
-        return
-
-    if s.startswith(("http://", "https://")):
-        try:
-            st.image(s, use_container_width=True)
-        except Exception:
-            st.error("이미지를 불러오는 중 오류가 발생했습니다.")
-        return
-
-    compact = re.sub(r"\s+", "", s)
-    if len(compact) >= 80 and re.match(r"^[A-Za-z0-9+/]+=*$", compact):
-        try:
-            pad = (-len(compact)) % 4
-            data = base64.b64decode(compact + "=" * pad, validate=False)
-            if len(data) >= 64:
-                st.image(data, use_container_width=True)
-                return
-        except Exception:
-            pass
-
-    st.caption("이미지 주소 형식을 인식할 수 없습니다.")
 
 
 def _read_meal_feed_css():
@@ -1884,6 +1846,25 @@ def _get_firestore_db():
             _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
         firebase_admin.initialize_app(cred, _opts)
     return firestore.client()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_image_bytes_direct(image_url):
+    """Firebase Admin SDK를 통해 URL 검증 없이 직접 원본 바이트를 가져오는 마스터 함수."""
+    if not image_url or "users/" not in str(image_url):
+        return None
+    try:
+        _get_firestore_db()
+        s = str(image_url).strip()
+        path_part = s.split("users/", 1)[1].split("?", 1)[0]
+        blob_path = "users/" + urllib.parse.unquote(path_part)
+        bucket = firebase_admin_storage.bucket()
+        blob = bucket.blob(blob_path)
+        if blob.exists():
+            return blob.download_as_bytes()
+    except Exception as e:
+        print(f"Admin SDK 바이트 다운로드 실패: {e}")
+    return None
 
 
 def _save_glucose(uid, type_, value, note=None, timestamp=None):
@@ -3629,7 +3610,19 @@ elif menu_key == "history":
                                 t.get("delete_record_failed", "삭제에 실패했습니다.")
                                 + (f" ({failed_step})" if failed_step else "")
                             )
-                _render_feed_image(rec.get("image_url"))
+                image_url = rec.get("image_url")
+                if image_url:
+                    image_bytes = fetch_image_bytes_direct(image_url)
+                    if image_bytes:
+                        st.image(image_bytes, use_container_width=True)
+                    else:
+                        _src = html_module.escape(str(image_url).strip(), quote=True)
+                        st.markdown(
+                            f'<img src="{_src}" style="width: 100%; border-radius: 8px; object-fit: cover;" alt="" />',
+                            unsafe_allow_html=True,
+                        )
+                else:
+                    st.info("첨부된 식단 이미지가 없습니다.")
                 st.markdown(
                     f'<div class="meal-card-spike"><span class="meal-card-spike-label">🔥 스파이크 방어 코멘트</span> '
                     f'<span class="meal-card-risk" style="color:{rc};">(위험도: {html_module.escape(rl)})</span> '
