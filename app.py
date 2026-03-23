@@ -3515,13 +3515,21 @@ elif menu_key == "glucose":
             import pandas as pd
 
             df = pd.DataFrame(records)
-            df["recorded_at_utc"] = pd.to_datetime(df["recorded_at_utc"], utc=True)
-            df["시간"] = df["recorded_at_utc"].dt.tz_convert("Asia/Seoul")
-            if period in ["오늘", "주간"]:
-                df["시간표시"] = df["시간"].dt.strftime("%m-%d %H:%M")
+            time_col = df.get("recorded_at_utc", df.get("timestamp"))
+            if time_col is None:
+                df["recorded_at_utc"] = pd.NaT
             else:
-                df["시간표시"] = df["시간"].dt.strftime("%m-%d")
-            st.scatter_chart(df, x="시간표시", y="value", color="type", use_container_width=True)
+                df["recorded_at_utc"] = pd.to_datetime(time_col, errors="coerce")
+            df = df.dropna(subset=["recorded_at_utc"])
+            if not df.empty:
+                df["시간"] = pd.to_datetime(df["recorded_at_utc"], utc=True).dt.tz_convert("Asia/Seoul")
+                if period in ["오늘", "주간"]:
+                    df["시간표시"] = df["시간"].dt.strftime("%m-%d %H:%M")
+                else:
+                    df["시간표시"] = df["시간"].dt.strftime("%m-%d")
+                st.scatter_chart(df, x="시간표시", y="value", color="type", use_container_width=True)
+            else:
+                st.info("유효한 시간 데이터가 포함된 혈당 기록이 없습니다. 새로운 혈당을 기록해 보세요.")
         else:
             st.info(f"'{period}' 기간 내에 기록된 혈당 데이터가 없습니다.")
 
