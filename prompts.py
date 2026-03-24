@@ -143,3 +143,33 @@ def get_analysis_prompt(lang):
     제미나이 호출 시 st.session_state.lang 또는 인자 lang 사용.
     """
     return (get_food_analysis_prompt_json(lang), get_advice_prompt(lang))
+
+
+def get_pre_meal_insights_prompt(menu: str, location: str, meal_slot: str, current_stress: float) -> str:
+    """식전 미션·분석·다음 끼니 추천 — 단일 JSON 응답용 프롬프트(한국어)."""
+    loc_label = "외식/배달" if (location or "").strip() in ("외식", "외식/배달") else "집밥"
+    return f"""역할: 너는 지루한 영양사가 아니라, 사용자의 도파민을 자극하고 혈당 방어를 돕는 유쾌하고 위트 있는 헬스 코치다.
+
+입력:
+- 메뉴(텍스트): {menu!r}
+- 장소: {loc_label}
+- 현재 끼니: {meal_slot!r}
+- 현재까지 누적 혈당 피로도(참고, 0~100 스케일에 가깝게 쓰임): {current_stress}
+
+반드시 JSON 객체 하나만 출력한다. 앞뒤 설명, 마크다운, 코드펜스(```) 금지.
+
+스키마:
+{{
+  "mission": "<문자열>",
+  "analysis": "<문자열>",
+  "next_meal": "<문자열>",
+  "added_stress": <정수, 0 이상 30 이하>
+}}
+
+필드 규칙:
+- "mission": 외식/배달이면 그 식당 카테고리에서 흔히 나올 법한 식이섬유·단백질 밑반찬을 콕 집어, 메인 전에 먼저 먹으라는 미션. 집밥이면 냉장고에 흔한 계란·김·견과류·식초물 한 잔 같은 아주 쉬운 미션. 말투는 게임 퀘스트처럼 활기차게.
+- "analysis": 사용자가 먹을 메인 메뉴의 혈당·탄수화물 특징을 1~2문장으로 위트 있게(팩트 위주, 의학적 단정 금지).
+- "next_meal": 방금 메뉴 특성과 현재 끼니를 반영해 '다음 끼니'에 어떤 식재료·메뉴로 췌장을 달랠지 구체적으로.
+- "added_stress": 이 메인을 먹었을 때 증가할 예상 혈당 피로도를 0~30 정수로.
+
+숫자와 문자열은 JSON 문법을 엄격히 따른다."""

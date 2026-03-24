@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from firebase_admin import storage as firebase_admin_storage
 
 from translation import LANG_DICT, get_text, GOAL_INTERNAL_KEYS
-from prompts import get_analysis_prompt
+from prompts import get_analysis_prompt, get_pre_meal_insights_prompt
 from firebase_db import (
     upload_image_to_storage,
     save_meal_and_summary,
@@ -83,73 +83,16 @@ def _ensure_pre_meal_state():
         pm["next_meal_mock"] = ""
 
 
-def mock_pre_meal_mission_text(meal_slot: str, meal_location: str, menu_text: str) -> str:
-    """(Mock) AI 대체 — 식전 섬유/단백질 먼저 먹기 미션 문구."""
-    loc = "배달·외식" if meal_location in ("외식", "외식/배달") else "집밥"
-    return (
-        f"**메인 요리 전 미션**\n\n"
-        f"- 끼니: **{meal_slot}** · 장소: **{loc}**\n"
-        f"- 입력 메뉴: _{menu_text}_\n\n"
-        f"메인이 나오기 **전에** **양배추 샐러드 한 접시** 또는 **두부 1/4모**를 먼저 드세요. "
-        f"식이섬유·단백질이 먼저 들어가면 혈당 곡선이 한결 부드러워집니다."
-    )
-
-
-def mock_pre_meal_analysis_text(meal_slot: str, meal_location: str, menu_text: str) -> str:
-    """(Mock) 현재 식사 영양 분석 요약."""
-    return (
-        f"**[분석 요약 · Mock]**\n\n"
-        f"- 끼니 **{meal_slot}** / **{meal_location}**\n"
-        f"- 메뉴 키워드: 「{menu_text[:40]}{'…' if len(menu_text) > 40 else ''}」\n"
-        f"- 추정: 탄수화물 중간·나트륨 {'다소 높음 (외식)' if meal_location == '외식' else '보통 (집밥)'}, "
-        f"단백질 확보 양호.\n"
-        f"- 미션 준수 시 예상 혈당 부담: **중간** (실제 수치는 연동 후 표시)."
-    )
-
-
-def mock_pre_meal_next_meal_recommendation(
-    meal_slot: str, menu_text: str, pancreas_stress: float
-) -> str:
-    """(Mock) 다음 끼니 추천 — 아침 고탄수 → 점심 저부하 예시."""
-    stress_note = f"누적 피로도 지수(Mock): **{pancreas_stress:.1f}**"
-    if meal_slot == "아침":
-        return (
-            f"**다음 끼니 추천 · Mock**\n\n"
-            f"아침에 탄수화물 비중이 큰 식사로 보입니다. 점심은 **췌장이 쉴 수 있도록** "
-            f"**생선구이 백반**(현미밥 소량) 또는 **닭가슴살·채소 위주**를 추천합니다.\n\n"
-            f"_{stress_note}_"
-        )
-    if meal_slot == "점심":
-        return (
-            f"**다음 끼니 추천 · Mock**\n\n"
-            f"점심 부담을 줄이려면 저녁은 **잡곡밥 + 국물 맑은 찌개 + 나물** 위주로 가볍게 가세요.\n\n"
-            f"_{stress_note}_"
-        )
-    return (
-        f"**다음 끼니 추천 · Mock**\n\n"
-        f"균형 잡힌 단백질·채소를 유지하고, **야식은 가급적 피하세요.**\n\n"
-        f"_{stress_note}_"
-    )
-
-
 @st.dialog("🥗 식전 미션")
 def _pre_meal_mission_dialog(mission_text: str, t):
     st.markdown(mission_text)
     if st.button(t.get("pre_meal_dialog_close", "닫기"), key="pre_meal_dialog_close", use_container_width=True):
         pm = st.session_state.get("pre_meal") or {}
-        slot = pm.get("meal_slot", "아침")
-        loc = pm.get("location") or "집밥"
-        menu = (pm.get("menu_text") or "").strip()
         pm["step"] = 3
-        pm["analysis_mock"] = mock_pre_meal_analysis_text(slot, loc, menu)
-        pm["next_meal_mock"] = mock_pre_meal_next_meal_recommendation(
-            slot, menu, float(pm.get("pancreas_stress") or 0)
-        )
-        pm["pancreas_stress"] = float(pm.get("pancreas_stress") or 0) + 12.5
         st.rerun()
 
 
-def _render_pre_meal_skeleton(t):
+def _render_pre_meal_skeleton(t, client):
     """홈(스캐너 main) — 식전 미션 플로우 뼈대: Step1 입력 → dialog → Step3 Mock 결과."""
     _ensure_pre_meal_state()
     pm = st.session_state["pre_meal"]
@@ -225,10 +168,36 @@ def _render_pre_meal_skeleton(t):
             elif not pm.get("location"):
                 st.warning(t.get("pre_meal_warn_location", "외식/배달 또는 집밥을 선택해 주세요."))
             else:
-                pm["mission_text"] = mock_pre_meal_mission_text(
-                    pm["meal_slot"], pm["location"], (menu_text or "").strip()
-                )
-                _pre_meal_mission_dialog(pm["mission_text"], t)
+                try:
+                    with st.spinner(t.get("pre_meal_ai_loading", "AI가 미션을 준비하는 중…")):
+                        out = generate_pre_meal_insights(
+                            client,
+                            (menu_text or "").strip(),
+                            pm.get("location") or "집밥",
+                            pm.get("meal_slot", "아침"),
+                            float(pm.get("pancreas_stress") or 0),
+                        )
+                except json.JSONDecodeError as je:
+                    st.error(
+                        t.get(
+                            "pre_meal_err_json",
+                            "AI 응답을 JSON으로 해석하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+                        )
+                        + f" ({je})"
+                    )
+                except Exception as e:
+                    st.error(
+                        t.get("pre_meal_err_ai", "AI 호출에 실패했습니다.")
+                        + f" {e}"
+                    )
+                else:
+                    pm["mission_text"] = out["mission"]
+                    pm["analysis_mock"] = out["analysis"]
+                    pm["next_meal_mock"] = out["next_meal"]
+                    pm["pancreas_stress"] = float(pm.get("pancreas_stress") or 0) + float(
+                        out.get("added_stress", 0)
+                    )
+                    _pre_meal_mission_dialog(pm["mission_text"], t)
 
 
 def _render_dash_today_metrics_cards(t, avg_glucose, latest_glucose, total_carbs, meal_n):
@@ -546,10 +515,67 @@ st.components.v1.html(
 )
 from google import genai  # 패키지: google-genai (구 google-generativeai 아님)
 from google.genai import types as gtypes
-from PIL import Image
-from datetime import datetime, timezone
-import io
-import base64
+
+
+def _parse_pre_meal_insights_json(raw: str) -> dict:
+    """LLM 응답 문자열 → mission/analysis/next_meal/added_stress 검증."""
+    text = (raw or "").strip()
+    if not text:
+        raise ValueError("모델 응답이 비어 있습니다.")
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I | re.M)
+        text = re.sub(r"\s*```\s*$", "", text)
+    data = json.loads(text)
+    if not isinstance(data, dict):
+        raise ValueError("JSON 최상위는 객체여야 합니다.")
+    for k in ("mission", "analysis", "next_meal"):
+        if k not in data:
+            raise ValueError(f"필수 키 누락: {k}")
+        data[k] = str(data[k] or "").strip()
+    try:
+        ai = int(round(float(data.get("added_stress", 0))))
+    except (TypeError, ValueError):
+        ai = 0
+    data["added_stress"] = max(0, min(30, ai))
+    return data
+
+
+def generate_pre_meal_insights(client, menu: str, location: str, meal_slot: str, current_stress: float) -> dict:
+    """Gemini 텍스트 모델로 식전 인사이트 JSON 생성."""
+    prompt = get_pre_meal_insights_prompt(menu, location, meal_slot, current_stress)
+    _env = os.environ.get("GEMINI_TEXT_MODEL", "").strip()
+    candidates = []
+    if _env:
+        candidates.append(_env)
+    for _m in ("gemini-2.5-flash", "gemini-2.0-flash"):
+        if _m not in candidates:
+            candidates.append(_m)
+    last_err = None
+    for mm in candidates:
+        try:
+            response = client.models.generate_content(
+                model=mm,
+                contents=[prompt],
+                config=gtypes.GenerateContentConfig(response_mime_type="application/json"),
+            )
+            raw = (response.text or "").strip()
+            return _parse_pre_meal_insights_json(raw)
+        except json.JSONDecodeError as je:
+            last_err = je
+            continue
+        except ValueError as ve:
+            last_err = ve
+            continue
+        except Exception as e:
+            last_err = e
+            es = str(e)
+            if "not found" in es.lower() or "not supported" in es.lower() or "NOT_FOUND" in es:
+                continue
+            raise
+    if last_err:
+        raise last_err
+    raise RuntimeError("사용 가능한 Gemini 텍스트 모델이 없습니다.")
+
 
 # 언어별 타임존·로케일 (저장 시간 및 표시 형식 현지화)
 LANG_TIMEZONE = {
@@ -2574,7 +2600,7 @@ if menu_key == "scanner":
 
                     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-                _render_pre_meal_skeleton(t)
+                _render_pre_meal_skeleton(t, client)
 
         elif st.session_state.get("current_page") == "diet_scan":
             # 식단 스캔 페이지: 업로더만
