@@ -55,6 +55,182 @@ def _reset_meal_feed_state():
     st.session_state["meal_feed_sort_field"] = None
 
 
+def _ensure_pre_meal_state():
+    """KST 기준 단일 dict — 추후 Firestore daily doc과 1:1 매핑 예정."""
+    import pytz
+
+    seoul = pytz.timezone("Asia/Seoul")
+    today_kst = datetime.now(seoul).strftime("%Y-%m-%d")
+    if "pre_meal" not in st.session_state:
+        st.session_state["pre_meal"] = {
+            "date_kst": today_kst,
+            "meal_slot": "아침",
+            "location": None,
+            "menu_text": "",
+            "step": 1,
+            "pancreas_stress": 0.0,
+            "mission_text": "",
+            "analysis_mock": "",
+            "next_meal_mock": "",
+        }
+        return
+    pm = st.session_state["pre_meal"]
+    if pm.get("date_kst") != today_kst:
+        pm["date_kst"] = today_kst
+        pm["step"] = 1
+        pm["mission_text"] = ""
+        pm["analysis_mock"] = ""
+        pm["next_meal_mock"] = ""
+
+
+def mock_pre_meal_mission_text(meal_slot: str, meal_location: str, menu_text: str) -> str:
+    """(Mock) AI 대체 — 식전 섬유/단백질 먼저 먹기 미션 문구."""
+    loc = "배달·외식" if meal_location in ("외식", "외식/배달") else "집밥"
+    return (
+        f"**메인 요리 전 미션**\n\n"
+        f"- 끼니: **{meal_slot}** · 장소: **{loc}**\n"
+        f"- 입력 메뉴: _{menu_text}_\n\n"
+        f"메인이 나오기 **전에** **양배추 샐러드 한 접시** 또는 **두부 1/4모**를 먼저 드세요. "
+        f"식이섬유·단백질이 먼저 들어가면 혈당 곡선이 한결 부드러워집니다."
+    )
+
+
+def mock_pre_meal_analysis_text(meal_slot: str, meal_location: str, menu_text: str) -> str:
+    """(Mock) 현재 식사 영양 분석 요약."""
+    return (
+        f"**[분석 요약 · Mock]**\n\n"
+        f"- 끼니 **{meal_slot}** / **{meal_location}**\n"
+        f"- 메뉴 키워드: 「{menu_text[:40]}{'…' if len(menu_text) > 40 else ''}」\n"
+        f"- 추정: 탄수화물 중간·나트륨 {'다소 높음 (외식)' if meal_location == '외식' else '보통 (집밥)'}, "
+        f"단백질 확보 양호.\n"
+        f"- 미션 준수 시 예상 혈당 부담: **중간** (실제 수치는 연동 후 표시)."
+    )
+
+
+def mock_pre_meal_next_meal_recommendation(
+    meal_slot: str, menu_text: str, pancreas_stress: float
+) -> str:
+    """(Mock) 다음 끼니 추천 — 아침 고탄수 → 점심 저부하 예시."""
+    stress_note = f"누적 피로도 지수(Mock): **{pancreas_stress:.1f}**"
+    if meal_slot == "아침":
+        return (
+            f"**다음 끼니 추천 · Mock**\n\n"
+            f"아침에 탄수화물 비중이 큰 식사로 보입니다. 점심은 **췌장이 쉴 수 있도록** "
+            f"**생선구이 백반**(현미밥 소량) 또는 **닭가슴살·채소 위주**를 추천합니다.\n\n"
+            f"_{stress_note}_"
+        )
+    if meal_slot == "점심":
+        return (
+            f"**다음 끼니 추천 · Mock**\n\n"
+            f"점심 부담을 줄이려면 저녁은 **잡곡밥 + 국물 맑은 찌개 + 나물** 위주로 가볍게 가세요.\n\n"
+            f"_{stress_note}_"
+        )
+    return (
+        f"**다음 끼니 추천 · Mock**\n\n"
+        f"균형 잡힌 단백질·채소를 유지하고, **야식은 가급적 피하세요.**\n\n"
+        f"_{stress_note}_"
+    )
+
+
+@st.dialog("🥗 식전 미션")
+def _pre_meal_mission_dialog(mission_text: str, t):
+    st.markdown(mission_text)
+    if st.button(t.get("pre_meal_dialog_close", "닫기"), key="pre_meal_dialog_close", use_container_width=True):
+        pm = st.session_state.get("pre_meal") or {}
+        slot = pm.get("meal_slot", "아침")
+        loc = pm.get("location") or "집밥"
+        menu = (pm.get("menu_text") or "").strip()
+        pm["step"] = 3
+        pm["analysis_mock"] = mock_pre_meal_analysis_text(slot, loc, menu)
+        pm["next_meal_mock"] = mock_pre_meal_next_meal_recommendation(
+            slot, menu, float(pm.get("pancreas_stress") or 0)
+        )
+        pm["pancreas_stress"] = float(pm.get("pancreas_stress") or 0) + 12.5
+        st.rerun()
+
+
+def _render_pre_meal_skeleton(t):
+    """홈(스캐너 main) — 식전 미션 플로우 뼈대: Step1 입력 → dialog → Step3 Mock 결과."""
+    _ensure_pre_meal_state()
+    pm = st.session_state["pre_meal"]
+
+    st.markdown("---")
+    st.markdown(f"#### {t.get('pre_meal_section_title', '🍽️ 식전 미션 (베타)')}")
+
+    if pm.get("step") == 3:
+        with st.container(border=True):
+            st.markdown(t.get("pre_meal_step3_title", "### ✅ 미션 반영 · 요약"))
+            st.markdown(pm.get("analysis_mock") or "")
+            st.markdown("---")
+            st.markdown(pm.get("next_meal_mock") or "")
+            if st.button(t.get("pre_meal_reset", "다시 입력하기"), key="pre_meal_reset", use_container_width=True):
+                pm["step"] = 1
+                pm["menu_text"] = ""
+                pm["analysis_mock"] = ""
+                pm["next_meal_mock"] = ""
+                pm["mission_text"] = ""
+                for _k in ("pre_meal_menu_input", "pre_meal_slot_select"):
+                    if _k in st.session_state:
+                        del st.session_state[_k]
+                st.rerun()
+        return
+
+    with st.container(border=True):
+        st.caption(t.get("pre_meal_step1_caption", "Step 1 · 메뉴 입력 & 장소 선택"))
+        _opts_slot = ["아침", "점심", "저녁", "간식"]
+        if "pre_meal_slot_select" not in st.session_state:
+            _def_slot = pm.get("meal_slot", "아침")
+            st.session_state["pre_meal_slot_select"] = _def_slot if _def_slot in _opts_slot else "아침"
+        meal_slot = st.selectbox(
+            t.get("pre_meal_meal_slot", "현재 끼니"),
+            _opts_slot,
+            key="pre_meal_slot_select",
+        )
+        pm["meal_slot"] = meal_slot
+
+        if "pre_meal_menu_input" not in st.session_state:
+            st.session_state["pre_meal_menu_input"] = pm.get("menu_text", "")
+        menu_text = st.text_input(
+            t.get("pre_meal_menu_label", "메뉴 (텍스트)"),
+            key="pre_meal_menu_input",
+            placeholder=t.get("pre_meal_menu_ph", "예: 김치찌개 + 현미밥"),
+        )
+        pm["menu_text"] = menu_text
+
+        st.markdown(t.get("pre_meal_photo_hint", "**사진으로 입력** (기존 식단 스캔)"))
+        if st.button(t.get("pre_meal_open_camera", "📷 사진으로 식단 입력"), key="pre_meal_goto_diet_scan", use_container_width=True):
+            st.session_state["current_page"] = "diet_scan"
+            st.rerun()
+
+        st.markdown(t.get("pre_meal_location_label", "**어디서 드시나요?**"))
+        lc1, lc2 = st.columns(2)
+        with lc1:
+            if st.button("🥡 외식/배달", key="pre_meal_loc_out", use_container_width=True):
+                pm["location"] = "외식"
+        with lc2:
+            if st.button("🏠 집밥", key="pre_meal_loc_home", use_container_width=True):
+                pm["location"] = "집밥"
+        _loc = pm.get("location")
+        if _loc:
+            st.caption(t.get("pre_meal_location_selected", "선택:") + f" **{_loc}**")
+
+        if st.button(
+            t.get("pre_meal_start_mission", "미션 시작하기"),
+            type="primary",
+            key="pre_meal_start_btn",
+            use_container_width=True,
+        ):
+            if not (menu_text or "").strip():
+                st.warning(t.get("pre_meal_warn_menu", "메뉴를 입력하거나 사진 입력으로 이동해 주세요."))
+            elif not pm.get("location"):
+                st.warning(t.get("pre_meal_warn_location", "외식/배달 또는 집밥을 선택해 주세요."))
+            else:
+                pm["mission_text"] = mock_pre_meal_mission_text(
+                    pm["meal_slot"], pm["location"], (menu_text or "").strip()
+                )
+                _pre_meal_mission_dialog(pm["mission_text"], t)
+
+
 def _render_dash_today_metrics_cards(t, avg_glucose, latest_glucose, total_carbs, meal_n):
     """홈 '오늘의 요약' — st.metric 대신 HTML(줄바꿈·잘림 완전 통제)."""
     esc = html_module.escape
@@ -2397,6 +2573,8 @@ if menu_key == "scanner":
                         st.caption(t.get("dash_gauge_empty", "오늘 측정한 혈당이 없어 계기판을 표시할 수 없습니다."))
 
                     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+                _render_pre_meal_skeleton(t)
 
         elif st.session_state.get("current_page") == "diet_scan":
             # 식단 스캔 페이지: 업로더만
