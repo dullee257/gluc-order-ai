@@ -232,27 +232,15 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
     if "pre_meal_menu_input" not in st.session_state:
         st.session_state["pre_meal_menu_input"] = pm.get("menu_text", "")
 
-    st.caption(t.get("pre_meal_camera_first_caption", "📷 카메라로 찍거나 사진을 올려 주세요. (모바일 최적화)"))
-
     _cap_v = int(st.session_state.get("pre_meal_capture_version", 0))
 
     with st.container(border=True):
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown(f'<p style="margin:0 0 6px 0;font-size:14px;font-weight:700;color:#0f172a;">{html_module.escape(t.get("pre_meal_camera_label", "카메라"))}</p>', unsafe_allow_html=True)
-            cam = st.camera_input(
-                t.get("pre_meal_camera_aria", "끼니 촬영"),
-                key=f"pre_meal_cam_{_cap_v}",
-                label_visibility="collapsed",
-            )
-        with c2:
-            st.markdown(f'<p style="margin:0 0 6px 0;font-size:14px;font-weight:700;color:#0f172a;">{html_module.escape(t.get("pre_meal_upload_label", "갤러리"))}</p>', unsafe_allow_html=True)
-            up = st.file_uploader(
-                t.get("pre_meal_upload_placeholder", "이미지 선택 (jpg·png)"),
-                type=["jpg", "png", "jpeg", "webp"],
-                key=f"pre_meal_up_{_cap_v}",
-                label_visibility="collapsed",
-            )
+        up = st.file_uploader(
+            t.get("pre_meal_upload_main_label", "📸 음식 사진 촬영 또는 갤러리 업로드"),
+            type=["jpg", "png", "jpeg", "webp"],
+            key=f"pre_meal_up_{_cap_v}",
+            label_visibility="visible",
+        )
 
         pil_src = None
         if up is not None:
@@ -260,18 +248,6 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
                 pil_src = compress_image(Image.open(up), max_size_kb=500)
             except Exception:
                 st.warning(t.get("pre_meal_err_image", "이미지를 열 수 없습니다."))
-        elif cam is not None:
-            try:
-                if isinstance(cam, (bytes, bytearray)):
-                    rawb = bytes(cam)
-                elif hasattr(cam, "getvalue"):
-                    rawb = cam.getvalue()
-                else:
-                    rawb = cam.read() if hasattr(cam, "read") else None
-                if isinstance(rawb, bytes) and rawb:
-                    pil_src = compress_image(Image.open(io.BytesIO(rawb)), max_size_kb=500)
-            except Exception:
-                st.warning(t.get("pre_meal_err_image", "카메라 이미지를 처리할 수 없습니다."))
 
         if pil_src is not None:
             h = _pre_meal_image_hash(pil_src)
