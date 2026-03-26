@@ -18,7 +18,11 @@ from datetime import datetime, timezone
 from firebase_admin import storage as firebase_admin_storage
 
 from translation import LANG_DICT, get_text, GOAL_INTERNAL_KEYS
-from prompts import get_analysis_prompt, get_pre_meal_insights_prompt
+from prompts import (
+    get_analysis_prompt,
+    PRE_MEAL_INSIGHTS_SYSTEM_PROMPT,
+    get_pre_meal_insights_user_prompt,
+)
 from firebase_db import (
     upload_image_to_storage,
     save_meal_and_summary,
@@ -70,8 +74,8 @@ def _ensure_pre_meal_state():
             "step": 1,
             "pancreas_stress": 0.0,
             "mission_text": "",
-            "analysis_mock": "",
-            "next_meal_mock": "",
+            "analysis": "",
+            "next_meal": "",
         }
         return
     pm = st.session_state["pre_meal"]
@@ -79,8 +83,8 @@ def _ensure_pre_meal_state():
         pm["date_kst"] = today_kst
         pm["step"] = 1
         pm["mission_text"] = ""
-        pm["analysis_mock"] = ""
-        pm["next_meal_mock"] = ""
+        pm["analysis"] = ""
+        pm["next_meal"] = ""
 
 
 @st.dialog("🥗 식전 미션")
@@ -92,8 +96,8 @@ def _pre_meal_mission_dialog(mission_text: str, t):
         st.rerun()
 
 
-def _render_pre_meal_skeleton(t, client):
-    """홈(스캐너 main) — 식전 미션 플로우 뼈대: Step1 입력 → dialog → Step3 Mock 결과."""
+def _render_pre_meal_skeleton(t):
+    """홈(스캐너 main) — 식전 미션 플로우: Step1 입력 → dialog → Step3 AI 요약."""
     _ensure_pre_meal_state()
     pm = st.session_state["pre_meal"]
 
@@ -103,14 +107,14 @@ def _render_pre_meal_skeleton(t, client):
     if pm.get("step") == 3:
         with st.container(border=True):
             st.markdown(t.get("pre_meal_step3_title", "### ✅ 미션 반영 · 요약"))
-            st.markdown(pm.get("analysis_mock") or "")
+            st.markdown(pm.get("analysis") or "")
             st.markdown("---")
-            st.markdown(pm.get("next_meal_mock") or "")
+            st.markdown(pm.get("next_meal") or "")
             if st.button(t.get("pre_meal_reset", "다시 입력하기"), key="pre_meal_reset", use_container_width=True):
                 pm["step"] = 1
                 pm["menu_text"] = ""
-                pm["analysis_mock"] = ""
-                pm["next_meal_mock"] = ""
+                pm["analysis"] = ""
+                pm["next_meal"] = ""
                 pm["mission_text"] = ""
                 for _k in ("pre_meal_menu_input", "pre_meal_slot_select"):
                     if _k in st.session_state:
@@ -171,7 +175,6 @@ def _render_pre_meal_skeleton(t, client):
                 try:
                     with st.spinner(t.get("pre_meal_ai_loading", "AI가 미션을 준비하는 중…")):
                         out = generate_pre_meal_insights(
-                            client,
                             (menu_text or "").strip(),
                             pm.get("location") or "집밥",
                             pm.get("meal_slot", "아침"),
@@ -192,8 +195,8 @@ def _render_pre_meal_skeleton(t, client):
                     )
                 else:
                     pm["mission_text"] = out["mission"]
-                    pm["analysis_mock"] = out["analysis"]
-                    pm["next_meal_mock"] = out["next_meal"]
+                    pm["analysis"] = out["analysis"]
+                    pm["next_meal"] = out["next_meal"]
                     pm["pancreas_stress"] = float(pm.get("pancreas_stress") or 0) + float(
                         out.get("added_stress", 0)
                     )
@@ -518,14 +521,26 @@ from google.genai import types as gtypes
 
 
 def _parse_pre_meal_insights_json(raw: str) -> dict:
-    """LLM 응답 문자열 → mission/analysis/next_meal/added_stress 검증."""
+    """LLM 응답 문자열 → mission/analysis/next_meal/added_stress 검증 (JSON만 파싱)."""
     text = (raw or "").strip()
     if not text:
         raise ValueError("모델 응답이 비어 있습니다.")
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I | re.M)
         text = re.sub(r"\s*```\s*$", "", text)
-    data = json.loads(text)
+    text = text.strip()
+
+    def _loads(s: str):
+        return json.loads(s)
+
+    try:
+        data = _loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start < 0 or end <= start:
+            raise
+        data = _loads(text[start : end + 1])
+
     if not isinstance(data, dict):
         raise ValueError("JSON 최상위는 객체여야 합니다.")
     for k in ("mission", "analysis", "next_meal"):
@@ -540,9 +555,13 @@ def _parse_pre_meal_insights_json(raw: str) -> dict:
     return data
 
 
-def generate_pre_meal_insights(client, menu: str, location: str, meal_slot: str, current_stress: float) -> dict:
-    """Gemini 텍스트 모델로 식전 인사이트 JSON 생성."""
-    prompt = get_pre_meal_insights_prompt(menu, location, meal_slot, current_stress)
+def generate_pre_meal_insights(menu: str, location: str, meal_slot: str, current_stress: float) -> dict:
+    """Gemini 텍스트 모델로 식전 인사이트 JSON 생성·파싱 (내부에서 API 키로 클라이언트 생성)."""
+    api_key = _get_secret("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY가 설정되어 있지 않습니다.")
+    client = genai.Client(api_key=api_key)
+    user_prompt = get_pre_meal_insights_user_prompt(menu, location, meal_slot, current_stress)
     _env = os.environ.get("GEMINI_TEXT_MODEL", "").strip()
     candidates = []
     if _env:
@@ -555,8 +574,11 @@ def generate_pre_meal_insights(client, menu: str, location: str, meal_slot: str,
         try:
             response = client.models.generate_content(
                 model=mm,
-                contents=[prompt],
-                config=gtypes.GenerateContentConfig(response_mime_type="application/json"),
+                contents=[user_prompt],
+                config=gtypes.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    system_instruction=PRE_MEAL_INSIGHTS_SYSTEM_PROMPT,
+                ),
             )
             raw = (response.text or "").strip()
             return _parse_pre_meal_insights_json(raw)
@@ -2600,7 +2622,7 @@ if menu_key == "scanner":
 
                     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-                _render_pre_meal_skeleton(t, client)
+                _render_pre_meal_skeleton(t)
 
         elif st.session_state.get("current_page") == "diet_scan":
             # 식단 스캔 페이지: 업로더만
