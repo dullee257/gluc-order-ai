@@ -194,6 +194,17 @@ def _ko():
         "gi_level_high": "높음",
         "carbs_short": "탄수화물",
         "protein_short": "단백질",
+        # 식전 미션 · 췌장 피로도 게이지
+        "pre_meal_dialog_close": "다음 단계",
+        "pre_meal_pancreas_title": "췌장 피로도 (Pancreas Stress)",
+        "pre_meal_pancreas_caption": "오늘 누적 · 최대 100점",
+        "pre_meal_pancreas_score": "{score:.0f} / 100",
+        "pre_meal_pancreas_comfort": "🟢 쾌적",
+        "pre_meal_pancreas_comfort_sub": "인슐린 정상 가동 중",
+        "pre_meal_pancreas_caution": "🟡 주의",
+        "pre_meal_pancreas_caution_sub": "혈당 롤러코스터 경고",
+        "pre_meal_pancreas_danger": "🔴 휴식 필요",
+        "pre_meal_pancreas_danger_sub": "췌장 파업 직전! 식이섬유 필수",
     }
 
 

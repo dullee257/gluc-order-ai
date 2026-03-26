@@ -87,10 +87,65 @@ def _ensure_pre_meal_state():
         pm["next_meal"] = ""
 
 
+def _clamp_pancreas_stress_value(pm: dict) -> float:
+    """췌장 피로도를 0~100으로 제한하고 세션에 반영."""
+    v = float(pm.get("pancreas_stress") or 0)
+    v = max(0.0, min(100.0, v))
+    pm["pancreas_stress"] = v
+    return v
+
+
+def _render_pancreas_stress_gauge(pm: dict, t: dict) -> None:
+    """식전 미션 블록 상단 — 췌장 피로도 시각 게이지 (HTML/CSS + st.progress)."""
+    score = _clamp_pancreas_stress_value(pm)
+    ratio = score / 100.0 if score > 0 else 0.0
+    if score <= 30:
+        emoji_title = t.get("pre_meal_pancreas_comfort", "🟢 쾌적")
+        sub = t.get("pre_meal_pancreas_comfort_sub", "인슐린 정상 가동 중")
+        bar_color = "#22c55e"
+        bar_bg = "#dcfce7"
+    elif score <= 70:
+        emoji_title = t.get("pre_meal_pancreas_caution", "🟡 주의")
+        sub = t.get("pre_meal_pancreas_caution_sub", "혈당 롤러코스터 경고")
+        bar_color = "#eab308"
+        bar_bg = "#fef9c3"
+    else:
+        emoji_title = t.get("pre_meal_pancreas_danger", "🔴 휴식 필요")
+        sub = t.get("pre_meal_pancreas_danger_sub", "췌장 파업 직전! 식이섬유 필수")
+        bar_color = "#ef4444"
+        bar_bg = "#fee2e2"
+
+    title = html_module.escape(t.get("pre_meal_pancreas_title", "췌장 피로도 (Pancreas Stress)"))
+    cap = html_module.escape(t.get("pre_meal_pancreas_caption", "오늘 누적 · 최대 100점"))
+    score_txt = html_module.escape(
+        t.get("pre_meal_pancreas_score", "{score:.0f} / 100").format(score=score)
+    )
+    emoji_esc = html_module.escape(emoji_title)
+    sub_esc = html_module.escape(sub)
+
+    st.markdown(
+        f"""
+<div class="pancreas-stress-gauge" style="margin:0 0 14px 0;padding:14px 14px 12px;border-radius:16px;border:1px solid #e2e8f0;background:linear-gradient(180deg,#fafbfc 0%,#f1f5f9 100%);box-sizing:border-box;">
+  <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px;">
+    <span style="font-size:15px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">{title}</span>
+    <span style="font-size:13px;font-weight:700;color:#64748b;">{score_txt}</span>
+  </div>
+  <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">{cap}</div>
+  <div style="height:14px;border-radius:999px;background:{bar_bg};overflow:hidden;border:1px solid rgba(0,0,0,0.06);">
+    <div style="width:{ratio * 100:.2f}%;height:100%;background:{bar_color};border-radius:999px;transition:width 0.35s ease;box-shadow:inset 0 -1px 0 rgba(0,0,0,0.08);"></div>
+  </div>
+  <div style="margin-top:10px;font-size:14px;font-weight:700;color:#334155;line-height:1.35;">{emoji_esc}</div>
+  <div style="font-size:12px;color:#64748b;margin-top:4px;line-height:1.4;">{sub_esc}</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
 @st.dialog("🥗 식전 미션")
 def _pre_meal_mission_dialog(mission_text: str, t):
     st.markdown(mission_text)
-    if st.button(t.get("pre_meal_dialog_close", "닫기"), key="pre_meal_dialog_close", use_container_width=True):
+    if st.button(t.get("pre_meal_dialog_close", "다음 단계"), key="pre_meal_dialog_close", use_container_width=True):
         pm = st.session_state.get("pre_meal") or {}
         pm["step"] = 3
         st.rerun()
@@ -103,6 +158,7 @@ def _render_pre_meal_skeleton(t):
 
     st.markdown("---")
     st.markdown(f"#### {t.get('pre_meal_section_title', '🍽️ 식전 미션 (베타)')}")
+    _render_pancreas_stress_gauge(pm, t)
 
     if pm.get("step") == 3:
         with st.container(border=True):
@@ -197,8 +253,9 @@ def _render_pre_meal_skeleton(t):
                     pm["mission_text"] = out["mission"]
                     pm["analysis"] = out["analysis"]
                     pm["next_meal"] = out["next_meal"]
-                    pm["pancreas_stress"] = float(pm.get("pancreas_stress") or 0) + float(
-                        out.get("added_stress", 0)
+                    pm["pancreas_stress"] = min(
+                        100.0,
+                        float(pm.get("pancreas_stress") or 0) + float(out.get("added_stress", 0)),
                     )
                     _pre_meal_mission_dialog(pm["mission_text"], t)
 
