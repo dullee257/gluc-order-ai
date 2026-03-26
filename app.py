@@ -21,6 +21,7 @@ from translation import LANG_DICT, get_text, GOAL_INTERNAL_KEYS
 from prompts import (
     get_analysis_prompt,
     PRE_MEAL_INSIGHTS_SYSTEM_PROMPT,
+    PRE_MEAL_MENU_NAME_VISION_PROMPT,
     get_pre_meal_insights_user_prompt,
 )
 from firebase_db import (
@@ -89,6 +90,7 @@ def _ensure_pre_meal_state():
         pm["next_meal"] = ""
         pm["pancreas_stress"] = 0.0
         st.session_state.pop("pre_meal_pancreas_hydrated", None)
+        st.session_state.pop("pre_meal_menu_img_hash", None)
 
 
 def _ensure_pre_meal_owner_scope(uid):
@@ -164,17 +166,17 @@ def _render_pancreas_stress_gauge(pm: dict, t: dict) -> None:
 
     st.markdown(
         f"""
-<div class="pancreas-stress-gauge" style="margin:0 0 14px 0;padding:14px 14px 12px;border-radius:16px;border:1px solid #e2e8f0;background:linear-gradient(180deg,#fafbfc 0%,#f1f5f9 100%);box-sizing:border-box;">
-  <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px;">
-    <span style="font-size:15px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">{title}</span>
-    <span style="font-size:13px;font-weight:700;color:#64748b;">{score_txt}</span>
+<div class="pancreas-stress-gauge" style="margin:0 0 10px 0;padding:10px 12px 9px;border-radius:20px;border:1px solid rgba(226,232,240,0.95);background:linear-gradient(165deg,#ffffff 0%,#f8fafc 55%,#f1f5f9 100%);box-sizing:border-box;box-shadow:0 4px 14px rgba(15,23,42,0.07),0 1px 3px rgba(15,23,42,0.05),inset 0 1px 0 rgba(255,255,255,0.85);">
+  <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;margin-bottom:5px;">
+    <span style="font-size:13px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">{title}</span>
+    <span style="font-size:12px;font-weight:700;color:#64748b;">{score_txt}</span>
   </div>
-  <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">{cap}</div>
-  <div style="height:14px;border-radius:999px;background:{bar_bg};overflow:hidden;border:1px solid rgba(0,0,0,0.06);">
-    <div style="width:{ratio * 100:.2f}%;height:100%;background:{bar_color};border-radius:999px;transition:width 0.35s ease;box-shadow:inset 0 -1px 0 rgba(0,0,0,0.08);"></div>
+  <div style="font-size:10px;color:#94a3b8;margin-bottom:7px;line-height:1.3;">{cap}</div>
+  <div style="height:10px;border-radius:999px;background:{bar_bg};overflow:hidden;border:1px solid rgba(0,0,0,0.05);box-shadow:inset 0 1px 2px rgba(0,0,0,0.04);">
+    <div style="width:{ratio * 100:.2f}%;height:100%;background:{bar_color};border-radius:999px;transition:width 0.35s ease;box-shadow:inset 0 -1px 0 rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.06);"></div>
   </div>
-  <div style="margin-top:10px;font-size:14px;font-weight:700;color:#334155;line-height:1.35;">{emoji_esc}</div>
-  <div style="font-size:12px;color:#64748b;margin-top:4px;line-height:1.4;">{sub_esc}</div>
+  <div style="margin-top:7px;font-size:13px;font-weight:700;color:#334155;line-height:1.3;">{emoji_esc}</div>
+  <div style="font-size:11px;color:#64748b;margin-top:2px;line-height:1.35;">{sub_esc}</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -190,8 +192,8 @@ def _pre_meal_mission_dialog(mission_text: str, t):
         st.rerun()
 
 
-def _render_pre_meal_skeleton(t):
-    """홈(스캐너 main) — 식전 미션 플로우: Step1 입력 → dialog → Step3 AI 요약."""
+def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
+    """홈(스캐너 main) — 카메라 우선 식전 미션 → 장소 버튼 → AI 미션 팝업."""
     _ensure_pre_meal_state()
     _uid_pre = st.session_state.get("user_id")
     _ensure_pre_meal_owner_scope(_uid_pre)
@@ -214,95 +216,137 @@ def _render_pre_meal_skeleton(t):
                 pm["analysis"] = ""
                 pm["next_meal"] = ""
                 pm["mission_text"] = ""
+                pm["location"] = None
+                st.session_state.pop("pre_meal_menu_img_hash", None)
+                st.session_state["pre_meal_capture_version"] = st.session_state.get("pre_meal_capture_version", 0) + 1
                 for _k in ("pre_meal_menu_input", "pre_meal_slot_select"):
                     if _k in st.session_state:
                         del st.session_state[_k]
                 st.rerun()
         return
 
+    if "pre_meal_slot_select" not in st.session_state:
+        _opts_init = ["아침", "점심", "저녁", "간식"]
+        _ds = pm.get("meal_slot", "아침")
+        st.session_state["pre_meal_slot_select"] = _ds if _ds in _opts_init else "아침"
+    if "pre_meal_menu_input" not in st.session_state:
+        st.session_state["pre_meal_menu_input"] = pm.get("menu_text", "")
+
+    st.caption(t.get("pre_meal_camera_first_caption", "📷 카메라로 찍거나 사진을 올려 주세요. (모바일 최적화)"))
+
+    _cap_v = int(st.session_state.get("pre_meal_capture_version", 0))
+
     with st.container(border=True):
-        st.caption(t.get("pre_meal_step1_caption", "Step 1 · 메뉴 입력 & 장소 선택"))
-        _opts_slot = ["아침", "점심", "저녁", "간식"]
-        if "pre_meal_slot_select" not in st.session_state:
-            _def_slot = pm.get("meal_slot", "아침")
-            st.session_state["pre_meal_slot_select"] = _def_slot if _def_slot in _opts_slot else "아침"
-        meal_slot = st.selectbox(
-            t.get("pre_meal_meal_slot", "현재 끼니"),
-            _opts_slot,
-            key="pre_meal_slot_select",
-        )
-        pm["meal_slot"] = meal_slot
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(f'<p style="margin:0 0 6px 0;font-size:14px;font-weight:700;color:#0f172a;">{html_module.escape(t.get("pre_meal_camera_label", "카메라"))}</p>', unsafe_allow_html=True)
+            cam = st.camera_input(
+                t.get("pre_meal_camera_aria", "끼니 촬영"),
+                key=f"pre_meal_cam_{_cap_v}",
+                label_visibility="collapsed",
+            )
+        with c2:
+            st.markdown(f'<p style="margin:0 0 6px 0;font-size:14px;font-weight:700;color:#0f172a;">{html_module.escape(t.get("pre_meal_upload_label", "갤러리"))}</p>', unsafe_allow_html=True)
+            up = st.file_uploader(
+                t.get("pre_meal_upload_placeholder", "이미지 선택 (jpg·png)"),
+                type=["jpg", "png", "jpeg", "webp"],
+                key=f"pre_meal_up_{_cap_v}",
+                label_visibility="collapsed",
+            )
 
-        if "pre_meal_menu_input" not in st.session_state:
-            st.session_state["pre_meal_menu_input"] = pm.get("menu_text", "")
-        menu_text = st.text_input(
-            t.get("pre_meal_menu_label", "메뉴 (텍스트)"),
-            key="pre_meal_menu_input",
-            placeholder=t.get("pre_meal_menu_ph", "예: 김치찌개 + 현미밥"),
-        )
-        pm["menu_text"] = menu_text
+        pil_src = None
+        if up is not None:
+            try:
+                pil_src = compress_image(Image.open(up), max_size_kb=500)
+            except Exception:
+                st.warning(t.get("pre_meal_err_image", "이미지를 열 수 없습니다."))
+        elif cam is not None:
+            try:
+                if isinstance(cam, (bytes, bytearray)):
+                    rawb = bytes(cam)
+                elif hasattr(cam, "getvalue"):
+                    rawb = cam.getvalue()
+                else:
+                    rawb = cam.read() if hasattr(cam, "read") else None
+                if isinstance(rawb, bytes) and rawb:
+                    pil_src = compress_image(Image.open(io.BytesIO(rawb)), max_size_kb=500)
+            except Exception:
+                st.warning(t.get("pre_meal_err_image", "카메라 이미지를 처리할 수 없습니다."))
 
-        st.markdown(t.get("pre_meal_photo_hint", "**사진으로 입력** (기존 식단 스캔)"))
-        if st.button(t.get("pre_meal_open_camera", "📷 사진으로 식단 입력"), key="pre_meal_goto_diet_scan", use_container_width=True):
-            st.session_state["current_page"] = "diet_scan"
-            st.rerun()
+        if pil_src is not None:
+            h = _pre_meal_image_hash(pil_src)
+            if h != st.session_state.get("pre_meal_menu_img_hash"):
+                if is_guest and guest_remaining <= 0:
+                    st.warning(t.get("pre_meal_guest_vision_block", "무료 체험 횟수가 부족합니다."))
+                else:
+                    with st.spinner(
+                        t.get(
+                            "pre_meal_spinner_vision",
+                            "AI 코치가 메뉴를 스캔하고 방어막을 설계 중입니다…",
+                        )
+                    ):
+                        try:
+                            name = extract_pre_meal_menu_name_from_image(pil_src)
+                            if not name:
+                                name = t.get("pre_meal_menu_fallback", "오늘의 식사")
+                            pm["menu_text"] = name
+                            st.session_state["pre_meal_menu_input"] = name
+                            st.session_state["pre_meal_menu_img_hash"] = h
+                            if is_guest:
+                                st.session_state["guest_usage_count"] = st.session_state.get("guest_usage_count", 0) + 1
+                        except Exception as e:
+                            st.error(
+                                t.get("pre_meal_err_vision", "메뉴 인식에 실패했습니다. ")
+                                + str(e)
+                            )
 
+        mt_disp = (st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or "").strip()
+        if mt_disp:
+            pm["menu_text"] = mt_disp
+            st.markdown(
+                f'<p style="margin:10px 0 0 0;font-size:13px;color:#0f172a;line-height:1.45;"><span style="color:#16a34a;font-weight:800;">✓</span> {html_module.escape(t.get("pre_meal_recognized_prefix", "인식된 메뉴"))}: <strong>{html_module.escape(mt_disp)}</strong></p>',
+                unsafe_allow_html=True,
+            )
+
+        with st.expander(t.get("pre_meal_expander_manual", "⌨️ 직접 입력하기"), expanded=False):
+            _opts_slot = ["아침", "점심", "저녁", "간식"]
+            meal_slot = st.selectbox(
+                t.get("pre_meal_meal_slot", "현재 끼니"),
+                _opts_slot,
+                key="pre_meal_slot_select",
+            )
+            pm["meal_slot"] = meal_slot
+            st.text_input(
+                t.get("pre_meal_menu_label", "메뉴 (텍스트)"),
+                key="pre_meal_menu_input",
+                placeholder=t.get("pre_meal_menu_ph", "예: 김치찌개 + 현미밥"),
+            )
+            _mt_manual = (st.session_state.get("pre_meal_menu_input") or "").strip()
+            if _mt_manual:
+                pm["menu_text"] = _mt_manual
+
+    pm["meal_slot"] = st.session_state.get("pre_meal_slot_select", pm.get("meal_slot", "아침"))
+    mt_run = (st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or "").strip()
+    if mt_run:
+        pm["menu_text"] = mt_run
         st.markdown(t.get("pre_meal_location_label", "**어디서 드시나요?**"))
         lc1, lc2 = st.columns(2)
         with lc1:
-            if st.button("🥡 외식/배달", key="pre_meal_loc_out", use_container_width=True):
-                pm["location"] = "외식"
+            if st.button(
+                t.get("pre_meal_btn_home_big", "🏠 집밥"),
+                key="pre_meal_loc_home_big",
+                use_container_width=True,
+                type="primary",
+            ):
+                _execute_pre_meal_insights_flow(pm, t, mt_run, "집밥")
         with lc2:
-            if st.button("🏠 집밥", key="pre_meal_loc_home", use_container_width=True):
-                pm["location"] = "집밥"
-        _loc = pm.get("location")
-        if _loc:
-            st.caption(t.get("pre_meal_location_selected", "선택:") + f" **{_loc}**")
-
-        if st.button(
-            t.get("pre_meal_start_mission", "미션 시작하기"),
-            type="primary",
-            key="pre_meal_start_btn",
-            use_container_width=True,
-        ):
-            if not (menu_text or "").strip():
-                st.warning(t.get("pre_meal_warn_menu", "메뉴를 입력하거나 사진 입력으로 이동해 주세요."))
-            elif not pm.get("location"):
-                st.warning(t.get("pre_meal_warn_location", "외식/배달 또는 집밥을 선택해 주세요."))
-            else:
-                try:
-                    with st.spinner(t.get("pre_meal_ai_loading", "AI가 미션을 준비하는 중…")):
-                        out = generate_pre_meal_insights(
-                            (menu_text or "").strip(),
-                            pm.get("location") or "집밥",
-                            pm.get("meal_slot", "아침"),
-                            float(pm.get("pancreas_stress") or 0),
-                        )
-                except json.JSONDecodeError as je:
-                    st.error(
-                        t.get(
-                            "pre_meal_err_json",
-                            "AI 응답을 JSON으로 해석하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-                        )
-                        + f" ({je})"
-                    )
-                except Exception as e:
-                    st.error(
-                        t.get("pre_meal_err_ai", "AI 호출에 실패했습니다.")
-                        + f" {e}"
-                    )
-                else:
-                    pm["mission_text"] = out["mission"]
-                    pm["analysis"] = out["analysis"]
-                    pm["next_meal"] = out["next_meal"]
-                    pm["pancreas_stress"] = min(
-                        100.0,
-                        float(pm.get("pancreas_stress") or 0) + float(out.get("added_stress", 0)),
-                    )
-                    _uid_pm = st.session_state.get("user_id")
-                    if _uid_pm and _uid_pm != "guest_user_demo":
-                        save_daily_pancreas_stress(_uid_pm, pm.get("date_kst"), pm["pancreas_stress"])
-                    _pre_meal_mission_dialog(pm["mission_text"], t)
+            if st.button(
+                t.get("pre_meal_btn_out_big", "🍽️ 외식·배달"),
+                key="pre_meal_loc_out_big",
+                use_container_width=True,
+                type="primary",
+            ):
+                _execute_pre_meal_insights_flow(pm, t, mt_run, "외식")
 
 
 def _render_dash_today_metrics_cards(t, avg_glucose, latest_glucose, total_carbs, meal_n):
@@ -699,6 +743,118 @@ def generate_pre_meal_insights(menu: str, location: str, meal_slot: str, current
     if last_err:
         raise last_err
     raise RuntimeError("사용 가능한 Gemini 텍스트 모델이 없습니다.")
+
+
+def _pre_meal_image_hash(pil_img: Image.Image) -> str:
+    import hashlib
+
+    buf = io.BytesIO()
+    im = pil_img.copy() if hasattr(pil_img, "copy") else pil_img
+    if im.mode in ("RGBA", "P"):
+        im = im.convert("RGB")
+    im.save(buf, format="JPEG", quality=88)
+    return hashlib.md5(buf.getvalue()).hexdigest()
+
+
+def _parse_menu_name_json(raw: str) -> str:
+    text = (raw or "").strip()
+    if not text:
+        return ""
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I | re.M)
+        text = re.sub(r"\s*```\s*$", "", text)
+    text = text.strip()
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start < 0 or end <= start:
+            return ""
+        try:
+            data = json.loads(text[start : end + 1])
+        except json.JSONDecodeError:
+            return ""
+    if isinstance(data, dict):
+        return str(data.get("menu_name") or "").strip()
+    return ""
+
+
+def extract_pre_meal_menu_name_from_image(pil_image: Image.Image) -> str:
+    """Gemini Vision으로 음식 메뉴 짧은 문자열 추출."""
+    api_key = _get_secret("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY가 설정되어 있지 않습니다.")
+    client = genai.Client(api_key=api_key)
+    _env_mm = os.environ.get("GEMINI_VISION_MODEL", "").strip()
+    candidates = []
+    if _env_mm:
+        candidates.append(_env_mm)
+    for _m in ("gemini-2.5-flash", "gemini-2.0-flash"):
+        if _m not in candidates:
+            candidates.append(_m)
+    last_err = None
+    for mm in candidates:
+        try:
+            response = client.models.generate_content(
+                model=mm,
+                contents=[PRE_MEAL_MENU_NAME_VISION_PROMPT, pil_image],
+                config=gtypes.GenerateContentConfig(response_mime_type="application/json"),
+            )
+            raw = (response.text or "").strip()
+            name = _parse_menu_name_json(raw)
+            if name:
+                return name[:120]
+        except Exception as e:
+            last_err = e
+            es = str(e)
+            if "not found" in es.lower() or "not supported" in es.lower() or "NOT_FOUND" in es:
+                continue
+            raise
+    if last_err:
+        raise last_err
+    raise RuntimeError("메뉴 이름을 인식하지 못했습니다.")
+
+
+def _execute_pre_meal_insights_flow(pm: dict, t: dict, menu_text: str, location_val: str) -> None:
+    """식전 인사이트 생성 → 저장 → 미션 다이얼로그."""
+    try:
+        with st.spinner(
+            t.get(
+                "pre_meal_spinner_mission",
+                "AI 코치가 메뉴를 스캔하고 방어막을 설계 중입니다…",
+            )
+        ):
+            out = generate_pre_meal_insights(
+                (menu_text or "").strip(),
+                location_val,
+                pm.get("meal_slot", "아침"),
+                float(pm.get("pancreas_stress") or 0),
+            )
+    except json.JSONDecodeError as je:
+        st.error(
+            t.get(
+                "pre_meal_err_json",
+                "AI 응답을 JSON으로 해석하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+            )
+            + f" ({je})"
+        )
+    except Exception as e:
+        st.error(
+            t.get("pre_meal_err_ai", "AI 호출에 실패했습니다.")
+            + f" {e}"
+        )
+    else:
+        pm["mission_text"] = out["mission"]
+        pm["analysis"] = out["analysis"]
+        pm["next_meal"] = out["next_meal"]
+        pm["pancreas_stress"] = min(
+            100.0,
+            float(pm.get("pancreas_stress") or 0) + float(out.get("added_stress", 0)),
+        )
+        _uid_pm = st.session_state.get("user_id")
+        if _uid_pm and _uid_pm != "guest_user_demo":
+            save_daily_pancreas_stress(_uid_pm, pm.get("date_kst"), pm["pancreas_stress"])
+        _pre_meal_mission_dialog(pm["mission_text"], t)
 
 
 # 언어별 타임존·로케일 (저장 시간 및 표시 형식 현지화)
@@ -2488,7 +2644,7 @@ def confirm_retake_dialog():
             st.session_state["meal_save_trigger"] = False
             st.session_state["meal_save_in_progress"] = False
             st.session_state["app_stage"] = "main"
-            st.session_state["current_page"] = "diet_scan"
+            st.session_state["current_page"] = "main"
             if "uploader_key" in st.session_state:
                 st.session_state["uploader_key"] += 1
             else:
@@ -2539,7 +2695,7 @@ def render_bottom_bar():
                 st.rerun()
             if st.button("📸", key="bb_nav_capture", use_container_width=True):
                 st.session_state["nav_menu"] = "scanner"
-                st.session_state["current_page"] = "diet_scan"
+                st.session_state["current_page"] = "main"
                 st.session_state["app_stage"] = "main"
                 st.rerun()
             if st.button("🩹\n혈당", key="bb_nav_glucose", use_container_width=True):
@@ -2724,28 +2880,11 @@ if menu_key == "scanner":
 
                     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-                _render_pre_meal_skeleton(t)
+                _render_pre_meal_skeleton(t, is_guest=is_guest, guest_remaining=total_remaining)
 
         elif st.session_state.get("current_page") == "diet_scan":
-            # 식단 스캔 페이지: 업로더만
-            if is_guest:
-                st.info(get_text("KO", "guest_remaining", n=total_remaining))
-            if 'uploader_key' not in st.session_state:
-                st.session_state['uploader_key'] = 0
-            uploaded_file = st.file_uploader(
-                "label_hidden",
-                type=["jpg", "png", "jpeg"],
-                label_visibility="collapsed",
-                key=f"uploader_{st.session_state['uploader_key']}"
-            )
-            if uploaded_file:
-                if is_guest:
-                    st.session_state['guest_usage_count'] += 1
-                img = Image.open(uploaded_file)
-                img = compress_image(img, max_size_kb=500)
-                st.session_state['current_img'] = img
-                st.session_state['app_stage'] = 'analyze'
-                st.rerun()
+            st.session_state["current_page"] = "main"
+            st.rerun()
 
         elif st.session_state.get("current_page") == "glucose_input":
             # 혈당 입력 전용 페이지 (Google 로그인만)

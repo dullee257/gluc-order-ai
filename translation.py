@@ -205,6 +205,21 @@ def _ko():
         "pre_meal_pancreas_caution_sub": "혈당 롤러코스터 경고",
         "pre_meal_pancreas_danger": "🔴 휴식 필요",
         "pre_meal_pancreas_danger_sub": "췌장 파업 직전! 식이섬유 필수",
+        "pre_meal_camera_first_caption": "📷 카메라로 찍거나 사진을 올려 주세요. (모바일 최적화)",
+        "pre_meal_camera_label": "카메라",
+        "pre_meal_camera_aria": "끼니 촬영",
+        "pre_meal_upload_label": "갤러리",
+        "pre_meal_upload_placeholder": "이미지 선택 (jpg·png)",
+        "pre_meal_expander_manual": "⌨️ 직접 입력하기",
+        "pre_meal_spinner_vision": "AI 코치가 메뉴를 스캔하고 방어막을 설계 중입니다…",
+        "pre_meal_spinner_mission": "AI 코치가 메뉴를 스캔하고 방어막을 설계 중입니다…",
+        "pre_meal_recognized_prefix": "인식된 메뉴",
+        "pre_meal_btn_home_big": "🏠 집밥",
+        "pre_meal_btn_out_big": "🍽️ 외식·배달",
+        "pre_meal_err_image": "이미지를 열 수 없습니다.",
+        "pre_meal_err_vision": "메뉴 인식에 실패했습니다. ",
+        "pre_meal_guest_vision_block": "무료 체험 횟수가 부족합니다. 광고 보기 또는 로그인 후 이용해 주세요.",
+        "pre_meal_menu_fallback": "오늘의 식사",
     }
 
 
