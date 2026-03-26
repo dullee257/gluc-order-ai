@@ -423,6 +423,8 @@ def get_daily_summary(uid, date_key):
     meal_count = int((data or {}).get("meal_count", 0) or 0)
     spike_sum = int((data or {}).get("spike_sum", 0) or 0)
     avg_spike = int(round(spike_sum / meal_count)) if meal_count > 0 else 0
+    ps = float((data or {}).get("pancreas_stress", 0) or 0)
+    ps = max(0.0, min(100.0, ps))
     return {
         "total_carbs": total_carbs,
         "total_protein": total_protein,
@@ -430,7 +432,61 @@ def get_daily_summary(uid, date_key):
         "meal_count": meal_count,
         "spike_sum": spike_sum,
         "avg_spike": avg_spike,
+        "pancreas_stress": ps,
     }
+
+
+def get_daily_pancreas_stress(uid, date_key):
+    """daily_summaries/{date_key} 문서의 일일 누적 췌장 피로도(0~100). 없으면 0."""
+    if not uid:
+        return 0.0
+    try:
+        _init_firebase()
+        doc = (
+            firestore.client()
+            .collection("users")
+            .document(str(uid))
+            .collection("daily_summaries")
+            .document(str(date_key))
+            .get()
+        )
+        if not doc.exists:
+            return 0.0
+        v = float((doc.to_dict() or {}).get("pancreas_stress", 0) or 0)
+        return max(0.0, min(100.0, v))
+    except Exception as e:
+        sys.stderr.write(f"[get_daily_pancreas_stress] {e}\n")
+        return 0.0
+
+
+def save_daily_pancreas_stress(uid, date_key, value):
+    """일일 췌장 피로도(0~100)를 daily_summaries에 merge 저장. 게스트/빈 uid는 호출하지 말 것."""
+    if not uid or str(uid) == "guest_user_demo":
+        return False
+    try:
+        _init_firebase()
+        v = max(0.0, min(100.0, float(value)))
+        ref = (
+            firestore.client()
+            .collection("users")
+            .document(str(uid))
+            .collection("daily_summaries")
+            .document(str(date_key))
+        )
+        ref.set(
+            sanitize_for_firestore(
+                {
+                    "date_key": str(date_key),
+                    "pancreas_stress": v,
+                    "updated_at": firestore.SERVER_TIMESTAMP,
+                }
+            ),
+            merge=True,
+        )
+        return True
+    except Exception as e:
+        sys.stderr.write(f"[save_daily_pancreas_stress] {e}\n")
+        return False
 
 
 def get_glucose_records(uid, period="주간"):

@@ -27,6 +27,8 @@ from firebase_db import (
     upload_image_to_storage,
     save_meal_and_summary,
     get_daily_summary,
+    get_daily_pancreas_stress,
+    save_daily_pancreas_stress,
     get_meal_feed,
     delete_meal_record,
     get_glucose_records,
@@ -85,6 +87,43 @@ def _ensure_pre_meal_state():
         pm["mission_text"] = ""
         pm["analysis"] = ""
         pm["next_meal"] = ""
+        pm["pancreas_stress"] = 0.0
+        st.session_state.pop("pre_meal_pancreas_hydrated", None)
+
+
+def _ensure_pre_meal_owner_scope(uid):
+    """user_id가 바뀌면 Firestore 하이드레이션 캐시 무효화. 게스트/비로그인은 로컬 점수 초기화."""
+    slot = "pre_meal_owner_uid"
+    prev = st.session_state.get(slot)
+    if prev == uid:
+        return
+    st.session_state[slot] = uid
+    st.session_state.pop("pre_meal_pancreas_hydrated", None)
+    _ensure_pre_meal_state()
+    pm = st.session_state["pre_meal"]
+    if not uid or uid == "guest_user_demo":
+        pm["pancreas_stress"] = 0.0
+
+
+def _hydrate_pre_meal_pancreas_from_firestore(uid):
+    """로그인(비게스트) 사용자: 오늘(KST) Firestore daily_summaries.pancreas_stress → 세션 (1회/일·uid)."""
+    if not uid or uid == "guest_user_demo":
+        return
+    import pytz
+
+    seoul = pytz.timezone("Asia/Seoul")
+    today_kst = datetime.now(seoul).strftime("%Y-%m-%d")
+    key = (str(uid), today_kst)
+    if st.session_state.get("pre_meal_pancreas_hydrated") == key:
+        return
+    try:
+        v = get_daily_pancreas_stress(uid, today_kst)
+    except Exception:
+        v = 0.0
+    pm = st.session_state["pre_meal"]
+    pm["pancreas_stress"] = min(100.0, max(0.0, float(v)))
+    pm["date_kst"] = today_kst
+    st.session_state["pre_meal_pancreas_hydrated"] = key
 
 
 def _clamp_pancreas_stress_value(pm: dict) -> float:
@@ -154,6 +193,9 @@ def _pre_meal_mission_dialog(mission_text: str, t):
 def _render_pre_meal_skeleton(t):
     """홈(스캐너 main) — 식전 미션 플로우: Step1 입력 → dialog → Step3 AI 요약."""
     _ensure_pre_meal_state()
+    _uid_pre = st.session_state.get("user_id")
+    _ensure_pre_meal_owner_scope(_uid_pre)
+    _hydrate_pre_meal_pancreas_from_firestore(_uid_pre)
     pm = st.session_state["pre_meal"]
 
     st.markdown("---")
@@ -257,6 +299,9 @@ def _render_pre_meal_skeleton(t):
                         100.0,
                         float(pm.get("pancreas_stress") or 0) + float(out.get("added_stress", 0)),
                     )
+                    _uid_pm = st.session_state.get("user_id")
+                    if _uid_pm and _uid_pm != "guest_user_demo":
+                        save_daily_pancreas_stress(_uid_pm, pm.get("date_kst"), pm["pancreas_stress"])
                     _pre_meal_mission_dialog(pm["mission_text"], t)
 
 
