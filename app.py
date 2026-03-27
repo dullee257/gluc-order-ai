@@ -837,75 +837,133 @@ def _aggregate_feed_by_period(feed_items: list, period: str):
     return labels, avgs
 
 
-def _render_history_trend_chart(t: dict, feed_items: list, period: str = "일별") -> None:
-    """기간별 집계 Plotly 라인 차트 (y축 레이블 + 풍부한 툴팁)."""
-    if not feed_items:
-        return
-
+def _render_history_trend_chart(t: dict, feed_items: list) -> None:
+    """기간 선택 radio + Plotly 라인 차트를 하나의 프리미엄 카드 안에 렌더.
+    드래그·줌 완전 차단으로 모바일 스크롤 깨짐 방지."""
     import plotly.graph_objects as go
+    import pytz
 
-    labels, avgs = _aggregate_feed_by_period(feed_items, period)
-    if len(labels) < 1:
-        return
-
-    point_colors = ["#10B981" if s <= 40 else "#f59e0b" if s <= 65 else "#ef4444" for s in avgs]
-
-    fig = go.Figure()
-    fig.add_hrect(y0=0,  y1=40,  fillcolor="rgba(16,185,129,0.07)",  line_width=0)
-    fig.add_hrect(y0=40, y1=65,  fillcolor="rgba(245,158,11,0.05)",  line_width=0)
-    fig.add_hrect(y0=65, y1=105, fillcolor="rgba(239,68,68,0.05)",   line_width=0)
-
-    # 구간 경계선 + 라벨
-    fig.add_hline(y=40, line_dash="dot", line_color="rgba(16,185,129,0.4)",
-                  annotation_text="안정", annotation_position="top left",
-                  annotation_font_size=10, annotation_font_color="#10B981")
-    fig.add_hline(y=65, line_dash="dot", line_color="rgba(245,158,11,0.4)",
-                  annotation_text="경계", annotation_position="top left",
-                  annotation_font_size=10, annotation_font_color="#f59e0b")
-
-    hover_unit = "평균 " if period != "일별" else ""
-    fig.add_trace(go.Scatter(
-        x=labels, y=avgs,
-        mode="lines+markers",
-        line=dict(color="#10B981", width=2.5, shape="spline"),
-        marker=dict(color=point_colors, size=11, line=dict(color="white", width=2)),
-        hovertemplate=(
-            f"<b>%{{x}}</b><br>"
-            f"{hover_unit}혈당 위험도: <b>%{{y:.1f}}</b> pt<extra></extra>"
-        ),
-    ))
-
-    fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=0, r=10, t=10, b=6),
-        yaxis=dict(
-            range=[0, 105],
-            gridcolor="rgba(0,0,0,0.06)",
-            tickfont=dict(size=10),
-            title=dict(text="mg/dL (혈당 위험도 점수)", font=dict(size=10, color="#94a3b8")),
-        ),
-        xaxis=dict(
-            gridcolor="rgba(0,0,0,0.06)",
-            tickangle=-30,
-            tickfont=dict(size=10),
-        ),
-        hoverlabel=dict(
-            bgcolor="white",
-            bordercolor="#e2e8f0",
-            font_size=13,
-            font_family="Noto Sans KR",
-        ),
-        height=230,
-        showlegend=False,
-    )
+    # ── 기간 세그먼트 컨트롤 (카드 내부) ───────────────────────────────────
+    _PERIODS = ["오늘", "일별", "주별", "월별", "연별"]
+    if "hist_period" not in st.session_state:
+        st.session_state["hist_period"] = "일별"
 
     with st.container(border=True):
         st.markdown(
             '<div class="ns-chart-title">📈 혈당 위험도 추이</div>',
             unsafe_allow_html=True,
         )
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+        # 가로 한 줄 radio — 모바일에서 한 행에 꽉 차게
+        period = st.radio(
+            "기간",
+            _PERIODS,
+            index=_PERIODS.index(st.session_state["hist_period"]),
+            horizontal=True,
+            label_visibility="collapsed",
+            key="hist_period_radio",
+        )
+        st.session_state["hist_period"] = period
+
+        if not feed_items:
+            st.markdown(
+                '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.88rem;">식사 기록이 없어 차트를 표시할 수 없습니다.</div>',
+                unsafe_allow_html=True,
+            )
+            return
+
+        # ── "오늘" 기간: 오늘 날짜 레코드만 필터 후 개별 표시 ──────────────
+        if period == "오늘":
+            seoul = pytz.timezone("Asia/Seoul")
+            today_str = datetime.now(seoul).strftime("%Y-%m-%d")
+            today_items = []
+            for rec in feed_items:
+                dt = _parse_feed_timestamp(rec)
+                if dt and dt.strftime("%Y-%m-%d") == today_str:
+                    today_items.append(rec)
+            if not today_items:
+                st.markdown(
+                    '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.88rem;">오늘의 식사 기록이 없습니다.</div>',
+                    unsafe_allow_html=True,
+                )
+                return
+            labels = [_meal_feed_display_time(r)[-5:] for r in reversed(today_items)]
+            avgs   = [int(r.get("blood_sugar_score", 0) or 0) for r in reversed(today_items)]
+        else:
+            labels, avgs = _aggregate_feed_by_period(feed_items, period)
+
+        if not labels:
+            st.markdown(
+                '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.88rem;">해당 기간의 데이터가 없습니다.</div>',
+                unsafe_allow_html=True,
+            )
+            return
+
+        point_colors = ["#10B981" if s <= 40 else "#f59e0b" if s <= 65 else "#ef4444" for s in avgs]
+        hover_unit = "" if period in ("오늘", "일별") else "평균 "
+
+        fig = go.Figure()
+        fig.add_hrect(y0=0,  y1=40,  fillcolor="rgba(16,185,129,0.07)", line_width=0)
+        fig.add_hrect(y0=40, y1=65,  fillcolor="rgba(245,158,11,0.05)", line_width=0)
+        fig.add_hrect(y0=65, y1=105, fillcolor="rgba(239,68,68,0.05)",  line_width=0)
+        fig.add_hline(y=40, line_dash="dot", line_color="rgba(16,185,129,0.4)",
+                      annotation_text="안정", annotation_position="top left",
+                      annotation_font_size=10, annotation_font_color="#10B981")
+        fig.add_hline(y=65, line_dash="dot", line_color="rgba(245,158,11,0.4)",
+                      annotation_text="경계", annotation_position="top left",
+                      annotation_font_size=10, annotation_font_color="#f59e0b")
+
+        fig.add_trace(go.Scatter(
+            x=labels, y=avgs,
+            mode="lines+markers",
+            line=dict(color="#10B981", width=2.5, shape="spline"),
+            marker=dict(color=point_colors, size=11, line=dict(color="white", width=2)),
+            hovertemplate=(
+                f"<b>%{{x}}</b><br>"
+                f"{hover_unit}혈당 위험도: <b>%{{y:.1f}}</b> pt<extra></extra>"
+            ),
+        ))
+
+        fig.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(l=0, r=10, t=6, b=6),
+            yaxis=dict(
+                range=[0, 105],
+                gridcolor="rgba(0,0,0,0.06)",
+                tickfont=dict(size=10),
+                title=dict(text="mg/dL (혈당 위험도 점수)", font=dict(size=10, color="#94a3b8")),
+                fixedrange=True,          # 모바일 줌 차단
+            ),
+            xaxis=dict(
+                gridcolor="rgba(0,0,0,0.06)",
+                tickangle=-30,
+                tickfont=dict(size=10),
+                fixedrange=True,          # 모바일 줌 차단
+            ),
+            hoverlabel=dict(
+                bgcolor="white",
+                bordercolor="#e2e8f0",
+                font_size=13,
+                font_family="Noto Sans KR",
+            ),
+            dragmode=False,               # 드래그 완전 차단
+            height=220,
+            showlegend=False,
+        )
+        # x/y 두 축 모두 fixedrange 강제 적용
+        fig.update_xaxes(fixedrange=True)
+        fig.update_yaxes(fixedrange=True)
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+            config={
+                "displayModeBar": False,   # 상단 툴바 숨김
+                "scrollZoom": False,       # 스크롤 줌 차단
+                "staticPlot": False,       # hover는 유지
+            },
+        )
 
 
 # --- Railway 등에서 환경 변수로 시크릿 읽기 (Streamlit Cloud는 st.secrets 유지) ---
@@ -2379,10 +2437,6 @@ st.markdown(f"""
     .ns-hist-welcome-hint {{
         font-size: 0.78rem;
         color: rgba(255,255,255,0.6);
-    }}
-    /* ── 기간 세그먼트 컨트롤 래퍼 ─────────────────────────────────────── */
-    .ns-seg-ctrl-wrap {{
-        margin: 10px 0 4px;
     }}
     /* ── 차트 타이틀 ────────────────────────────────────────────────────── */
     .ns-chart-title {{
@@ -5005,29 +5059,8 @@ elif menu_key == "history":
     # ── Top 3 요약 위젯 ──────────────────────────────────────────────────────
     _render_history_summary_cards(t, feed_items, _pm_hist)
 
-    # ── 기간 세그먼트 컨트롤 ─────────────────────────────────────────────────
-    if "hist_period" not in st.session_state:
-        st.session_state["hist_period"] = "일별"
-    _hist_period = st.session_state["hist_period"]
-    _periods = ["일별", "주별", "월별", "연별"]
-
-    st.markdown('<div class="ns-seg-ctrl-wrap">', unsafe_allow_html=True)
-    _pc = st.columns(len(_periods), gap="small")
-    for _pi, _prd in enumerate(_periods):
-        with _pc[_pi]:
-            _is_active = _hist_period == _prd
-            if st.button(
-                _prd,
-                key=f"hist_period_{_prd}",
-                use_container_width=True,
-                type="primary" if _is_active else "secondary",
-            ):
-                st.session_state["hist_period"] = _prd
-                st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # ── 트렌드 차트 (선택 기간 적용) ─────────────────────────────────────────
-    _render_history_trend_chart(t, feed_items, _hist_period)
+    # ── 트렌드 차트 + 기간 컨트롤 (카드 내부에서 통합 렌더) ──────────────────
+    _render_history_trend_chart(t, feed_items)
 
     # ── 타임라인 히스토리 섹션 타이틀 ────────────────────────────────────────
     if feed_items:
