@@ -2592,34 +2592,42 @@ st.markdown(f"""
     [data-testid="stHeader"] {{display: none !important; visibility: hidden !important; height: 0 !important;}}
     [data-testid="stToolbar"] {{display: none !important;}}
     
-    /* ── 상단 공백 최소화 ────────────────────────────────────────────────── */
+    /* ── 상단 공백 완전 박멸 ─────────────────────────────────────────────── */
+    /* 1. 기본 헤더(우측 상단 햄버거 메뉴 포함) 영역 자체를 삭제 */
+    header[data-testid="stHeader"] {{
+        display: none !important;
+    }}
+    /* 2. 메인 컨테이너 최상단 패딩/마진 완전 제거 */
     .block-container {{
-        padding-top: 0.6rem !important;
+        padding-top: 0rem !important;
+        margin-top: 0rem !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
         padding-bottom: 1rem !important;
+        max-width: 100% !important;
     }}
-    /* Streamlit 내부 헤더 툴바 위 여백 제거 */
-    [data-testid="stAppViewBlockContainer"] {{
-        padding-top: 0 !important;
+    /* 3. 최신 Streamlit 버전의 숨겨진 뷰 컨테이너 여백 제거 */
+    div[data-testid="stAppViewBlockContainer"] {{
+        padding-top: 0px !important;
     }}
-    header[data-testid="stHeader"] {{
-        height: 0 !important;
-        min-height: 0 !important;
-        padding: 0 !important;
-        overflow: hidden !important;
+    /* 4. 첫 번째 요소가 밀려나는 현상 방지 */
+    .block-container > div:first-child {{
+        margin-top: 0px !important;
+        padding-top: 0px !important;
     }}
-    /* 모바일: 여백 대폭 축소 + FAB 영역 확보 */
+    /* 5. 모바일: 패딩 완전 제거 + FAB 영역 확보 */
     @media screen and (max-width: 768px) {{
         .block-container {{
-            padding-top: 10px !important;
+            padding-top: 0rem !important;
             padding-left: 0.3rem !important;
             padding-right: 0.3rem !important;
             padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
-            max-width: 100% !important;
         }}
-        [data-testid="stAppViewBlockContainer"] {{
-            padding-top: 0 !important;
+        div[data-testid="stAppViewBlockContainer"] {{
+            padding-top: 0px !important;
+        }}
+        .block-container > div:first-child {{
+            margin-top: 0px !important;
         }}
     }}
     /* 메트릭 내부 요소 텍스트 짤림 완벽 방지 */
