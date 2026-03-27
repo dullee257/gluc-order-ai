@@ -223,6 +223,16 @@ def _ko():
         "pre_meal_guest_vision_block": "무료 체험 횟수가 부족합니다. 광고 보기 또는 로그인 후 이용해 주세요.",
         "pre_meal_menu_fallback": "오늘의 식사",
         "pre_meal_retake_label": "🔄 다른 사진으로 다시 찍기",
+        # 식후 혈당 피드백 카드
+        "post_meal_card_title": "🛡️ 방어전 결과 보고",
+        "post_meal_card_sub": "식후 2시간 혈당을 입력하면 AI 코치가 방어 성공 여부를 평가해 드립니다",
+        "post_meal_glucose_label": "식후 혈당 (mg/dL)",
+        "post_meal_submit_btn": "결과 확인 및 췌장 피로도 정산",
+        "post_meal_spinner": "AI 코치가 방어전 결과를 분석 중입니다...",
+        "post_meal_success_label": "방어 성공!",
+        "post_meal_fail_label": "방어 실패!",
+        "post_meal_dialog_close": "✅ 확인하고 다음 식사 준비",
+        "post_meal_err_ai": "AI 분석에 실패했습니다.",
     }
 
 

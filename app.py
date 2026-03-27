@@ -23,6 +23,8 @@ from prompts import (
     PRE_MEAL_INSIGHTS_SYSTEM_PROMPT,
     PRE_MEAL_MENU_NAME_VISION_PROMPT,
     get_pre_meal_insights_user_prompt,
+    POST_MEAL_FEEDBACK_SYSTEM_PROMPT,
+    get_post_meal_feedback_user_prompt,
 )
 from firebase_db import (
     upload_image_to_storage,
@@ -79,6 +81,10 @@ def _ensure_pre_meal_state():
             "mission_text": "",
             "analysis": "",
             "next_meal": "",
+            # 식후 피드백 상태
+            "post_meal_feedback": "",
+            "post_meal_is_success": False,
+            "post_meal_stress_change": 0,
         }
         return
     pm = st.session_state["pre_meal"]
@@ -89,6 +95,9 @@ def _ensure_pre_meal_state():
         pm["analysis"] = ""
         pm["next_meal"] = ""
         pm["pancreas_stress"] = 0.0
+        pm["post_meal_feedback"] = ""
+        pm["post_meal_is_success"] = False
+        pm["post_meal_stress_change"] = 0
         st.session_state.pop("pre_meal_pancreas_hydrated", None)
         st.session_state.pop("pre_meal_menu_img_hash", None)
 
@@ -197,6 +206,136 @@ def _pre_meal_mission_dialog(mission_text: str, t):
         st.rerun()
 
 
+@st.dialog("🛡️ 방어전 결과")
+def _post_meal_result_dialog(t: dict):
+    """식후 혈당 피드백 결과 다이얼로그 — 성공/실패 평가 + 피로도 정산."""
+    pm = st.session_state.get("pre_meal") or {}
+    feedback = pm.get("post_meal_feedback", "")
+    is_success = pm.get("post_meal_is_success", False)
+    change = int(pm.get("post_meal_stress_change", 0))
+
+    esc = html_module.escape
+    badge_color = "#10B981" if is_success else "#ef4444"
+    result_label = esc(t.get("post_meal_success_label", "방어 성공!")) if is_success else esc(t.get("post_meal_fail_label", "방어 실패!"))
+    result_icon = "🎉" if is_success else "💥"
+    change_sign = "+" if change > 0 else ""
+    change_text = esc(f"췌장 피로도 {change_sign}{change}점")
+    badge_bg = "rgba(16,185,129,0.12)" if is_success else "rgba(239,68,68,0.12)"
+    feedback_esc = esc(feedback)
+
+    if is_success:
+        st.balloons()
+
+    st.markdown(
+        f"""
+<div style="text-align:center;margin-bottom:18px;">
+  <div style="font-size:2.4rem;margin-bottom:6px;">{result_icon}</div>
+  <div style="font-size:1.35rem;font-weight:800;color:{badge_color};margin-bottom:6px;">{result_label}</div>
+  <div style="font-size:0.82rem;background:{badge_bg};color:{badge_color};
+              border-radius:20px;display:inline-block;padding:4px 14px;font-weight:700;">
+    {change_text}
+  </div>
+</div>
+<div style="background:#f8f9fa;border-radius:14px;padding:14px 16px;
+            font-size:0.95rem;line-height:1.75;color:#1e293b;white-space:pre-wrap;">
+  {feedback_esc}
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    if st.button(
+        t.get("post_meal_dialog_close", "✅ 확인하고 다음 식사 준비"),
+        key="post_meal_dialog_close_btn",
+        use_container_width=True,
+        type="primary",
+    ):
+        # 피로도 변화 반영
+        new_stress = max(0.0, min(100.0, float(pm.get("pancreas_stress", 0)) + float(change)))
+        pm["pancreas_stress"] = new_stress
+        # Firestore 저장
+        _uid_pm = st.session_state.get("user_id")
+        if _uid_pm and _uid_pm != "guest_user_demo":
+            try:
+                save_daily_pancreas_stress(_uid_pm, pm.get("date_kst"), new_stress)
+            except Exception:
+                pass
+        # 세션 전체 초기화 → 다음 식사 카메라 버튼으로 복귀
+        pm["step"] = 1
+        pm["menu_text"] = ""
+        pm["analysis"] = ""
+        pm["next_meal"] = ""
+        pm["mission_text"] = ""
+        pm["location"] = None
+        pm["post_meal_feedback"] = ""
+        pm["post_meal_is_success"] = False
+        pm["post_meal_stress_change"] = 0
+        st.session_state.pop("pre_meal_menu_img_hash", None)
+        st.session_state.pop("pre_meal_menu_image_bytes", None)
+        st.session_state.pop("pre_meal_menu_image_valid_for", None)
+        st.session_state["pre_meal_capture_version"] = (
+            st.session_state.get("pre_meal_capture_version", 0) + 1
+        )
+        for _k in ("pre_meal_menu_input", "pre_meal_slot_select"):
+            if _k in st.session_state:
+                del st.session_state[_k]
+        st.rerun()
+
+
+def _render_post_meal_feedback_card(t: dict, pm: dict) -> None:
+    """식후 혈당 입력 카드 — step 3에서 미션 요약 카드 아래에 렌더."""
+    esc = html_module.escape
+    card_title = esc(t.get("post_meal_card_title", "🛡️ 방어전 결과 보고"))
+    card_sub = esc(t.get("post_meal_card_sub", "식후 2시간 혈당을 입력하면 AI 코치가 방어 성공 여부를 평가해 드립니다"))
+    menu_echo = (pm.get("menu_text") or "").strip()
+    menu_echo_html = (
+        f'<div class="ns-pm-menu-echo">📝 {esc(menu_echo)}</div>'
+        if menu_echo
+        else ""
+    )
+
+    with st.container(border=True):
+        st.markdown(
+            f"""
+<div class="ns-postmeal-header">
+  <div class="ns-postmeal-title">{card_title}</div>
+  <div class="ns-postmeal-sub">{card_sub}</div>
+  {menu_echo_html}
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+        glucose_val = st.number_input(
+            t.get("post_meal_glucose_label", "식후 혈당 (mg/dL)"),
+            min_value=40,
+            max_value=500,
+            value=120,
+            step=1,
+            key="post_meal_glucose_input",
+        )
+
+        if st.button(
+            t.get("post_meal_submit_btn", "결과 확인 및 췌장 피로도 정산"),
+            key="post_meal_submit",
+            use_container_width=True,
+            type="primary",
+        ):
+            try:
+                with st.spinner(t.get("post_meal_spinner", "AI 코치가 방어전 결과를 분석 중입니다...")):
+                    result = generate_post_meal_feedback(
+                        menu_echo or t.get("pre_meal_menu_fallback", "오늘의 식사"),
+                        int(glucose_val),
+                        pm.get("meal_slot", "식사"),
+                    )
+                pm["post_meal_feedback"] = result["feedback_message"]
+                pm["post_meal_is_success"] = result["is_success"]
+                pm["post_meal_stress_change"] = result["stress_score_change"]
+                _post_meal_result_dialog(t)
+            except Exception as _e:
+                st.error(t.get("post_meal_err_ai", "AI 분석에 실패했습니다.") + f" {_e}")
+
+
 def _format_menu_lines_html(menu_text: str) -> str:
     """인식 메뉴 문자열을 줄별 HTML로 표시 (Vision이 붙인 이모지 유지)."""
     s = (menu_text or "").strip()
@@ -295,6 +434,9 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
                 pm["next_meal"] = ""
                 pm["mission_text"] = ""
                 pm["location"] = None
+                pm["post_meal_feedback"] = ""
+                pm["post_meal_is_success"] = False
+                pm["post_meal_stress_change"] = 0
                 st.session_state.pop("pre_meal_menu_img_hash", None)
                 st.session_state.pop("pre_meal_menu_image_bytes", None)
                 st.session_state.pop("pre_meal_menu_image_valid_for", None)
@@ -303,6 +445,8 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
                     if _k in st.session_state:
                         del st.session_state[_k]
                 st.rerun()
+        # ── 식후 혈당 피드백 카드 (미션 완료 후 식후 2시간 결과 입력) ──────────
+        _render_post_meal_feedback_card(t, pm)
         return
 
     # ── 조건부 렌더링 핵심: 인식된 메뉴가 있으면 카드 모드 ──────────────────
@@ -851,6 +995,80 @@ def generate_pre_meal_insights(menu: str, location: str, meal_slot: str, current
             )
             raw = (response.text or "").strip()
             return _parse_pre_meal_insights_json(raw)
+        except json.JSONDecodeError as je:
+            last_err = je
+            continue
+        except ValueError as ve:
+            last_err = ve
+            continue
+        except Exception as e:
+            last_err = e
+            es = str(e)
+            if "not found" in es.lower() or "not supported" in es.lower() or "NOT_FOUND" in es:
+                continue
+            raise
+    if last_err:
+        raise last_err
+    raise RuntimeError("사용 가능한 Gemini 텍스트 모델이 없습니다.")
+
+
+def _parse_post_meal_feedback_json(raw: str) -> dict:
+    """식후 피드백 LLM 응답 → feedback_message/stress_score_change/is_success 검증."""
+    text = (raw or "").strip()
+    if not text:
+        raise ValueError("모델 응답이 비어 있습니다.")
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I | re.M)
+        text = re.sub(r"\s*```\s*$", "", text)
+    text = text.strip()
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start < 0 or end <= start:
+            raise
+        data = json.loads(text[start : end + 1])
+    if not isinstance(data, dict):
+        raise ValueError("JSON 최상위는 객체여야 합니다.")
+    data["feedback_message"] = str(data.get("feedback_message") or "").strip()
+    if not data["feedback_message"]:
+        raise ValueError("필수 키 누락: feedback_message")
+    try:
+        sc = int(round(float(data.get("stress_score_change", 0))))
+    except (TypeError, ValueError):
+        sc = 0
+    data["stress_score_change"] = max(-15, min(30, sc))
+    data["is_success"] = bool(data.get("is_success", False))
+    return data
+
+
+def generate_post_meal_feedback(menu: str, glucose_value: int, meal_slot: str = "식사") -> dict:
+    """Gemini 텍스트 모델로 식후 혈당 피드백 JSON 생성·파싱."""
+    api_key = _get_secret("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY가 설정되어 있지 않습니다.")
+    client = genai.Client(api_key=api_key)
+    user_prompt = get_post_meal_feedback_user_prompt(menu, glucose_value, meal_slot)
+    _env = os.environ.get("GEMINI_TEXT_MODEL", "").strip()
+    candidates = []
+    if _env:
+        candidates.append(_env)
+    for _m in ("gemini-2.5-flash", "gemini-2.0-flash"):
+        if _m not in candidates:
+            candidates.append(_m)
+    last_err = None
+    for mm in candidates:
+        try:
+            response = client.models.generate_content(
+                model=mm,
+                contents=[user_prompt],
+                config=gtypes.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    system_instruction=POST_MEAL_FEEDBACK_SYSTEM_PROMPT,
+                ),
+            )
+            raw = (response.text or "").strip()
+            return _parse_post_meal_feedback_json(raw)
         except json.JSONDecodeError as je:
             last_err = je
             continue
@@ -1806,6 +2024,32 @@ st.markdown(f"""
     @keyframes ns-loading-slide {{
         0%   {{ transform: translateX(-150%); }}
         100% {{ transform: translateX(350%); }}
+    }}
+    /* ── 식후 혈당 피드백 카드 ──────────────────────────────────────────── */
+    .ns-postmeal-header {{
+        margin-bottom: 14px;
+    }}
+    .ns-postmeal-title {{
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 4px;
+        letter-spacing: -0.3px;
+    }}
+    .ns-postmeal-sub {{
+        font-size: 0.82rem;
+        color: #64748b;
+        line-height: 1.5;
+        margin-bottom: 6px;
+    }}
+    .ns-pm-menu-echo {{
+        font-size: 0.8rem;
+        color: #475569;
+        background: #f1f5f9;
+        border-radius: 8px;
+        padding: 6px 10px;
+        margin-top: 6px;
+        word-break: keep-all;
     }}
     /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴 및 여백 강제 숨김 */
     .viewerBadge_container {{ display: none !important; }}
