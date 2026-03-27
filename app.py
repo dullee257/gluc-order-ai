@@ -3559,90 +3559,132 @@ if not st.session_state['logged_in']:
       overflow: hidden !important; margin: 0 !important; padding: 0 !important; border: none !important; }
     body.auth-login-splash [data-testid="stDecoration"] { display: none !important; }
     body.auth-login-splash .block-container { padding-top: 0.75rem !important; max-width: 100% !important; }
-    body.auth-login-splash .stApp { background: linear-gradient(180deg, #e8f5e9 0%, #fafafa 45%, #ffffff 100%) !important; min-height: 100vh !important; }
-    .splash-container {
+    /* ── 프리미엄 랜딩 페이지: 다크 네이비 스킨 ── */
+    body.auth-login-splash .stApp {
+      background: #0f172a !important;
+      min-height: 100vh !important;
+    }
+    /* 랜딩 페이지 전체 배경 그라디언트 광원 */
+    .ns-lp-wrap {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 55vh;
+      min-height: 82vh;
+      padding: 2.5rem 1.4rem 1rem;
       text-align: center;
-      padding: 0 1rem;
+      position: relative;
+      overflow: hidden;
     }
-    .splash-title {
-      font-size: clamp(2.3rem, 10vw, 3rem);
-      font-weight: 800;
-      color: #1a1a1a;
-      line-height: 1.2;
-      margin: 0;
-      animation: tracking-in 0.8s ease-out both;
+    .ns-lp-glow {
+      position: absolute;
+      top: -60px; left: 50%;
+      transform: translateX(-50%);
+      width: 340px; height: 340px;
+      background: radial-gradient(ellipse at 50% 30%, rgba(16,185,129,0.18) 0%, transparent 70%);
+      pointer-events: none;
     }
-    .splash-subtitle-line1 {
-      animation: fade-in-up 0.8s ease-out 0.6s both;
-      font-size: clamp(1rem, 4.1vw, 1.1rem);
-      font-weight: 700;
-      color: #333;
-      line-height: 1.45;
-      margin-top: 0.95rem;
+    /* 로고 & 타이틀 */
+    .ns-lp-logo {
+      font-size: 4rem;
+      line-height: 1;
+      margin-bottom: 14px;
+      animation: ns-lp-rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.1s both;
+      filter: drop-shadow(0 0 22px rgba(239,68,68,0.45));
     }
-    .splash-subtitle-line2 {
-      animation: fade-in-up 0.8s ease-out 1.2s both;
-      font-weight: 800;
-      color: #2ecc71;
-      font-size: clamp(1.1rem, 4.6vw, 1.3rem);
-      line-height: 1.45;
-      margin-top: 5px;
+    .ns-lp-title {
+      font-family: 'Noto Sans KR', 'Pretendard', sans-serif;
+      font-size: clamp(1.55rem, 6vw, 1.9rem);
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: -0.6px;
+      margin-bottom: 6px;
+      animation: ns-lp-rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.22s both;
     }
-    .spike-crash-animation {
-      margin-top: 20px;
-      display: flex;
-      justify-content: center;
+    .ns-lp-tagline {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.04em;
+      margin-bottom: 28px;
+      animation: ns-lp-rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.34s both;
+    }
+    /* 프리미엄 차트 비주얼 */
+    .ns-lp-chart-wrap {
       width: 100%;
-      max-width: 300px;
+      max-width: 320px;
+      margin: 0 auto 26px;
+      animation: ns-lp-rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.46s both;
     }
-    .real-spike-svg { overflow: visible; }
-    .bg-grid { opacity: 0; animation: fade-in 0.5s ease-out 1.5s forwards; }
-    .path-base {
-      stroke-dasharray: 100;
-      stroke-dashoffset: 100;
-      animation: draw-line 0.7s linear 1.5s forwards;
+    .ns-lp-chart-svg { overflow: visible; }
+    /* 그린 안정선 */
+    .ns-lp-path-safe {
+      stroke-dasharray: 160;
+      stroke-dashoffset: 160;
+      animation: ns-lp-draw 0.9s ease-out 0.8s forwards;
     }
-    .path-rise {
-      stroke-dasharray: 50;
-      stroke-dashoffset: 50;
-      animation: draw-line 0.3s ease-in 2.2s forwards;
+    /* 레드 스파이크선 */
+    .ns-lp-path-spike {
+      stroke-dasharray: 120;
+      stroke-dashoffset: 120;
+      animation: ns-lp-draw 0.7s ease-in 1.7s forwards;
     }
-    .path-cut {
+    .ns-lp-chart-glow {
       opacity: 0;
-      transform-origin: 110px 40px;
-      will-change: transform, opacity;
-      animation: break-and-fall 0.6s cubic-bezier(0.550, 0.085, 0.680, 0.530) 2.5s forwards;
+      animation: ns-lp-fadein 0.5s ease-out 2.3s forwards;
     }
-    .slash-effect {
-      opacity: 0;
-      will-change: transform, opacity;
-      animation: flash-slash 0.3s ease-out 2.45s forwards;
+    /* 카피 텍스트 */
+    .ns-lp-copy1 {
+      font-size: clamp(1rem, 4vw, 1.08rem);
+      font-weight: 700;
+      color: rgba(255,255,255,0.75);
+      line-height: 1.55;
+      margin-bottom: 10px;
+      animation: ns-lp-rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.58s both;
     }
-    @keyframes tracking-in {
-      0% { letter-spacing: 0.5em; opacity: 0; }
-      40% { opacity: 0.6; }
-      100% { letter-spacing: normal; opacity: 1; }
+    .ns-lp-copy1 em {
+      font-style: normal;
+      color: #fbbf24;
+      font-weight: 800;
     }
-    @keyframes fade-in-up {
-      0% { transform: translateY(20px); opacity: 0; }
-      100% { transform: translateY(0); opacity: 1; }
+    .ns-lp-copy2 {
+      font-size: clamp(1.05rem, 4.3vw, 1.2rem);
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.5;
+      margin-bottom: 36px;
+      animation: ns-lp-rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.7s both;
     }
-    @keyframes fade-in { to { opacity: 1; } }
-    @keyframes draw-line { to { stroke-dashoffset: 0; } }
-    @keyframes flash-slash {
-      0% { opacity: 0; transform: scale(0.5) translate(-10px, 10px); }
-      50% { opacity: 1; transform: scale(1.3) translate(0, 0); }
-      100% { opacity: 0; transform: scale(1.5) translate(10px, -10px); }
+    .ns-lp-copy2 em {
+      font-style: normal;
+      color: #10b981;
     }
-    @keyframes break-and-fall {
-      0% { opacity: 1; transform: rotate(0) translate(0, 0); }
-      100% { opacity: 0; transform: rotate(45deg) translate(20px, 60px); }
+    /* 시작하기 버튼 오버라이드 */
+    div[data-testid="stButton"] > button[kind="primary"].ns-lp-start-btn,
+    .ns-lp-btn-wrap button {
+      background: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%) !important;
+      color: #ffffff !important;
+      border: none !important;
+      border-radius: 16px !important;
+      font-size: 1.05rem !important;
+      font-weight: 800 !important;
+      height: 56px !important;
+      box-shadow: 0 0 28px rgba(16,185,129,0.40), 0 4px 16px rgba(16,185,129,0.25) !important;
+      letter-spacing: -0.2px !important;
     }
+    @keyframes ns-lp-rise {
+      from { transform: translateY(22px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    @keyframes ns-lp-draw  { to { stroke-dashoffset: 0; } }
+    @keyframes ns-lp-fadein { to { opacity: 1; } }
+    /* 구형 CSS 잔재 (호환용 빈 선언) */
+    .splash-container, .splash-title, .splash-subtitle-line1,
+    .splash-subtitle-line2, .spike-crash-animation { display: none !important; }
+    @keyframes fade-in-up  { 0%{opacity:0}100%{opacity:1} }
+    @keyframes fade-in     { to { opacity: 1; } }
+    @keyframes draw-line   { to { stroke-dashoffset: 0; } }
+    @keyframes flash-slash, break-and-fall, tracking-in {}
     .auth-sheet-enter main .block-container { animation: authSlideUp 0.42s ease-out; }
     @keyframes authSlideUp { from { transform: translateY(72%); opacity: 0.65; } to { transform: translateY(0); opacity: 1; } }
     .auth-soc-row button { height: 48px !important; font-weight: 700 !important; border-radius: 12px !important; }
@@ -3736,33 +3778,92 @@ if not st.session_state['logged_in']:
             st.rerun()
         st.stop()
 
-    # ---------- 스플래시 (첫 진입) ----------
+    # ---------- 프리미엄 랜딩 화면 (첫 진입 — 다크 네이비 스킨) ----------
     if not st.session_state.get("auth_splash_done"):
         st.markdown(
             """
-            <div class="splash-container">
-              <div class="splash-title">혈당스캐너 AI</div>
-              <div class="splash-subtitle-line1">같은 음식인데 결과는 다르다</div>
-              <div class="splash-subtitle-line2">먹는 순서가 바꾸는 혈당 변화</div>
-              <div class="spike-crash-animation">
-                <svg viewBox="0 0 200 100" width="100%" height="120" class="real-spike-svg" aria-hidden="true">
-                  <g class="bg-grid" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="4 4">
-                    <line x1="0" y1="20" x2="200" y2="20" />
-                    <line x1="0" y1="50" x2="200" y2="50" />
-                    <line x1="0" y1="80" x2="200" y2="80" />
-                  </g>
-                  <path class="path-base" d="M 10,80 L 90,80" stroke="#2ecc71" stroke-width="6" stroke-linecap="round" fill="none" />
-                  <path class="path-rise" d="M 90,80 L 110,40" stroke="#e74c3c" stroke-width="6" stroke-linecap="round" fill="none" />
-                  <path class="path-cut" d="M 110,40 L 130,0 L 150,80" stroke="#e74c3c" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                  <line class="slash-effect" x1="80" y1="60" x2="150" y2="10" stroke="#ffffff" stroke-width="8" stroke-linecap="round" />
-                </svg>
-              </div>
-            </div>
-            """,
+<div class="ns-lp-wrap">
+  <div class="ns-lp-glow"></div>
+
+  <!-- 로고 & 타이틀 -->
+  <div class="ns-lp-logo">🩸</div>
+  <div class="ns-lp-title">나의 혈당 기록소</div>
+  <div class="ns-lp-tagline">BLOOD GLUCOSE SCANNER AI</div>
+
+  <!-- 프리미엄 차트 비주얼 (다크 배경 + 그린 안정선 + 레드 스파이크) -->
+  <div class="ns-lp-chart-wrap">
+    <svg viewBox="0 0 280 110" width="100%" height="110"
+         class="ns-lp-chart-svg" aria-hidden="true">
+      <!-- 다크 카드 배경 -->
+      <rect x="0" y="0" width="280" height="110" rx="14"
+            fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+      <!-- 격자선 -->
+      <line x1="12" y1="28" x2="268" y2="28" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+      <line x1="12" y1="56" x2="268" y2="56" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+      <line x1="12" y1="84" x2="268" y2="84" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+
+      <!-- 위험 영역 -->
+      <rect x="12" y="4" width="256" height="24" rx="4"
+            fill="rgba(239,68,68,0.06)"/>
+      <text x="16" y="17" font-size="8" fill="rgba(239,68,68,0.5)"
+            font-family="sans-serif">위험 &gt;140</text>
+
+      <!-- 정상 영역 -->
+      <rect x="12" y="50" width="256" height="34" rx="4"
+            fill="rgba(16,185,129,0.06)"/>
+      <text x="16" y="63" font-size="8" fill="rgba(16,185,129,0.5)"
+            font-family="sans-serif">정상 &lt;100</text>
+
+      <!-- 그린 안정선 (식이섬유 먼저 먹은 케이스) -->
+      <polyline class="ns-lp-path-safe"
+        points="20,70 60,68 100,65 140,62 180,64 220,63 260,65"
+        stroke="#10b981" stroke-width="3" stroke-linecap="round"
+        stroke-linejoin="round" fill="none"/>
+      <!-- 안정선 글로우 -->
+      <polyline class="ns-lp-chart-glow"
+        points="20,70 60,68 100,65 140,62 180,64 220,63 260,65"
+        stroke="rgba(16,185,129,0.25)" stroke-width="8"
+        stroke-linecap="round" fill="none"/>
+
+      <!-- 레드 스파이크선 (탄수화물 먼저 먹은 케이스) -->
+      <polyline class="ns-lp-path-spike"
+        points="20,70 60,66 100,52 130,18 150,10 170,22 200,48 240,60 260,65"
+        stroke="#ef4444" stroke-width="3" stroke-linecap="round"
+        stroke-linejoin="round" fill="none"/>
+      <!-- 스파이크 글로우 -->
+      <polyline class="ns-lp-chart-glow"
+        points="20,70 60,66 100,52 130,18 150,10 170,22 200,48 240,60 260,65"
+        stroke="rgba(239,68,68,0.20)" stroke-width="8"
+        stroke-linecap="round" fill="none"/>
+
+      <!-- 범례 -->
+      <circle cx="22" cy="100" r="4" fill="#10b981"/>
+      <text x="30" y="103" font-size="8.5" fill="rgba(255,255,255,0.55)"
+            font-family="sans-serif">식이섬유 먼저</text>
+      <circle cx="120" cy="100" r="4" fill="#ef4444"/>
+      <text x="128" y="103" font-size="8.5" fill="rgba(255,255,255,0.55)"
+            font-family="sans-serif">탄수화물 먼저</text>
+    </svg>
+  </div>
+
+  <!-- 카피 -->
+  <div class="ns-lp-copy1">
+    <em>AI</em>가 당신의 식단을 감시합니다
+  </div>
+  <div class="ns-lp-copy2">
+    <em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em>
+  </div>
+</div>
+""",
             unsafe_allow_html=True,
         )
-        st.markdown("<div style='height:18vh;'></div>", unsafe_allow_html=True)
-        if st.button(_t.get("splash_start_btn", "시작하기"), type="primary", use_container_width=True, key="splash_start"):
+        if st.button(
+            _t.get("splash_start_btn", "🚀 시작하기"),
+            type="primary",
+            use_container_width=True,
+            key="splash_start",
+        ):
             st.session_state["auth_splash_done"] = True
             st.session_state["auth_sheet_open"] = True
             st.session_state["auth_phase"] = "sheet"
