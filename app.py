@@ -2592,20 +2592,34 @@ st.markdown(f"""
     [data-testid="stHeader"] {{display: none !important; visibility: hidden !important; height: 0 !important;}}
     [data-testid="stToolbar"] {{display: none !important;}}
     
+    /* ── 상단 공백 최소화 ────────────────────────────────────────────────── */
     .block-container {{
-        padding-top: 1rem !important;
+        padding-top: 0.6rem !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
         padding-bottom: 1rem !important;
     }}
+    /* Streamlit 내부 헤더 툴바 위 여백 제거 */
+    [data-testid="stAppViewBlockContainer"] {{
+        padding-top: 0 !important;
+    }}
+    header[data-testid="stHeader"] {{
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }}
     /* 모바일: 여백 대폭 축소 + FAB 영역 확보 */
     @media screen and (max-width: 768px) {{
         .block-container {{
-            padding-top: 12px !important;
+            padding-top: 10px !important;
             padding-left: 0.3rem !important;
             padding-right: 0.3rem !important;
             padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
             max-width: 100% !important;
+        }}
+        [data-testid="stAppViewBlockContainer"] {{
+            padding-top: 0 !important;
         }}
     }}
     /* 메트릭 내부 요소 텍스트 짤림 완벽 방지 */
