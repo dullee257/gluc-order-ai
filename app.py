@@ -5218,8 +5218,128 @@ if menu_key == "scanner":
                 st.info(t.get("login_heading", "로그인 후 리포트를 볼 수 있습니다."))
 
         elif st.session_state.get("current_page") == "settings":
-            # 설정 페이지: 언어, 목표, 로그아웃 (사이드바와 동일한 기능)
-            st.subheader(t.get("btn_settings", "⚙️ 설정"))
+            # 설정 페이지: 알림·계정 설정
+            st.markdown(
+                """
+                <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);
+                            border-radius:18px;padding:20px 18px 14px;margin-bottom:18px;">
+                  <div style="font-size:1.5rem;font-weight:900;color:#fff;letter-spacing:-0.5px;">
+                    ⚙️ 설정
+                  </div>
+                  <div style="font-size:0.82rem;color:rgba(255,255,255,0.45);margin-top:4px;">
+                    알림·계정·앱 환경을 관리합니다
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # ── 🔔 알림 설정 카드 ────────────────────────────────────────
+            st.markdown(
+                """
+                <div style="background:#fff;border-radius:16px;padding:16px 18px 6px;
+                            box-shadow:0 4px 18px rgba(0,0,0,0.07);margin-bottom:14px;">
+                  <div style="font-size:0.95rem;font-weight:800;color:#1e293b;margin-bottom:2px;">
+                    🔔 알림 설정
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            _push_prev = st.session_state.get("push_notif_enabled", False)
+            push_enabled = st.toggle(
+                "🔔 식사 시간 푸시 알림",
+                value=_push_prev,
+                key="push_notif_toggle",
+            )
+            st.caption("점심, 저녁 식사 시간에 맞춰 식단 촬영 리마인더를 보내드립니다.")
+
+            # 토글이 OFF → ON 으로 바뀐 순간에만 권한 요청 + 테스트 알림 발송
+            if push_enabled and not _push_prev:
+                st.session_state["push_notif_enabled"] = True
+                st.components.v1.html(
+                    """
+<script>
+(function () {
+  try {
+    // Streamlit iframe 안에서 부모 window 를 통해 Notification API 접근
+    var win   = window.parent || window;
+    var nav   = win.navigator;
+    var Notif = win.Notification;
+
+    if (!Notif) return; // 알림 미지원 브라우저
+
+    function fireTestNotification() {
+      // ServiceWorker 가 활성화되어 있으면 showNotification 으로 발송
+      if (nav.serviceWorker && nav.serviceWorker.controller) {
+        nav.serviceWorker.ready.then(function (reg) {
+          reg.showNotification('혈당스캐너 AI 🩸', {
+            body   : '쾌적한 혈당 방어전, 지금 식단 촬영을 시작하세요!',
+            icon   : '/app/static/icon-192.png',
+            badge  : '/app/static/icon-192.png',
+            vibrate: [200, 100, 200]
+          });
+        }).catch(function (e) {
+          // SW ready 실패 → 일반 Notification fallback
+          new Notif('혈당스캐너 AI 🩸', {
+            body: '쾌적한 혈당 방어전, 지금 식단 촬영을 시작하세요!',
+            icon: '/app/static/icon-192.png'
+          });
+        });
+      } else {
+        // SW 없이 즉시 Notification 발송
+        new Notif('혈당스캐너 AI 🩸', {
+          body: '쾌적한 혈당 방어전, 지금 식단 촬영을 시작하세요!',
+          icon: '/app/static/icon-192.png'
+        });
+      }
+    }
+
+    // 1) ServiceWorker 등록 (이미 등록된 경우 재등록 없이 패스)
+    if (nav.serviceWorker) {
+      nav.serviceWorker.register('/app/static/sw.js').catch(function (e) {
+        console.warn('[SW] 등록 실패:', e);
+      });
+    }
+
+    // 2) 권한 분기
+    if (Notif.permission === 'granted') {
+      fireTestNotification();
+    } else if (Notif.permission !== 'denied') {
+      Notif.requestPermission().then(function (perm) {
+        if (perm === 'granted') fireTestNotification();
+      });
+    }
+  } catch (e) {
+    console.warn('[PushNotif] 오류:', e);
+  }
+})();
+</script>
+""",
+                    height=0,
+                    scrolling=False,
+                )
+                st.success("✅ 알림 권한이 요청되었습니다. 브라우저 팝업에서 '허용'을 눌러주세요.")
+
+            elif not push_enabled and _push_prev:
+                st.session_state["push_notif_enabled"] = False
+                st.info("🔕 알림이 꺼졌습니다. 브라우저 설정에서도 알림을 차단할 수 있습니다.")
+
+            st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
+
+            # ── 🔐 계정 카드 ──────────────────────────────────────────────
+            st.markdown(
+                """
+                <div style="background:#fff;border-radius:16px;padding:16px 18px 6px;
+                            box-shadow:0 4px 18px rgba(0,0,0,0.07);margin-bottom:14px;">
+                  <div style="font-size:0.95rem;font-weight:800;color:#1e293b;margin-bottom:8px;">
+                    👤 계정
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
             # KR 단일 타겟팅: 언어 설정 제거
             if st.session_state.get("login_type") == "google":
                 if st.button(f"🚪 {t['sidebar_logout']}", key="settings_logout", use_container_width=True):
