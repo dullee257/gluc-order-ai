@@ -210,58 +210,66 @@ def _format_menu_lines_html(menu_text: str) -> str:
 
 
 def _render_pre_meal_result_card(t: dict, pm: dict, mt_run: str) -> None:
-    """[2:3] 분석 결과 카드 — 이미지 + 인식 메뉴 + 집밥/외식 버튼."""
+    """[2:3] 분석 결과 카드 — HTML flex 레이아웃 + st 버튼."""
     esc = html_module.escape
     mt_run = (mt_run or "").strip()
     _valid = (st.session_state.get("pre_meal_menu_image_valid_for") or "").strip()
     _img_bytes = st.session_state.get("pre_meal_menu_image_bytes")
     _show_img = bool(_img_bytes) and (_valid == mt_run)
 
-    with st.container(border=True):
-        st.markdown(
-            f'<div class="ns-pre-meal-result-card-title">{esc(t.get("pre_meal_result_card_title", "분석 결과"))}</div>',
-            unsafe_allow_html=True,
+    # 왼쪽(이미지) HTML 조각
+    if _show_img:
+        b64 = base64.b64encode(_img_bytes).decode()
+        left_html = (
+            '<div class="ns-rc-img-wrap">'
+            f'<img src="data:image/jpeg;base64,{b64}" alt="" class="ns-rc-img" />'
+            '</div>'
         )
-        c1, c2 = st.columns([2, 3], gap="large")
-        with c1:
-            if _show_img:
-                b64 = base64.b64encode(_img_bytes).decode()
-                st.markdown(
-                    f'<div class="ns-analysis-card-img"><img src="data:image/jpeg;base64,{b64}" alt="" /></div>',
-                    unsafe_allow_html=True,
-                )
-            else:
-                st.markdown(
-                    f'<div class="ns-analysis-card-img ns-analysis-card-img--empty">{esc(t.get("pre_meal_result_no_image", "메뉴는 직접 입력했어요."))}</div>',
-                    unsafe_allow_html=True,
-                )
-        with c2:
-            st.markdown(
-                f'<div class="ns-pre-meal-result-menu-label">{esc(t.get("pre_meal_result_card_sub", "인식 메뉴"))}</div>'
-                f'<div class="ns-pre-meal-result-menu-body">{_format_menu_lines_html(mt_run)}</div>',
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                f'<div class="ns-pre-meal-result-loc">{esc(t.get("pre_meal_location_label", "어디서 드시나요?"))}</div>',
-                unsafe_allow_html=True,
-            )
-            b1, b2 = st.columns(2)
-            with b1:
-                if st.button(
-                    t.get("pre_meal_btn_home_big", "🏠 집밥"),
-                    key="pre_meal_loc_home_big",
-                    use_container_width=True,
-                    type="primary",
-                ):
-                    _execute_pre_meal_insights_flow(pm, t, mt_run, "집밥")
-            with b2:
-                if st.button(
-                    t.get("pre_meal_btn_out_big", "🍽️ 외식·배달"),
-                    key="pre_meal_loc_out_big",
-                    use_container_width=True,
-                    type="primary",
-                ):
-                    _execute_pre_meal_insights_flow(pm, t, mt_run, "외식")
+    else:
+        left_html = (
+            f'<div class="ns-rc-img-wrap ns-rc-img-empty">'
+            f'{esc(t.get("pre_meal_result_no_image", "사진을 올리면 더 정확해요"))}'
+            f'</div>'
+        )
+
+    menu_lines_html = _format_menu_lines_html(mt_run)
+    lbl_sub = esc(t.get("pre_meal_result_card_sub", "AI 인식 메뉴"))
+    lbl_loc = esc(t.get("pre_meal_location_label", "어디서 드시나요?"))
+
+    # 카드 전체 HTML (이미지 2 : 메뉴 3 가로 flex)
+    st.markdown(
+        f"""
+<div class="ns-result-card">
+  <div class="ns-result-card-row">
+    <div class="ns-result-card-left">{left_html}</div>
+    <div class="ns-result-card-right">
+      <div class="ns-rc-menu-label">{lbl_sub}</div>
+      <div class="ns-rc-menu-body">{menu_lines_html}</div>
+      <div class="ns-rc-loc">{lbl_loc}</div>
+    </div>
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+    # 버튼은 Streamlit 컴포넌트 (HTML 안에 배치 불가) — 카드 바로 아래 full-width 2열
+    _bc1, _bc2 = st.columns(2, gap="small")
+    with _bc1:
+        if st.button(
+            t.get("pre_meal_btn_home_big", "🏠 집밥"),
+            key="pre_meal_loc_home_big",
+            use_container_width=True,
+            type="primary",
+        ):
+            _execute_pre_meal_insights_flow(pm, t, mt_run, "집밥")
+    with _bc2:
+        if st.button(
+            t.get("pre_meal_btn_out_big", "🍽️ 외식·배달"),
+            key="pre_meal_loc_out_big",
+            use_container_width=True,
+            type="primary",
+        ):
+            _execute_pre_meal_insights_flow(pm, t, mt_run, "외식")
 
 
 def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
@@ -1536,72 +1544,115 @@ st.markdown(f"""
     div[data-testid="element-container"]:has([data-testid="stFileUploader"]) {{
         margin-bottom: 6px !important;
     }}
-    /* 업로드 완료 후 Streamlit 기본(썸네일·파일명·체크) 행 숨김 — 분석 카드에서만 이미지 표시 */
+
+    /* ──────────────────────────────────────────────────────────────────
+       업로드 성공 후 Streamlit 기본 UI (초록 아이콘 + 파일명 행) 완전 제거
+       - stUploadedFile 자체
+       - 그것을 감싸는 모든 부모 wrapper div (> div:has)
+       - 내부 썸네일·캡션·progress
+    ────────────────────────────────────────────────────────────────── */
+    [data-testid="stUploadedFile"] {{
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }}
+    [data-testid="stFileUploader"] > div:has([data-testid="stUploadedFile"]) {{
+        display: none !important;
+    }}
+    [data-testid="stFileUploader"] [data-testid="stFileDropzoneInstructions"],
     [data-testid="stFileUploader"] [data-testid="stImage"],
     [data-testid="stFileUploader"] [data-testid="stCaption"],
     [data-testid="stFileUploader"] [data-testid="stTick"],
     [data-testid="stFileUploader"] [data-baseweb="progress-bar"],
+    [data-testid="stFileUploader"] span.uploadedFileData,
     [data-testid="stFileUploader"] small {{
         display: none !important;
     }}
-    .ns-pre-meal-result-card-title {{
-        font-size: 0.95rem;
-        font-weight: 800;
-        color: #64748b;
-        letter-spacing: -0.02em;
-        margin: 0 0 10px 0;
-        text-transform: uppercase;
-    }}
-    .ns-analysis-card-img {{
+
+    /* ──────────────────────────────────────────────────────────────────
+       2:3 분석 결과 카드 (순수 HTML flex — Streamlit column 미의존)
+    ────────────────────────────────────────────────────────────────── */
+    .ns-result-card {{
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        padding: 14px 14px 6px 14px;
+        margin: 0 0 4px 0;
+        box-sizing: border-box;
         width: 100%;
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 10px 28px rgba(15,23,42,0.12);
-        border: 1px solid rgba(226,232,240,0.95);
+    }}
+    .ns-result-card-row {{
+        display: flex;
+        flex-direction: row;
+        gap: 12px;
+        align-items: stretch;
+        width: 100%;
         box-sizing: border-box;
     }}
-    .ns-analysis-card-img img {{
-        width: 100%;
-        height: auto;
-        display: block;
-        vertical-align: middle;
+    .ns-result-card-left {{
+        flex: 2 1 0;
+        min-width: 0;
     }}
-    .ns-analysis-card-img--empty {{
-        min-height: 120px;
+    .ns-result-card-right {{
+        flex: 3 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }}
+    .ns-rc-img-wrap {{
+        width: 100%;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 6px 18px rgba(15,23,42,0.13);
+        border: 1px solid rgba(226,232,240,0.9);
+        box-sizing: border-box;
+        aspect-ratio: 1 / 1;
+        background: #f1f5f9;
+    }}
+    .ns-rc-img {{
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+    }}
+    .ns-rc-img-empty {{
+        min-height: 90px;
+        aspect-ratio: auto;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 16px;
-        font-size: 12px;
+        font-size: 11px;
         color: #64748b;
-        background: #f1f5f9;
-        border-radius: 16px;
         text-align: center;
         line-height: 1.45;
-        box-sizing: border-box;
+        padding: 12px;
     }}
-    .ns-pre-meal-result-menu-label {{
-        font-size: 11px;
+    .ns-rc-menu-label {{
+        font-size: 10px;
         font-weight: 700;
         color: #64748b;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
-        margin-bottom: 6px;
+        letter-spacing: 0.05em;
+        margin-bottom: 5px;
     }}
-    .ns-pre-meal-result-menu-body {{ margin-bottom: 14px; }}
+    .ns-rc-menu-body {{ margin-bottom: 10px; flex: 1; }}
     .ns-menu-line {{
-        font-size: clamp(1.05rem, 3.2vw, 1.25rem);
+        font-size: clamp(1rem, 3.0vw, 1.2rem);
         font-weight: 800;
         color: #0f172a;
         line-height: 1.45;
-        margin-bottom: 6px;
+        margin-bottom: 4px;
         letter-spacing: -0.03em;
     }}
-    .ns-pre-meal-result-loc {{
-        font-size: 0.95rem;
-        font-weight: 800;
-        color: #334155;
-        margin-bottom: 8px;
+    .ns-rc-loc {{
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #475569;
+        margin-bottom: 4px;
     }}
     /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴 및 여백 강제 숨김 */
     .viewerBadge_container {{ display: none !important; }}
@@ -1856,10 +1907,7 @@ st.markdown(f"""
         }}
     }}
 
-    /* 업로드 후 파일명 행만 숨김 (section·버튼은 유지) */
-    [data-testid="stUploadedFile"] {{
-        display: none !important;
-    }}
+    /* stUploadedFile 숨김 — 위 블록과 중복 강화 */
     /* 가로모드(Landscape) 방지 오버레이: 억지로 회전시 화면 덮어버림 */
     @media screen and (orientation: landscape) and (max-height: 600px) {{
         #root, .stApp {{ display: none !important; }}
