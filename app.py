@@ -3780,83 +3780,171 @@ if not st.session_state['logged_in']:
 
     # ---------- 프리미엄 랜딩 화면 (첫 진입 — 다크 네이비 스킨) ----------
     if not st.session_state.get("auth_splash_done"):
-        st.markdown(
+        # st.markdown 은 SVG 태그를 sanitize 해서 텍스트로 이스케이프하므로,
+        # components.v1.html 로 완전한 raw HTML/SVG를 렌더링한다.
+        st.components.v1.html(
             """
-<div class="ns-lp-wrap">
-  <div class="ns-lp-glow"></div>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: #0f172a;
+    font-family: 'Noto Sans KR', sans-serif;
+    overflow: hidden;
+  }
+  .wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2.2rem 1.4rem 0.8rem;
+    text-align: center;
+    position: relative;
+  }
+  .glow {
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 340px; height: 300px;
+    background: radial-gradient(ellipse at 50% 30%,
+      rgba(16,185,129,0.20) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .logo {
+    font-size: 3.6rem; line-height: 1;
+    margin-bottom: 12px;
+    animation: rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.05s both;
+    filter: drop-shadow(0 0 20px rgba(239,68,68,0.50));
+  }
+  .title {
+    font-size: clamp(1.45rem, 6vw, 1.8rem);
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+    animation: rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.18s both;
+  }
+  .tagline {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.38);
+    letter-spacing: 0.1em;
+    margin-bottom: 22px;
+    animation: rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.3s both;
+  }
+  .chart-wrap {
+    width: 100%; max-width: 310px;
+    margin: 0 auto 20px;
+    animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.42s both;
+  }
+  /* SVG 드로잉 애니메이션 */
+  .path-safe {
+    stroke-dasharray: 180;
+    stroke-dashoffset: 180;
+    animation: draw 1.0s ease-out 0.75s forwards;
+  }
+  .path-spike {
+    stroke-dasharray: 140;
+    stroke-dashoffset: 140;
+    animation: draw 0.75s ease-in 1.75s forwards;
+  }
+  .glow-line {
+    opacity: 0;
+    animation: fadein 0.5s ease-out 2.4s forwards;
+  }
+  .copy1 {
+    font-size: clamp(0.95rem, 4vw, 1.05rem);
+    font-weight: 700;
+    color: rgba(255,255,255,0.72);
+    line-height: 1.55;
+    margin-bottom: 8px;
+    animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.54s both;
+  }
+  .copy1 em { font-style: normal; color: #fbbf24; font-weight: 800; }
+  .copy2 {
+    font-size: clamp(1.0rem, 4.2vw, 1.15rem);
+    font-weight: 800;
+    color: #ffffff;
+    line-height: 1.5;
+    animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;
+  }
+  .copy2 em { font-style: normal; color: #10b981; }
+  @keyframes rise {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  @keyframes draw   { to { stroke-dashoffset: 0; } }
+  @keyframes fadein { to { opacity: 1; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="glow"></div>
+  <div class="logo">🩸</div>
+  <div class="title">나의 혈당 기록소</div>
+  <div class="tagline">BLOOD GLUCOSE SCANNER AI</div>
 
-  <!-- 로고 & 타이틀 -->
-  <div class="ns-lp-logo">🩸</div>
-  <div class="ns-lp-title">나의 혈당 기록소</div>
-  <div class="ns-lp-tagline">BLOOD GLUCOSE SCANNER AI</div>
-
-  <!-- 프리미엄 차트 비주얼 (다크 배경 + 그린 안정선 + 레드 스파이크) -->
-  <div class="ns-lp-chart-wrap">
-    <svg viewBox="0 0 280 110" width="100%" height="110"
-         class="ns-lp-chart-svg" aria-hidden="true">
-      <!-- 다크 카드 배경 -->
-      <rect x="0" y="0" width="280" height="110" rx="14"
-            fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-
-      <!-- 격자선 -->
-      <line x1="12" y1="28" x2="268" y2="28" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-      <line x1="12" y1="56" x2="268" y2="56" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-      <line x1="12" y1="84" x2="268" y2="84" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-
+  <!-- 프리미엄 SVG 차트 -->
+  <div class="chart-wrap">
+    <svg viewBox="0 0 280 115" width="100%" height="115"
+         style="overflow:visible" aria-hidden="true">
+      <!-- 카드 배경 -->
+      <rect x="0" y="0" width="280" height="115" rx="14"
+            fill="rgba(255,255,255,0.04)"
+            stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+      <!-- 격자 -->
+      <line x1="12" y1="28"  x2="268" y2="28"  stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+      <line x1="12" y1="56"  x2="268" y2="56"  stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+      <line x1="12" y1="84"  x2="268" y2="84"  stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
       <!-- 위험 영역 -->
-      <rect x="12" y="4" width="256" height="24" rx="4"
-            fill="rgba(239,68,68,0.06)"/>
-      <text x="16" y="17" font-size="8" fill="rgba(239,68,68,0.5)"
+      <rect x="12" y="4" width="256" height="24" rx="4" fill="rgba(239,68,68,0.07)"/>
+      <text x="16" y="17" font-size="8" fill="rgba(239,68,68,0.55)"
             font-family="sans-serif">위험 &gt;140</text>
-
       <!-- 정상 영역 -->
-      <rect x="12" y="50" width="256" height="34" rx="4"
-            fill="rgba(16,185,129,0.06)"/>
-      <text x="16" y="63" font-size="8" fill="rgba(16,185,129,0.5)"
+      <rect x="12" y="50" width="256" height="34" rx="4" fill="rgba(16,185,129,0.07)"/>
+      <text x="16" y="63" font-size="8" fill="rgba(16,185,129,0.55)"
             font-family="sans-serif">정상 &lt;100</text>
-
-      <!-- 그린 안정선 (식이섬유 먼저 먹은 케이스) -->
-      <polyline class="ns-lp-path-safe"
+      <!-- 그린 안정선 글로우 -->
+      <polyline class="glow-line"
         points="20,70 60,68 100,65 140,62 180,64 220,63 260,65"
-        stroke="#10b981" stroke-width="3" stroke-linecap="round"
-        stroke-linejoin="round" fill="none"/>
-      <!-- 안정선 글로우 -->
-      <polyline class="ns-lp-chart-glow"
+        stroke="rgba(16,185,129,0.28)" stroke-width="9"
+        stroke-linecap="round" fill="none"/>
+      <!-- 그린 안정선 -->
+      <polyline class="path-safe"
         points="20,70 60,68 100,65 140,62 180,64 220,63 260,65"
-        stroke="rgba(16,185,129,0.25)" stroke-width="8"
+        stroke="#10b981" stroke-width="3"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <!-- 레드 스파이크 글로우 -->
+      <polyline class="glow-line"
+        points="20,70 55,66 90,54 120,20 145,8 168,24 200,50 235,62 260,65"
+        stroke="rgba(239,68,68,0.22)" stroke-width="9"
         stroke-linecap="round" fill="none"/>
-
-      <!-- 레드 스파이크선 (탄수화물 먼저 먹은 케이스) -->
-      <polyline class="ns-lp-path-spike"
-        points="20,70 60,66 100,52 130,18 150,10 170,22 200,48 240,60 260,65"
-        stroke="#ef4444" stroke-width="3" stroke-linecap="round"
-        stroke-linejoin="round" fill="none"/>
-      <!-- 스파이크 글로우 -->
-      <polyline class="ns-lp-chart-glow"
-        points="20,70 60,66 100,52 130,18 150,10 170,22 200,48 240,60 260,65"
-        stroke="rgba(239,68,68,0.20)" stroke-width="8"
-        stroke-linecap="round" fill="none"/>
-
+      <!-- 레드 스파이크선 -->
+      <polyline class="path-spike"
+        points="20,70 55,66 90,54 120,20 145,8 168,24 200,50 235,62 260,65"
+        stroke="#ef4444" stroke-width="3"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
       <!-- 범례 -->
-      <circle cx="22" cy="100" r="4" fill="#10b981"/>
-      <text x="30" y="103" font-size="8.5" fill="rgba(255,255,255,0.55)"
+      <circle cx="22" cy="107" r="4" fill="#10b981"/>
+      <text x="30" y="110" font-size="8.5" fill="rgba(255,255,255,0.52)"
             font-family="sans-serif">식이섬유 먼저</text>
-      <circle cx="120" cy="100" r="4" fill="#ef4444"/>
-      <text x="128" y="103" font-size="8.5" fill="rgba(255,255,255,0.55)"
+      <circle cx="122" cy="107" r="4" fill="#ef4444"/>
+      <text x="130" y="110" font-size="8.5" fill="rgba(255,255,255,0.52)"
             font-family="sans-serif">탄수화물 먼저</text>
     </svg>
   </div>
 
-  <!-- 카피 -->
-  <div class="ns-lp-copy1">
-    <em>AI</em>가 당신의 식단을 감시합니다
-  </div>
-  <div class="ns-lp-copy2">
-    <em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em>
-  </div>
+  <div class="copy1"><em>AI</em>가 당신의 식단을 감시합니다</div>
+  <div class="copy2"><em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em></div>
 </div>
+</body>
+</html>
 """,
-            unsafe_allow_html=True,
+            height=420,
+            scrolling=False,
         )
         if st.button(
             _t.get("splash_start_btn", "🚀 시작하기"),
