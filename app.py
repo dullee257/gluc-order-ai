@@ -197,6 +197,73 @@ def _pre_meal_mission_dialog(mission_text: str, t):
         st.rerun()
 
 
+def _format_menu_lines_html(menu_text: str) -> str:
+    """인식 메뉴 문자열을 줄별 HTML로 표시 (Vision이 붙인 이모지 유지)."""
+    s = (menu_text or "").strip()
+    if not s:
+        return ""
+    esc = html_module.escape
+    parts = [p.strip() for p in re.split(r"[,，、]+", s) if p.strip()]
+    if len(parts) <= 1:
+        return f'<div class="ns-menu-line">{esc(s)}</div>'
+    return "\n".join(f'<div class="ns-menu-line">{esc(p)}</div>' for p in parts)
+
+
+def _render_pre_meal_result_card(t: dict, pm: dict, mt_run: str) -> None:
+    """[2:3] 분석 결과 카드 — 이미지 + 인식 메뉴 + 집밥/외식 버튼."""
+    esc = html_module.escape
+    mt_run = (mt_run or "").strip()
+    _valid = (st.session_state.get("pre_meal_menu_image_valid_for") or "").strip()
+    _img_bytes = st.session_state.get("pre_meal_menu_image_bytes")
+    _show_img = bool(_img_bytes) and (_valid == mt_run)
+
+    with st.container(border=True):
+        st.markdown(
+            f'<div class="ns-pre-meal-result-card-title">{esc(t.get("pre_meal_result_card_title", "분석 결과"))}</div>',
+            unsafe_allow_html=True,
+        )
+        c1, c2 = st.columns([2, 3], gap="large")
+        with c1:
+            if _show_img:
+                b64 = base64.b64encode(_img_bytes).decode()
+                st.markdown(
+                    f'<div class="ns-analysis-card-img"><img src="data:image/jpeg;base64,{b64}" alt="" /></div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f'<div class="ns-analysis-card-img ns-analysis-card-img--empty">{esc(t.get("pre_meal_result_no_image", "메뉴는 직접 입력했어요."))}</div>',
+                    unsafe_allow_html=True,
+                )
+        with c2:
+            st.markdown(
+                f'<div class="ns-pre-meal-result-menu-label">{esc(t.get("pre_meal_result_card_sub", "인식 메뉴"))}</div>'
+                f'<div class="ns-pre-meal-result-menu-body">{_format_menu_lines_html(mt_run)}</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f'<div class="ns-pre-meal-result-loc">{esc(t.get("pre_meal_location_label", "어디서 드시나요?"))}</div>',
+                unsafe_allow_html=True,
+            )
+            b1, b2 = st.columns(2)
+            with b1:
+                if st.button(
+                    t.get("pre_meal_btn_home_big", "🏠 집밥"),
+                    key="pre_meal_loc_home_big",
+                    use_container_width=True,
+                    type="primary",
+                ):
+                    _execute_pre_meal_insights_flow(pm, t, mt_run, "집밥")
+            with b2:
+                if st.button(
+                    t.get("pre_meal_btn_out_big", "🍽️ 외식·배달"),
+                    key="pre_meal_loc_out_big",
+                    use_container_width=True,
+                    type="primary",
+                ):
+                    _execute_pre_meal_insights_flow(pm, t, mt_run, "외식")
+
+
 def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
     """홈(스캐너 main) — 카메라 우선 식전 미션 → 장소 버튼 → AI 미션 팝업."""
     _ensure_pre_meal_state()
@@ -221,6 +288,8 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
                 pm["mission_text"] = ""
                 pm["location"] = None
                 st.session_state.pop("pre_meal_menu_img_hash", None)
+                st.session_state.pop("pre_meal_menu_image_bytes", None)
+                st.session_state.pop("pre_meal_menu_image_valid_for", None)
                 st.session_state["pre_meal_capture_version"] = st.session_state.get("pre_meal_capture_version", 0) + 1
                 for _k in ("pre_meal_menu_input", "pre_meal_slot_select"):
                     if _k in st.session_state:
@@ -260,7 +329,7 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
                 with st.spinner(
                     t.get(
                         "pre_meal_spinner_vision",
-                        "AI 코치가 메뉴를 스캔하고 방어막을 설계 중입니다…",
+                        "AI 코치가 메뉴를 정밀 스캔하고 맞춤형 방어막을 설계 중입니다...",
                     )
                 ):
                     try:
@@ -278,13 +347,18 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
                             + str(e)
                         )
 
-    mt_disp = (st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or "").strip()
-    if mt_disp:
-        pm["menu_text"] = mt_disp
-        st.markdown(
-            f'<p class="ns-pre-meal-recognized" style="margin:8px 0 0 0;font-size:13px;color:#0f172a;line-height:1.45;"><span style="color:#10B981;font-weight:800;">✓</span> {html_module.escape(t.get("pre_meal_recognized_prefix", "인식된 메뉴"))}: <strong>{html_module.escape(mt_disp)}</strong></p>',
-            unsafe_allow_html=True,
-        )
+        try:
+            _buf = io.BytesIO()
+            _p = pil_src.copy() if hasattr(pil_src, "copy") else pil_src
+            if _p.mode in ("RGBA", "P"):
+                _p = _p.convert("RGB")
+            _p.save(_buf, format="JPEG", quality=88)
+            st.session_state["pre_meal_menu_image_bytes"] = _buf.getvalue()
+            st.session_state["pre_meal_menu_image_valid_for"] = (
+                st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or ""
+            ).strip()
+        except Exception:
+            pass
 
     with st.expander(t.get("pre_meal_expander_manual", "⌨️ 직접 입력하기"), expanded=False):
         _opts_slot = ["아침", "점심", "저녁", "간식"]
@@ -307,24 +381,7 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
     mt_run = (st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or "").strip()
     if mt_run:
         pm["menu_text"] = mt_run
-        st.markdown(t.get("pre_meal_location_label", "**어디서 드시나요?**"))
-        lc1, lc2 = st.columns(2)
-        with lc1:
-            if st.button(
-                t.get("pre_meal_btn_home_big", "🏠 집밥"),
-                key="pre_meal_loc_home_big",
-                use_container_width=True,
-                type="primary",
-            ):
-                _execute_pre_meal_insights_flow(pm, t, mt_run, "집밥")
-        with lc2:
-            if st.button(
-                t.get("pre_meal_btn_out_big", "🍽️ 외식·배달"),
-                key="pre_meal_loc_out_big",
-                use_container_width=True,
-                type="primary",
-            ):
-                _execute_pre_meal_insights_flow(pm, t, mt_run, "외식")
+        _render_pre_meal_result_card(t, pm, mt_run)
 
 
 def _render_dash_today_metrics_cards(t, avg_glucose, latest_glucose, total_carbs, meal_n):
@@ -1478,6 +1535,73 @@ st.markdown(f"""
     /* 업로드 카드 외곽 여백 */
     div[data-testid="element-container"]:has([data-testid="stFileUploader"]) {{
         margin-bottom: 6px !important;
+    }}
+    /* 업로드 완료 후 Streamlit 기본(썸네일·파일명·체크) 행 숨김 — 분석 카드에서만 이미지 표시 */
+    [data-testid="stFileUploader"] [data-testid="stImage"],
+    [data-testid="stFileUploader"] [data-testid="stCaption"],
+    [data-testid="stFileUploader"] [data-testid="stTick"],
+    [data-testid="stFileUploader"] [data-baseweb="progress-bar"],
+    [data-testid="stFileUploader"] small {{
+        display: none !important;
+    }}
+    .ns-pre-meal-result-card-title {{
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #64748b;
+        letter-spacing: -0.02em;
+        margin: 0 0 10px 0;
+        text-transform: uppercase;
+    }}
+    .ns-analysis-card-img {{
+        width: 100%;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 10px 28px rgba(15,23,42,0.12);
+        border: 1px solid rgba(226,232,240,0.95);
+        box-sizing: border-box;
+    }}
+    .ns-analysis-card-img img {{
+        width: 100%;
+        height: auto;
+        display: block;
+        vertical-align: middle;
+    }}
+    .ns-analysis-card-img--empty {{
+        min-height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        font-size: 12px;
+        color: #64748b;
+        background: #f1f5f9;
+        border-radius: 16px;
+        text-align: center;
+        line-height: 1.45;
+        box-sizing: border-box;
+    }}
+    .ns-pre-meal-result-menu-label {{
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 6px;
+    }}
+    .ns-pre-meal-result-menu-body {{ margin-bottom: 14px; }}
+    .ns-menu-line {{
+        font-size: clamp(1.05rem, 3.2vw, 1.25rem);
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.45;
+        margin-bottom: 6px;
+        letter-spacing: -0.03em;
+    }}
+    .ns-pre-meal-result-loc {{
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #334155;
+        margin-bottom: 8px;
     }}
     /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴 및 여백 강제 숨김 */
     .viewerBadge_container {{ display: none !important; }}
