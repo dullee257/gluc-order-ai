@@ -137,46 +137,51 @@ def _clamp_pancreas_stress_value(pm: dict) -> float:
 
 
 def _render_pancreas_stress_gauge(pm: dict, t: dict) -> None:
-    """식전 미션 블록 상단 — 췌장 피로도 시각 게이지 (HTML/CSS + st.progress)."""
+    """식전 미션 블록 — 췌장 피로도 초소형 헬스 위젯 스타일 (Emerald 테마)."""
     score = _clamp_pancreas_stress_value(pm)
     ratio = score / 100.0 if score > 0 else 0.0
+    emerald = "#10B981"
     if score <= 30:
-        emoji_title = t.get("pre_meal_pancreas_comfort", "🟢 쾌적")
+        emoji_title = t.get("pre_meal_pancreas_comfort", "🌿 쾌적")
         sub = t.get("pre_meal_pancreas_comfort_sub", "인슐린 정상 가동 중")
-        bar_color = "#22c55e"
-        bar_bg = "#dcfce7"
+        bar_color = emerald
+        bar_bg = "rgba(16,185,129,0.12)"
+        score_color = emerald
     elif score <= 70:
-        emoji_title = t.get("pre_meal_pancreas_caution", "🟡 주의")
+        emoji_title = t.get("pre_meal_pancreas_caution", "⚡ 주의")
         sub = t.get("pre_meal_pancreas_caution_sub", "혈당 롤러코스터 경고")
-        bar_color = "#eab308"
-        bar_bg = "#fef9c3"
+        bar_color = "#f59e0b"
+        bar_bg = "rgba(245,158,11,0.12)"
+        score_color = "#f59e0b"
     else:
-        emoji_title = t.get("pre_meal_pancreas_danger", "🔴 휴식 필요")
+        emoji_title = t.get("pre_meal_pancreas_danger", "🛑 휴식 필요")
         sub = t.get("pre_meal_pancreas_danger_sub", "췌장 파업 직전! 식이섬유 필수")
         bar_color = "#ef4444"
-        bar_bg = "#fee2e2"
+        bar_bg = "rgba(239,68,68,0.12)"
+        score_color = "#ef4444"
 
-    title = html_module.escape(t.get("pre_meal_pancreas_title", "췌장 피로도 (Pancreas Stress)"))
-    cap = html_module.escape(t.get("pre_meal_pancreas_caption", "오늘 누적 · 최대 100점"))
-    score_txt = html_module.escape(
-        t.get("pre_meal_pancreas_score", "{score:.0f} / 100").format(score=score)
-    )
+    title = html_module.escape(t.get("pre_meal_pancreas_title", "췌장 피로도"))
+    score_num = html_module.escape(f"{round(score):.0f}")
     emoji_esc = html_module.escape(emoji_title)
     sub_esc = html_module.escape(sub)
 
     st.markdown(
         f"""
-<div class="pancreas-stress-gauge" style="margin:0 0 10px 0;padding:10px 12px 9px;border-radius:20px;border:1px solid rgba(226,232,240,0.95);background:linear-gradient(165deg,#ffffff 0%,#f8fafc 55%,#f1f5f9 100%);box-sizing:border-box;box-shadow:0 4px 14px rgba(15,23,42,0.07),0 1px 3px rgba(15,23,42,0.05),inset 0 1px 0 rgba(255,255,255,0.85);">
-  <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;margin-bottom:5px;">
-    <span style="font-size:13px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">{title}</span>
-    <span style="font-size:12px;font-weight:700;color:#64748b;">{score_txt}</span>
+<div class="pancreas-stress-gauge" style="margin:0 0 12px 0;padding:12px 14px;border-radius:20px;border:none;background:#ffffff;box-sizing:border-box;box-shadow:0 8px 24px rgba(0,0,0,0.08);">
+  <div style="display:flex;flex-wrap:nowrap;align-items:flex-start;justify-content:space-between;gap:10px;">
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:11px;font-weight:700;color:#64748b;letter-spacing:0.02em;text-transform:uppercase;">{title}</div>
+      <div style="margin-top:4px;font-size:13px;font-weight:800;color:#0f172a;line-height:1.25;">{emoji_esc}</div>
+      <div style="margin-top:2px;font-size:11px;color:#94a3b8;line-height:1.3;">{sub_esc}</div>
+    </div>
+    <div style="flex-shrink:0;text-align:right;">
+      <div style="font-size:22px;font-weight:800;color:{score_color};letter-spacing:-0.03em;line-height:1;">{score_num}</div>
+      <div style="font-size:10px;font-weight:600;color:#94a3b8;margin-top:2px;">/ 100</div>
+    </div>
   </div>
-  <div style="font-size:10px;color:#94a3b8;margin-bottom:7px;line-height:1.3;">{cap}</div>
-  <div style="height:10px;border-radius:999px;background:{bar_bg};overflow:hidden;border:1px solid rgba(0,0,0,0.05);box-shadow:inset 0 1px 2px rgba(0,0,0,0.04);">
-    <div style="width:{ratio * 100:.2f}%;height:100%;background:{bar_color};border-radius:999px;transition:width 0.35s ease;box-shadow:inset 0 -1px 0 rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.06);"></div>
+  <div style="margin-top:10px;height:5px;border-radius:999px;background:{bar_bg};overflow:hidden;">
+    <div style="width:{ratio * 100:.2f}%;height:100%;background:{bar_color};border-radius:999px;transition:width 0.35s ease;"></div>
   </div>
-  <div style="margin-top:7px;font-size:13px;font-weight:700;color:#334155;line-height:1.3;">{emoji_esc}</div>
-  <div style="font-size:11px;color:#64748b;margin-top:2px;line-height:1.35;">{sub_esc}</div>
 </div>
 """,
         unsafe_allow_html=True,
@@ -200,8 +205,6 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
     _hydrate_pre_meal_pancreas_from_firestore(_uid_pre)
     pm = st.session_state["pre_meal"]
 
-    st.markdown("---")
-    st.markdown(f"#### {t.get('pre_meal_section_title', '🍽️ 식전 미션 (베타)')}")
     _render_pancreas_stress_gauge(pm, t)
 
     if pm.get("step") == 3:
@@ -234,72 +237,71 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
 
     _cap_v = int(st.session_state.get("pre_meal_capture_version", 0))
 
-    with st.container(border=True):
-        up = st.file_uploader(
-            t.get("pre_meal_upload_main_label", "📸 음식 사진 촬영 또는 갤러리 업로드"),
-            type=["jpg", "png", "jpeg", "webp"],
-            key=f"pre_meal_up_{_cap_v}",
-            label_visibility="visible",
+    up = st.file_uploader(
+        t.get("pre_meal_upload_main_label", "📸 오늘 식단 찰칵!"),
+        type=["jpg", "png", "jpeg", "webp"],
+        key=f"pre_meal_up_{_cap_v}",
+        label_visibility="collapsed",
+    )
+
+    pil_src = None
+    if up is not None:
+        try:
+            pil_src = compress_image(Image.open(up), max_size_kb=500)
+        except Exception:
+            st.warning(t.get("pre_meal_err_image", "이미지를 열 수 없습니다."))
+
+    if pil_src is not None:
+        h = _pre_meal_image_hash(pil_src)
+        if h != st.session_state.get("pre_meal_menu_img_hash"):
+            if is_guest and guest_remaining <= 0:
+                st.warning(t.get("pre_meal_guest_vision_block", "무료 체험 횟수가 부족합니다."))
+            else:
+                with st.spinner(
+                    t.get(
+                        "pre_meal_spinner_vision",
+                        "AI 코치가 메뉴를 스캔하고 방어막을 설계 중입니다…",
+                    )
+                ):
+                    try:
+                        name = extract_pre_meal_menu_name_from_image(pil_src)
+                        if not name:
+                            name = t.get("pre_meal_menu_fallback", "오늘의 식사")
+                        pm["menu_text"] = name
+                        st.session_state["pre_meal_menu_input"] = name
+                        st.session_state["pre_meal_menu_img_hash"] = h
+                        if is_guest:
+                            st.session_state["guest_usage_count"] = st.session_state.get("guest_usage_count", 0) + 1
+                    except Exception as e:
+                        st.error(
+                            t.get("pre_meal_err_vision", "메뉴 인식에 실패했습니다. ")
+                            + str(e)
+                        )
+
+    mt_disp = (st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or "").strip()
+    if mt_disp:
+        pm["menu_text"] = mt_disp
+        st.markdown(
+            f'<p class="ns-pre-meal-recognized" style="margin:8px 0 0 0;font-size:13px;color:#0f172a;line-height:1.45;"><span style="color:#10B981;font-weight:800;">✓</span> {html_module.escape(t.get("pre_meal_recognized_prefix", "인식된 메뉴"))}: <strong>{html_module.escape(mt_disp)}</strong></p>',
+            unsafe_allow_html=True,
         )
 
-        pil_src = None
-        if up is not None:
-            try:
-                pil_src = compress_image(Image.open(up), max_size_kb=500)
-            except Exception:
-                st.warning(t.get("pre_meal_err_image", "이미지를 열 수 없습니다."))
-
-        if pil_src is not None:
-            h = _pre_meal_image_hash(pil_src)
-            if h != st.session_state.get("pre_meal_menu_img_hash"):
-                if is_guest and guest_remaining <= 0:
-                    st.warning(t.get("pre_meal_guest_vision_block", "무료 체험 횟수가 부족합니다."))
-                else:
-                    with st.spinner(
-                        t.get(
-                            "pre_meal_spinner_vision",
-                            "AI 코치가 메뉴를 스캔하고 방어막을 설계 중입니다…",
-                        )
-                    ):
-                        try:
-                            name = extract_pre_meal_menu_name_from_image(pil_src)
-                            if not name:
-                                name = t.get("pre_meal_menu_fallback", "오늘의 식사")
-                            pm["menu_text"] = name
-                            st.session_state["pre_meal_menu_input"] = name
-                            st.session_state["pre_meal_menu_img_hash"] = h
-                            if is_guest:
-                                st.session_state["guest_usage_count"] = st.session_state.get("guest_usage_count", 0) + 1
-                        except Exception as e:
-                            st.error(
-                                t.get("pre_meal_err_vision", "메뉴 인식에 실패했습니다. ")
-                                + str(e)
-                            )
-
-        mt_disp = (st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or "").strip()
-        if mt_disp:
-            pm["menu_text"] = mt_disp
-            st.markdown(
-                f'<p style="margin:10px 0 0 0;font-size:13px;color:#0f172a;line-height:1.45;"><span style="color:#16a34a;font-weight:800;">✓</span> {html_module.escape(t.get("pre_meal_recognized_prefix", "인식된 메뉴"))}: <strong>{html_module.escape(mt_disp)}</strong></p>',
-                unsafe_allow_html=True,
-            )
-
-        with st.expander(t.get("pre_meal_expander_manual", "⌨️ 직접 입력하기"), expanded=False):
-            _opts_slot = ["아침", "점심", "저녁", "간식"]
-            meal_slot = st.selectbox(
-                t.get("pre_meal_meal_slot", "현재 끼니"),
-                _opts_slot,
-                key="pre_meal_slot_select",
-            )
-            pm["meal_slot"] = meal_slot
-            st.text_input(
-                t.get("pre_meal_menu_label", "메뉴 (텍스트)"),
-                key="pre_meal_menu_input",
-                placeholder=t.get("pre_meal_menu_ph", "예: 김치찌개 + 현미밥"),
-            )
-            _mt_manual = (st.session_state.get("pre_meal_menu_input") or "").strip()
-            if _mt_manual:
-                pm["menu_text"] = _mt_manual
+    with st.expander(t.get("pre_meal_expander_manual", "⌨️ 직접 입력하기"), expanded=False):
+        _opts_slot = ["아침", "점심", "저녁", "간식"]
+        meal_slot = st.selectbox(
+            t.get("pre_meal_meal_slot", "현재 끼니"),
+            _opts_slot,
+            key="pre_meal_slot_select",
+        )
+        pm["meal_slot"] = meal_slot
+        st.text_input(
+            t.get("pre_meal_menu_label", "메뉴 (텍스트)"),
+            key="pre_meal_menu_input",
+            placeholder=t.get("pre_meal_menu_ph", "예: 김치찌개 + 현미밥"),
+        )
+        _mt_manual = (st.session_state.get("pre_meal_menu_input") or "").strip()
+        if _mt_manual:
+            pm["menu_text"] = _mt_manual
 
     pm["meal_slot"] = st.session_state.get("pre_meal_slot_select", pm.get("meal_slot", "아침"))
     mt_run = (st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or "").strip()
@@ -340,19 +342,19 @@ def _render_dash_today_metrics_cards(t, avg_glucose, latest_glucose, total_carbs
     return f"""
     <div class="dash-today-metrics-root" style="width:100%;box-sizing:border-box;">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;width:100%;">
-        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;">
+        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#ffffff;border-radius:16px;border:none;box-shadow:0 8px 24px rgba(0,0,0,0.08);">
           <div style="font-size:12px;color:#64748b;line-height:1.4;word-break:keep-all;white-space:normal;">{lbl_avg}</div>
           <div style="font-size:clamp(20px,4.5vw,28px);font-weight:800;color:#0f172a;line-height:1.25;margin-top:6px;word-break:break-word;overflow-wrap:anywhere;white-space:normal;">{v_avg}</div>
         </div>
-        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;">
+        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#ffffff;border-radius:16px;border:none;box-shadow:0 8px 24px rgba(0,0,0,0.08);">
           <div style="font-size:12px;color:#64748b;line-height:1.4;word-break:keep-all;white-space:normal;">{lbl_carbs}</div>
           <div style="font-size:clamp(20px,4.5vw,28px);font-weight:800;color:#0f172a;line-height:1.25;margin-top:6px;word-break:break-word;overflow-wrap:anywhere;white-space:normal;">{v_carbs}</div>
         </div>
-        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;">
+        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#ffffff;border-radius:16px;border:none;box-shadow:0 8px 24px rgba(0,0,0,0.08);">
           <div style="font-size:12px;color:#64748b;line-height:1.4;word-break:keep-all;white-space:normal;">{lbl_meals}</div>
           <div style="font-size:clamp(20px,4.5vw,28px);font-weight:800;color:#0f172a;line-height:1.25;margin-top:6px;word-break:break-word;overflow-wrap:anywhere;white-space:normal;">{v_meals}</div>
         </div>
-        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#f8fafc;border-radius:14px;border:1px solid #e2e8f0;">
+        <div style="flex:1 1 calc(50% - 8px);min-width:0;box-sizing:border-box;padding:12px 10px;background:#ffffff;border-radius:16px;border:none;box-shadow:0 8px 24px rgba(0,0,0,0.08);">
           <div style="font-size:12px;color:#64748b;line-height:1.4;word-break:keep-all;white-space:normal;">{lbl_latest}</div>
           <div style="font-size:clamp(20px,4.5vw,28px);font-weight:800;color:#0f172a;line-height:1.25;margin-top:6px;word-break:break-word;overflow-wrap:anywhere;white-space:normal;">{v_latest}</div>
         </div>
@@ -1312,7 +1314,7 @@ try {
 
 # 4. 피그마 디자인 + 한글 표시 보장 (UTF-8·폰트)
 # 업로더 placeholder: CSS content 내 따옴표·백슬래시 이스케이프 (글자 오류 방지)
-_uploader_ph = (t.get("uploader_placeholder") or "식단 스캔 시작").replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
+_uploader_ph = (t.get("pre_meal_uploader_cta") or t.get("uploader_placeholder") or "📸 오늘 식단 찰칵!").replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ")
 st.markdown(f"""
 <style>
     /* 한글 표시: Noto Sans KR 로드 후 전역 적용 (한글 깨짐 방지) */
@@ -1369,71 +1371,113 @@ st.markdown(f"""
         font-family: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", "Nanum Gothic", sans-serif !important;
     }}
 
-    .stApp {{ background-color: #f8f9fa; }}
+    .stApp {{ background-color: #f8f9fa !important; }}
 
-    [data-testid="stFileUploader"] {{
-        display: flex;
-        justify-content: center;
-        margin: 0 auto;
-        width: 100% !important;
+    .ns-premium-hero {{
+        font-size: clamp(1.05rem, 3.8vw, 1.35rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: #0f172a;
+        line-height: 1.45;
+        margin: 4px 0 16px 0;
+        padding: 0 2px;
+    }}
+    .ns-dashboard-section-title {{
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #64748b;
+        letter-spacing: -0.02em;
+        margin: 8px 0 10px 0;
+        text-transform: uppercase;
     }}
 
-    /* 굵은 민트 테두리와 입체적 광채 */
+    /* 프리미엄 카드: Streamlit bordered 컨테이너 */
+    [data-testid="stVerticalBlockBorderWrapper"] {{
+        border: none !important;
+        border-radius: 20px !important;
+        background: #ffffff !important;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
+        padding: 1rem 1.1rem !important;
+    }}
+
+    /* 메인 홈: 직접 입력 expander를 장소 버튼 아래로 (스크립트 순서는 위쪽 유지) */
+    section.main:has(.ns-premium-home-shell) .block-container > div[data-testid="stVerticalBlock"],
+    .stApp:has(.ns-premium-home-shell) .block-container > div[data-testid="stVerticalBlock"] {{
+        display: flex;
+        flex-direction: column;
+    }}
+    section.main:has(.ns-premium-home-shell) .block-container > div[data-testid="stVerticalBlock"] > div[data-testid="element-container"]:has([data-testid="stExpander"]),
+    .stApp:has(.ns-premium-home-shell) .block-container > div[data-testid="stVerticalBlock"] > div[data-testid="element-container"]:has([data-testid="stExpander"]) {{
+        order: 100;
+    }}
+
+    /* 파일 업로드 영역: 풀폭 에메랄드 액션 버튼 (카메라·갤러리 터치 유도) */
+    [data-testid="stFileUploader"] {{
+        display: flex;
+        justify-content: stretch;
+        margin: 0 auto;
+        width: 100% !important;
+        max-width: 100% !important;
+    }}
+    [data-testid="stFileUploader"] label {{
+        display: none !important;
+    }}
     [data-testid="stFileUploader"] section {{
-        background-color: #ffffff !important;
-        border: 18px solid #86cc85 !important;
-        box-shadow: 
-            0 0 15px rgba(134, 204, 133, 0.5), 
-            0 0 35px rgba(134, 204, 133, 0.3),
-            0 0 55px rgba(134, 204, 133, 0.1) !important;
-        border-radius: 50% !important;
-        width: 65vw !important;  /* 화면 가로 너비의 65% */
-        height: 65vw !important; /* 높이도 가로와 똑같이 맞춰서 항상 원형 유지 */
-        max-width: 280px !important; /* 너무 커지는 것 방지 */
-        max-height: 280px !important;
+        background: linear-gradient(145deg, #10B981 0%, #059669 55%, #047857 100%) !important;
+        border: none !important;
+        box-shadow: 0 10px 28px rgba(16, 185, 129, 0.38) !important;
+        border-radius: 20px !important;
+        width: 100% !important;
+        min-height: 132px !important;
+        height: auto !important;
+        max-width: 100% !important;
         margin: 0 auto !important;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         position: relative;
-        transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+        padding: 20px 16px !important;
+        box-sizing: border-box !important;
+        transition: transform 0.18s ease, box-shadow 0.18s ease !important;
     }}
-
-    /* 클릭 시 쫀득하게 눌리는 반응 */
     [data-testid="stFileUploader"] section:active {{
-        transform: scale(0.92);
-        box-shadow: 0 0 65px rgba(134, 204, 133, 0.7) !important;
+        transform: scale(0.98);
+        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45) !important;
     }}
-
     [data-testid="stFileUploader"] section > div {{ display: none !important; }}
     [data-testid="stFileUploader"] section small {{ display: none !important; }}
     [data-testid="stFileUploader"] section span {{ display: none !important; }}
-
-    /* 내부 아이콘: 화면이 작아지면 같이 작아짐 (최소 40px ~ 최대 70px) */
     [data-testid="stFileUploader"] section::before {{
-        content: "📷"; 
-        font-size: clamp(40px, 12vw, 70px); 
-        margin-bottom: 2vw; /* 간격도 비율로 띄움 */
-        z-index: 2;
+        content: "📸";
+        font-size: clamp(36px, 11vw, 48px);
+        margin-bottom: 8px;
+        line-height: 1;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12));
     }}
-
-    /* 내부 텍스트: 화면이 작아지면 같이 작아짐 (최소 14px ~ 최대 20px) */
     [data-testid="stFileUploader"] section::after {{
-        content: "{_uploader_ph}"; 
-        font-size: clamp(14px, 4vw, 20px); 
-        font-weight: 700;
-        color: #333333;
-        z-index: 2;
+        content: "{_uploader_ph}";
+        font-size: clamp(17px, 4.8vw, 22px);
+        font-weight: 800;
+        color: #ffffff;
+        text-align: center;
+        line-height: 1.35;
+        max-width: 92%;
+        letter-spacing: -0.02em;
     }}
-
     [data-testid="stFileUploader"] section button {{
         opacity: 0 !important;
         position: absolute !important;
+        inset: 0 !important;
         width: 100% !important;
         height: 100% !important;
         z-index: 10;
         cursor: pointer;
+        margin: 0 !important;
+    }}
+    /* 업로드 카드 외곽 여백 */
+    div[data-testid="element-container"]:has([data-testid="stFileUploader"]) {{
+        margin-bottom: 6px !important;
     }}
     /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴 및 여백 강제 숨김 */
     .viewerBadge_container {{ display: none !important; }}
@@ -1688,10 +1732,7 @@ st.markdown(f"""
         }}
     }}
 
-    /* 🚀 추가: 파일 업로드 후 생기는 파일명 박스 강제 숨기기 & 찌그러짐 방지 */
-    [data-testid="stFileUploader"] > div {{ 
-        display: none !important; 
-    }}
+    /* 업로드 후 파일명 행만 숨김 (section·버튼은 유지) */
     [data-testid="stUploadedFile"] {{
         display: none !important;
     }}
@@ -2745,18 +2786,12 @@ if menu_key == "scanner":
             st.markdown("---")
 
         if st.session_state.get("current_page") == "main":
-            # 1️⃣ 메인: 환영 인사 + (계정) 오늘의 요약 대시보드 (하단 네비는 Bottom Bar)
-            if not is_guest:
-                st.markdown(t.get("main_welcome_motivation", "### 🌞 오늘 하루도 완벽한 방어를 응원합니다!"))
-
-            title_parts = (t.get("description") or "📈|혈당 관리|올바른 섭취 순서").split("|")
-            st.markdown(f"""
-                <div style="text-align: center; margin-top: 10px; margin-bottom: 1.2vh;">
-                    <div style="font-size: clamp(35px, 10vw, 50px); margin-bottom: 1vh;">{title_parts[0]}</div>
-                    <div style="font-size: clamp(20px, 6vw, 26px); font-weight: 800; color: #333333; line-height: 1.2;">{title_parts[1]}</div>
-                    <div style="font-size: clamp(14px, 4vw, 18px); font-weight: 500; color: #86cc85; margin-top: 1vh;">{title_parts[2]}</div>
-                </div>
-            """, unsafe_allow_html=True)
+            # 1️⃣ 메인: 프리미엄 히어로 + (계정) 오늘의 요약 대시보드 (하단 네비는 Bottom Bar)
+            st.markdown(
+                f'<div class="ns-premium-home-shell" aria-hidden="true"></div>'
+                f'<div class="ns-premium-hero">{html_module.escape(t.get("main_hero_welcome", "오늘도 쾌적하게 혈당 방어, 시작해 볼까요? 🛡️"))}</div>',
+                unsafe_allow_html=True,
+            )
 
             if is_guest and total_remaining <= 0:
                 st.warning(t["guest_trial_exhausted"])
@@ -2808,7 +2843,10 @@ if menu_key == "scanner":
                     _total_c = int(_dash.get("total_carbs") or 0)
                     _meal_n = int(_dash.get("meal_count") or 0)
 
-                    st.markdown(f"#### {t.get('dash_today_title', '오늘의 요약')}")
+                    st.markdown(
+                        f'<div class="ns-dashboard-section-title">{html_module.escape(t.get("dash_today_title", "오늘의 요약"))}</div>',
+                        unsafe_allow_html=True,
+                    )
                     st.markdown(
                         _render_dash_today_metrics_cards(t, _avg_g, _latest_g, _total_c, _meal_n),
                         unsafe_allow_html=True,
@@ -2851,8 +2889,6 @@ if menu_key == "scanner":
                         )
                         st.caption(t.get("dash_gauge_subtitle", "가장 최근 측정값 (오늘)"))
                         st.plotly_chart(_fig_g, use_container_width=True, config={"displayModeBar": False})
-                    else:
-                        st.caption(t.get("dash_gauge_empty", "오늘 측정한 혈당이 없어 계기판을 표시할 수 없습니다."))
 
                     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
