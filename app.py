@@ -708,6 +708,118 @@ def _read_meal_feed_css():
     return ""
 
 
+def _extract_menu_names(rec: dict, max_items: int = 3) -> str:
+    """sorted_items에서 음식명을 추출해 ' · '로 연결."""
+    items = rec.get("sorted_items") or []
+    names = []
+    for it in items[:max_items]:
+        if isinstance(it, list) and it:
+            n = str(it[0]).strip()
+        elif isinstance(it, dict):
+            n = str(it.get("name", "")).strip()
+        else:
+            n = ""
+        if n:
+            names.append(n)
+    return " · ".join(names)
+
+
+def _render_history_summary_cards(t: dict, feed_items: list, pm: dict) -> None:
+    """일지 상단 프리미엄 요약 위젯 3개 (평균 위험도 / 방어 성공률 / 췌장 피로도)."""
+    esc = html_module.escape
+
+    scores = [int(r.get("blood_sugar_score", 0) or 0) for r in feed_items]
+    avg_score = (sum(scores) / len(scores)) if scores else 0.0
+    success_count = sum(1 for s in scores if s <= 40)
+    total_count = len(scores)
+    success_rate = (success_count / total_count * 100) if total_count else 0.0
+    pancreas_stress = float((pm or {}).get("pancreas_stress", 0) or 0)
+
+    if avg_score <= 40:
+        sc_color, sc_label = "#10B981", "안정"
+    elif avg_score <= 65:
+        sc_color, sc_label = "#f59e0b", "주의"
+    else:
+        sc_color, sc_label = "#ef4444", "위험"
+
+    if success_rate >= 70:
+        sr_color = "#10B981"
+    elif success_rate >= 40:
+        sr_color = "#f59e0b"
+    else:
+        sr_color = "#ef4444"
+
+    if pancreas_stress <= 30:
+        ps_color, ps_label = "#10B981", "쾌적"
+    elif pancreas_stress <= 70:
+        ps_color, ps_label = "#f59e0b", "주의"
+    else:
+        ps_color, ps_label = "#ef4444", "과부하"
+
+    n_label = esc(f"최근 {total_count}식")
+    avg_s = esc(f"{avg_score:.0f}")
+    sr_s = esc(f"{success_rate:.0f}")
+    sr_detail = esc(f"{success_count}/{total_count}식 성공")
+    ps_s = esc(f"{pancreas_stress:.0f}")
+
+    def _card_html(icon, title, value, unit, sub, color):
+        return f"""
+<div class="ns-hist-sum-card">
+  <div class="ns-hist-sum-icon">{icon}</div>
+  <div class="ns-hist-sum-title">{esc(title)}</div>
+  <div class="ns-hist-sum-value" style="color:{color};">{value}<span class="ns-hist-sum-unit">{esc(unit)}</span></div>
+  <div class="ns-hist-sum-sub" style="color:{color};">{sub}</div>
+</div>"""
+
+    c1, c2, c3 = st.columns(3, gap="small")
+    with c1:
+        st.markdown(_card_html("📊", "평균 위험도", avg_s, "/100", sc_label, sc_color), unsafe_allow_html=True)
+    with c2:
+        st.markdown(_card_html("🛡️", "방어 성공률", sr_s, "%", sr_detail, sr_color), unsafe_allow_html=True)
+    with c3:
+        st.markdown(_card_html("🫀", "췌장 피로도", ps_s, "/100", ps_label, ps_color), unsafe_allow_html=True)
+
+
+def _render_history_trend_chart(t: dict, feed_items: list) -> None:
+    """최근 식사 기록 혈당 위험도 트렌드 Plotly 라인 차트."""
+    if len(feed_items) < 2:
+        return
+
+    import plotly.graph_objects as go
+
+    times = []
+    scores = []
+    for rec in reversed(feed_items):
+        times.append(_meal_feed_display_time(rec)[-11:])  # HH:MM 또는 MM-DD HH:MM
+        scores.append(int(rec.get("blood_sugar_score", 0) or 0))
+
+    point_colors = ["#10B981" if s <= 40 else "#f59e0b" if s <= 65 else "#ef4444" for s in scores]
+
+    fig = go.Figure()
+    fig.add_hrect(y0=0, y1=40, fillcolor="rgba(16,185,129,0.06)", line_width=0)
+    fig.add_hrect(y0=40, y1=65, fillcolor="rgba(245,158,11,0.05)", line_width=0)
+    fig.add_hrect(y0=65, y1=105, fillcolor="rgba(239,68,68,0.05)", line_width=0)
+    fig.add_trace(go.Scatter(
+        x=times, y=scores,
+        mode="lines+markers",
+        line=dict(color="#10B981", width=2.5, shape="spline"),
+        marker=dict(color=point_colors, size=10, line=dict(color="white", width=2)),
+        hovertemplate="%{x}<br>위험도: %{y}<extra></extra>",
+    ))
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=6, r=6, t=36, b=6),
+        title=dict(text="📈 혈당 위험도 추이", font=dict(size=14, color="#0f172a", family="Noto Sans KR"), x=0),
+        yaxis=dict(range=[0, 105], gridcolor="rgba(0,0,0,0.06)", tickfont=dict(size=11)),
+        xaxis=dict(gridcolor="rgba(0,0,0,0.06)", tickangle=-30, tickfont=dict(size=10)),
+        height=220,
+        showlegend=False,
+    )
+    with st.container(border=True):
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+
 # --- Railway 등에서 환경 변수로 시크릿 읽기 (Streamlit Cloud는 st.secrets 유지) ---
 def _get_secret(key, default=None):
     v = os.environ.get(key)
@@ -2050,6 +2162,107 @@ st.markdown(f"""
         padding: 6px 10px;
         margin-top: 6px;
         word-break: keep-all;
+    }}
+    /* ── 일지 대시보드: 요약 위젯 카드 ────────────────────────────────────── */
+    .ns-hist-sum-card {{
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.07);
+        padding: 14px 10px 12px;
+        text-align: center;
+        min-height: 110px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+    }}
+    .ns-hist-sum-icon {{
+        font-size: 1.5rem;
+        margin-bottom: 2px;
+    }}
+    .ns-hist-sum-title {{
+        font-size: 0.72rem;
+        color: #64748b;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+    }}
+    .ns-hist-sum-value {{
+        font-size: 1.7rem;
+        font-weight: 900;
+        line-height: 1.1;
+        letter-spacing: -1px;
+    }}
+    .ns-hist-sum-unit {{
+        font-size: 0.75rem;
+        font-weight: 600;
+        opacity: 0.7;
+        margin-left: 1px;
+    }}
+    .ns-hist-sum-sub {{
+        font-size: 0.72rem;
+        font-weight: 700;
+        margin-top: 1px;
+    }}
+    /* ── 일지 타임라인 아이템 ──────────────────────────────────────────────── */
+    .ns-tl-time {{
+        font-size: 0.75rem;
+        color: #94a3b8;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        margin-bottom: 8px;
+    }}
+    .ns-tl-row {{
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 6px;
+    }}
+    .ns-tl-badge {{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        padding: 8px 10px;
+        min-width: 54px;
+        flex-shrink: 0;
+        gap: 1px;
+    }}
+    .ns-tl-badge-icon {{ font-size: 1.2rem; line-height: 1; }}
+    .ns-tl-badge-score {{
+        font-size: 1.1rem;
+        font-weight: 900;
+        line-height: 1;
+    }}
+    .ns-tl-badge-label {{
+        font-size: 0.62rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }}
+    .ns-tl-body {{ flex: 1 1 0; min-width: 0; }}
+    .ns-tl-menu {{
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #0f172a;
+        word-break: keep-all;
+        line-height: 1.35;
+        margin-bottom: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }}
+    .ns-tl-macros {{
+        font-size: 0.78rem;
+        color: #64748b;
+        line-height: 1.5;
+    }}
+    .ns-tl-advice {{
+        font-size: 0.88rem;
+        color: #334155;
+        line-height: 1.7;
+        white-space: pre-wrap;
     }}
     /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴 및 여백 강제 숨김 */
     .viewerBadge_container {{ display: none !important; }}
@@ -4650,113 +4863,113 @@ elif menu_key == "history":
                 _reset_meal_feed_state()
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
-    st.title(f"📅 {t['history_menu']}")
-
-    # 오늘 하루 요약 대시보드
-    if st.session_state['daily_meals_count'] > 0:
-        goal_carbs_map2 = {"일반 관리": 250, "당뇨 관리": 130, "다이어트": 150, "근력 강화": 300}
-        target_c = goal_carbs_map2.get(st.session_state['user_goal'], 250)
-        ds = st.session_state['daily_blood_sugar_score']
-        ds_color = "#4CAF50" if ds <= 40 else "#FFB300" if ds <= 65 else "#F44336"
-        ds_label = t["risk_safe"] if ds <= 40 else t["risk_caution"] if ds <= 65 else t["risk_danger"]
-        carb_pct2 = min(100, int(st.session_state['daily_carbs'] / max(target_c, 1) * 100))
-        st.markdown(f"""
-        <div style="background:linear-gradient(135deg,#1e293b,#334155);border-radius:20px;padding:20px;margin-bottom:18px;color:white;">
-            <div style="font-size:13px;color:#94a3b8;margin-bottom:10px;">📊 {t['today_glucose_status']}</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
-                <div style="text-align:center;">
-                    <div style="font-size:26px;font-weight:900;color:{ds_color};">{ds}</div>
-                    <div style="font-size:10px;color:#94a3b8;">{t['avg_blood_score']}</div>
-                    <div style="font-size:12px;font-weight:700;color:{ds_color};">{ds_label}</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:26px;font-weight:900;color:white;">{st.session_state['daily_carbs']}g</div>
-                    <div style="font-size:10px;color:#94a3b8;">{t['carbs']}</div>
-                    <div style="font-size:11px;color:#94a3b8;">{t['goal_target']} {target_c}g</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:26px;font-weight:900;color:white;">{st.session_state['daily_meals_count']}</div>
-                    <div style="font-size:10px;color:#94a3b8;">{t['analyzed_meals']}</div>
-                    <div style="font-size:11px;color:#94a3b8;">{t.get('goal_display', {}).get(st.session_state['user_goal'], st.session_state['user_goal'])}</div>
-                </div>
-            </div>
-            <div style="background:rgba(255,255,255,0.15);border-radius:6px;height:7px;">
-                <div style="background:{ds_color};width:{carb_pct2}%;height:7px;border-radius:6px;"></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button(f"🔄 {t['reset_today']}", use_container_width=True):
-            st.session_state['daily_blood_sugar_score'] = 0
-            st.session_state['daily_carbs'] = 0
-            st.session_state['daily_protein'] = 0
-            st.session_state['daily_meals_count'] = 0
-            st.rerun()
-        st.markdown("---")
-
-    # ── meals 피드 (Firestore users/{uid}/meals, 페이지네이션) ──
-    _mcss = _read_meal_feed_css()
-    if _mcss:
-        st.markdown(f"<style>{_mcss}</style>", unsafe_allow_html=True)
+    # ── 프리미엄 대시보드 헤더 ───────────────────────────────────────────────
+    st.markdown(
+        '<div class="ns-dashboard-section-title">📅 나의 식단 일지</div>',
+        unsafe_allow_html=True,
+    )
 
     _uid_hist = st.session_state.get("user_id")
-
-    st.markdown('<div class="meal-feed-root">', unsafe_allow_html=True)
     feed_items = st.session_state.get("feed_items", [])
+    _pm_hist = st.session_state.get("pre_meal") or {}
+
+    # ── Top 3 요약 위젯 ──────────────────────────────────────────────────────
+    _render_history_summary_cards(t, feed_items, _pm_hist)
+
+    # ── 트렌드 차트 ──────────────────────────────────────────────────────────
+    _render_history_trend_chart(t, feed_items)
+
+    # ── 타임라인 히스토리 섹션 타이틀 ────────────────────────────────────────
+    if feed_items:
+        st.markdown(
+            '<div class="ns-dashboard-section-title" style="margin-top:18px;">🗓️ 식사 기록</div>',
+            unsafe_allow_html=True,
+        )
 
     if len(feed_items) > 0:
         for i, rec in enumerate(feed_items):
+            esc = html_module.escape
             rec_score = int(rec.get("blood_sugar_score", 0) or 0)
             rec_carbs = int(rec.get("total_carbs", 0) or 0)
             rec_protein = int(rec.get("total_protein", 0) or 0)
             rec_fat = int(rec.get("total_fat", 0) or 0)
             est_spike = int(rec.get("estimated_spike", 0) or 0)
-            rc = "#4CAF50" if rec_score <= 40 else "#FFB300" if rec_score <= 65 else "#F44336"
-            rl = t["risk_safe"] if rec_score <= 40 else t["risk_caution"] if rec_score <= 65 else t["risk_danger"]
             _when = _meal_feed_display_time(rec)
             _doc_id = rec.get("doc_id") or ""
+            _menu_name = _extract_menu_names(rec) or t.get("pre_meal_menu_fallback", "기록된 식단")
+            _adv = str(rec.get("advice") or "")
+            image_url = rec.get("image_url")
+
+            # 위험도 색상·라벨·이모지
+            if rec_score <= 40:
+                _rc = "#10B981"; _rl = "방어 성공"; _re = "🛡️"
+                _rc_bg = "rgba(16,185,129,0.1)"
+            elif rec_score <= 65:
+                _rc = "#f59e0b"; _rl = "주의"; _re = "⚠️"
+                _rc_bg = "rgba(245,158,11,0.1)"
+            else:
+                _rc = "#ef4444"; _rl = "위험"; _re = "💥"
+                _rc_bg = "rgba(239,68,68,0.1)"
+
             with st.container(border=True):
-                st.markdown('<p class="meal-feed-card-marker" aria-hidden="true"></p>', unsafe_allow_html=True)
-                h1, h2 = st.columns([5, 1])
-                with h1:
-                    st.markdown(f'<div class="meal-card-headline">{html_module.escape(_when)}</div>', unsafe_allow_html=True)
-                with h2:
-                    if _doc_id and st.button("🗑️", key=f"meal_del_{_doc_id}_{i}", help=t.get("delete_record", "기록 삭제")):
+                # 헤더: 시간 + 삭제 버튼
+                _th1, _th2 = st.columns([8, 1])
+                with _th1:
+                    st.markdown(
+                        f'<div class="ns-tl-time">{esc(_when)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                with _th2:
+                    if _doc_id and st.button(
+                        "🗑️", key=f"meal_del_{_doc_id}_{i}",
+                        help=t.get("delete_record", "기록 삭제"),
+                    ):
                         ok_del, failed_step = delete_meal_record(_uid_hist, _doc_id)
                         if ok_del:
                             _reset_meal_feed_state()
-                            st.success(t.get("delete_record_full", "기록이 완전히 삭제되었습니다."))
+                            st.success(t.get("delete_record_full", "기록이 삭제되었습니다."))
                             st.rerun()
                         else:
-                            st.error(
-                                t.get("delete_record_failed", "삭제에 실패했습니다.")
-                                + (f" ({failed_step})" if failed_step else "")
-                            )
-                image_url = rec.get("image_url")
-                if image_url:
-                    image_bytes, debug_msg = fetch_image_bytes_direct(image_url)
-                    if image_bytes:
-                        st.image(image_bytes, use_container_width=True)
-                    else:
-                        st.error(f"🚨 이미지 로드 실패: {debug_msg}")
-                        _u = str(image_url)
-                        st.caption(f"원본 URL: {_u[:60]}{'...' if len(_u) > 60 else ''}")
-                else:
-                    st.info("첨부된 식단 이미지가 없습니다.")
+                            st.error(t.get("delete_record_failed", "삭제 실패.") + (f" ({failed_step})" if failed_step else ""))
+
+                # 메인 타임라인 로우: 배지 + 메뉴명 + 매크로
                 st.markdown(
-                    f'<div class="meal-card-spike"><span class="meal-card-spike-label">🔥 스파이크 방어 코멘트</span> '
-                    f'<span class="meal-card-risk" style="color:{rc};">(위험도: {html_module.escape(rl)})</span> '
-                    f'<span class="meal-card-spike-val">· 예측 스파이크 {est_spike}</span></div>',
-                    unsafe_allow_html=True,
-                )
-                _adv = str(rec.get("advice") or "")
-                if _adv:
-                    st.markdown(f'<div class="meal-card-advice">{html_module.escape(_adv)}</div>', unsafe_allow_html=True)
-                st.markdown(
-                    f'<div class="meal-card-macros">🍚 {t["carbs_short"]} <b>{rec_carbs}g</b> &nbsp;·&nbsp; '
-                    f'💪 {t["protein_short"]} <b>{rec_protein}g</b> &nbsp;·&nbsp; 🧈 지방 <b>{rec_fat}g</b></div>',
+                    f"""
+<div class="ns-tl-row">
+  <div class="ns-tl-badge" style="background:{_rc_bg};color:{_rc};">
+    <span class="ns-tl-badge-icon">{_re}</span>
+    <span class="ns-tl-badge-score">{rec_score}</span>
+    <span class="ns-tl-badge-label">{esc(_rl)}</span>
+  </div>
+  <div class="ns-tl-body">
+    <div class="ns-tl-menu">{esc(_menu_name)}</div>
+    <div class="ns-tl-macros">
+      🍚 <b>{rec_carbs}g</b>&nbsp;·&nbsp;💪 <b>{rec_protein}g</b>&nbsp;·&nbsp;🧈 <b>{rec_fat}g</b>&nbsp;·&nbsp;⚡ 스파이크 <b>{est_spike}</b>
+    </div>
+  </div>
+</div>
+""",
                     unsafe_allow_html=True,
                 )
 
+                # AI 코치 분석 (접기/펼치기)
+                if _adv:
+                    with st.expander("💡 AI 코치 분석", expanded=False):
+                        st.markdown(
+                            f'<div class="ns-tl-advice">{esc(_adv)}</div>',
+                            unsafe_allow_html=True,
+                        )
+
+                # 식단 사진 (접기/펼치기)
+                if image_url:
+                    with st.expander("📷 식단 사진", expanded=False):
+                        image_bytes, debug_msg = fetch_image_bytes_direct(image_url)
+                        if image_bytes:
+                            st.image(image_bytes, use_container_width=True)
+                        else:
+                            st.caption(f"이미지 로드 실패: {debug_msg}")
+
+        # 더 보기
         if st.session_state.get("has_more") and _uid_hist:
             if st.button("더 보기 🔽", key="meal_feed_load_more", use_container_width=True):
                 try:
@@ -4765,8 +4978,7 @@ elif menu_key == "history":
                         st.error("정렬 필드가 없어 추가 페이지를 불러올 수 없습니다.")
                     else:
                         more, last_snap, _ = get_meal_feed(
-                            _uid_hist,
-                            5,
+                            _uid_hist, 5,
                             st.session_state.get("last_doc"),
                             sort_field=_sf,
                         )
@@ -4777,16 +4989,20 @@ elif menu_key == "history":
                     traceback.print_exc(file=sys.stderr)
                     st.error(f"추가 불러오기 실패: {_e2}")
                 st.rerun()
+
     elif not _uid_hist:
         st.info(t.get("no_history_msg", "기록이 없습니다."))
     else:
-        st.info(
-            t.get(
-                "history_empty_feed_hint",
-                "저장된 식단 기록이 없습니다. 분석 후 '기록하기' 버튼을 눌러 보세요.",
-            )
+        st.markdown(
+            """
+<div style="text-align:center;padding:40px 20px;color:#94a3b8;">
+  <div style="font-size:3rem;margin-bottom:12px;">🍽️</div>
+  <div style="font-size:1rem;font-weight:600;color:#475569;margin-bottom:6px;">아직 기록된 식단이 없어요</div>
+  <div style="font-size:0.85rem;">분석 후 '기록하기' 버튼을 눌러 보세요</div>
+</div>
+""",
+            unsafe_allow_html=True,
         )
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # Native Bottom Bar: 본문(스캐너/기록) 이후 렌더 → DOM 맨 아래 (fixed 미적용 시에도 상단에 깔리지 않음)
 render_bottom_bar()
