@@ -3246,9 +3246,144 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 상단 공백 제거용 빈 앵커 마커 (st.html은 Streamlit 1.37+에서만 사용 가능하므로 제거)
-# CSS 음수 마진 트릭 + header display:none 조합으로 해결 (위 <style> 블록 참조)
+# PWA 메타 태그 + 스플래시 스크린 (Phase 7)
 # ──────────────────────────────────────────────────────────────────────────────
+import streamlit.components.v1 as _stc_pwa
+
+# ① PWA 메타 태그: window.parent.document.head에 직접 주입 (JS via iframe)
+_stc_pwa.html(
+    """
+<script>
+(function() {
+    try {
+        var doc = window.parent.document;
+        var head = doc.head;
+        var _metas = [
+            { name: "apple-mobile-web-app-capable",          content: "yes" },
+            { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+            { name: "mobile-web-app-capable",                content: "yes" },
+            { name: "apple-mobile-web-app-title",            content: "혈당스캐너" },
+            { name: "theme-color",                           content: "#0f172a" },
+            { name: "viewport",
+              content: "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" },
+        ];
+        _metas.forEach(function(m) {
+            var sel = m.name === "viewport"
+                ? 'meta[name="viewport"]'
+                : 'meta[name="' + m.name + '"]';
+            if (!doc.querySelector(sel)) {
+                var el = doc.createElement("meta");
+                el.name    = m.name;
+                el.content = m.content;
+                head.appendChild(el);
+            } else if (m.name === "viewport") {
+                doc.querySelector(sel).content = m.content;
+            }
+        });
+
+        // ② 스플래시 스크린: 2.5초 후 DOM에서 완전 제거
+        setTimeout(function() {
+            var splash = doc.getElementById("ns-splash-screen");
+            if (splash) {
+                splash.style.opacity    = "0";
+                splash.style.transition = "opacity 0.55s ease";
+                setTimeout(function() {
+                    splash.style.display         = "none";
+                    splash.style.pointerEvents   = "none";
+                    splash.style.visibility      = "hidden";
+                }, 580);
+            }
+        }, 2200);
+    } catch(e) {}
+})();
+</script>
+""",
+    height=0,
+    scrolling=False,
+)
+
+# ② 스플래시 스크린 HTML (첫 세션 로드 시 1회만 표시)
+if "_pwa_splash_shown" not in st.session_state:
+    st.session_state["_pwa_splash_shown"] = True
+    st.markdown(
+        """
+<div id="ns-splash-screen">
+  <div id="ns-splash-inner">
+    <div class="ns-splash-emoji">🩸</div>
+    <div class="ns-splash-title">나의 혈당 기록소</div>
+    <div class="ns-splash-sub">AI 코치가 분석을 준비하고 있습니다</div>
+    <div class="ns-splash-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+</div>
+<style>
+#ns-splash-screen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #0f172a;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: ns-splash-in 0.35s ease-out both;
+}
+#ns-splash-inner {
+    text-align: center;
+    animation: ns-splash-rise 0.55s cubic-bezier(0.22,1,0.36,1) 0.15s both;
+}
+.ns-splash-emoji {
+    font-size: 4.5rem;
+    line-height: 1;
+    margin-bottom: 18px;
+    animation: ns-splash-pulse 1.6s ease-in-out infinite;
+}
+.ns-splash-title {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.4px;
+    margin-bottom: 8px;
+}
+.ns-splash-sub {
+    font-size: 0.80rem;
+    color: rgba(255,255,255,0.45);
+    font-weight: 400;
+    margin-bottom: 32px;
+}
+.ns-splash-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+}
+.ns-splash-dots span {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: rgba(16,185,129,0.7);
+    animation: ns-splash-dot 1.2s ease-in-out infinite;
+}
+.ns-splash-dots span:nth-child(2) { animation-delay: 0.2s; }
+.ns-splash-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes ns-splash-in {
+    from { opacity: 0; } to { opacity: 1; }
+}
+@keyframes ns-splash-rise {
+    from { transform: translateY(24px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes ns-splash-pulse {
+    0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 0px rgba(16,185,129,0)); }
+    50%       { transform: scale(1.08); filter: drop-shadow(0 0 18px rgba(16,185,129,0.6)); }
+}
+@keyframes ns-splash-dot {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+    40%           { transform: scale(1.1); opacity: 1; }
+}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
 
 # --- 🛑 사용자 로그인 및 접근 권한 체크 ---
 import requests
