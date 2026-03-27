@@ -411,6 +411,219 @@ def _render_pre_meal_result_card(t: dict, pm: dict, mt_run: str) -> None:
             _execute_pre_meal_insights_flow(pm, t, mt_run, "외식")
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# 성과 탭 — 주간 성적표 + 뱃지 컬렉션
+# ════════════════════════════════════════════════════════════════════════════
+
+_BADGES_DEF = [
+    {"id": "defense_master",  "emoji": "🛡️", "name": "방어 마스터",    "desc": "연속 3회 방어 성공"},
+    {"id": "morning_glow",    "emoji": "🌅", "name": "상쾌한 아침",     "desc": "공복 혈당 90 이하 달성"},
+    {"id": "veggie_lover",    "emoji": "🥗", "name": "채소 러버",       "desc": "저GL 식단 5회 연속"},
+    {"id": "week_warrior",    "emoji": "💪", "name": "주간 전사",       "desc": "이번 주 5회 이상 기록"},
+    {"id": "low_spike",       "emoji": "📉", "name": "혈당 안정제",     "desc": "평균 혈당 점수 50 이하"},
+    {"id": "consistent",      "emoji": "🔥", "name": "꾸준한 파이터",  "desc": "이번 주 3회 이상 기록"},
+    {"id": "perfect_week",    "emoji": "⭐", "name": "퍼펙트 위크",    "desc": "방어 성공률 100%"},
+    {"id": "early_bird",      "emoji": "🐦", "name": "아침형 인간",     "desc": "공복 혈당 3일 연속 기록"},
+]
+
+_GRADE_META = {
+    "S": {"color": "#b8860b", "bg": "linear-gradient(135deg,#fffbe6 0%,#fff3c0 100%)",
+          "border": "#f0c040", "label": "전설급",
+          "comment": "완벽한 한 주! 췌장이 당신에게 절을 올립니다. 이 기세라면 혈관이 20대를 유지하겠네요! 🏆"},
+    "A": {"color": "#065f46", "bg": "linear-gradient(135deg,#ecfdf5 0%,#d1fae5 100%)",
+          "border": "#6ee7b7", "label": "우수",
+          "comment": "훌륭한 한 주! 약간의 흔들림이 있었지만 전반적으로 완벽한 혈당 방어전이었습니다. 💪"},
+    "B": {"color": "#1e40af", "bg": "linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%)",
+          "border": "#93c5fd", "label": "양호",
+          "comment": "보통 수준의 한 주. 더 잘할 수 있어요! 식이섬유를 한 숟갈 더 얹어보세요. 🥗"},
+    "C": {"color": "#92400e", "bg": "linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%)",
+          "border": "#fcd34d", "label": "노력 필요",
+          "comment": "탄수화물 파티가 좀 잦았네요. 다음 주는 채소 먼저, 탄수화물 나중에! 🫡"},
+    "D": {"color": "#991b1b", "bg": "linear-gradient(135deg,#fff1f2 0%,#ffe4e6 100%)",
+          "border": "#fca5a5", "label": "위험",
+          "comment": "이번 주는 췌장이 과로사 직전입니다. 제발 식이섬유 한 포기만요! 🚨"},
+}
+
+
+def _calc_weekly_grade(feed_items: list, blood_logs: list) -> dict:
+    """최근 7일 feed_items + blood_logs 기반 주간 등급 산출."""
+    import pytz as _pytz
+    _seoul = _pytz.timezone("Asia/Seoul")
+    _cutoff = datetime.now(_seoul).replace(hour=0, minute=0, second=0, microsecond=0)
+    from datetime import timedelta as _td
+    _cutoff -= _td(days=7)
+
+    # 피드 필터링
+    week_feed = []
+    for _f in feed_items:
+        try:
+            _d = _f.get("date") or ""
+            _dt = datetime.strptime(_d[:10], "%Y-%m-%d").replace(tzinfo=_seoul.localize(datetime.now()).tzinfo)
+        except Exception:
+            continue
+        if _dt >= _cutoff:
+            week_feed.append(_f)
+
+    total = len(week_feed)
+    avg_score = (sum(int(_f.get("blood_sugar_score", 0) or 0) for _f in week_feed) / total) if total else 0
+    success_count = sum(1 for _f in week_feed if int(_f.get("blood_sugar_score", 0) or 0) < 60)
+    success_rate = (success_count / total * 100) if total else 0
+
+    # 공복 혈당 최솟값
+    fasting_vals = [_b.get("value", 999) for _b in blood_logs if _b.get("type") == "fasting"]
+    min_fasting = min(fasting_vals) if fasting_vals else 999
+
+    # 등급 결정
+    if success_rate >= 90:
+        grade = "S"
+    elif success_rate >= 75:
+        grade = "A"
+    elif success_rate >= 55:
+        grade = "B"
+    elif success_rate >= 35:
+        grade = "C"
+    else:
+        grade = "D"
+    if total == 0:
+        grade = "D"
+
+    # 뱃지 달성 여부
+    consecutive = 0
+    max_cons = 0
+    for _f in sorted(week_feed, key=lambda x: x.get("date", "")):
+        if int(_f.get("blood_sugar_score", 0) or 0) < 60:
+            consecutive += 1
+            max_cons = max(max_cons, consecutive)
+        else:
+            consecutive = 0
+
+    badges = {
+        "defense_master": max_cons >= 3,
+        "morning_glow":   min_fasting <= 90,
+        "veggie_lover":   sum(1 for _f in week_feed if int(_f.get("blood_sugar_score", 0) or 0) < 40) >= 5,
+        "week_warrior":   total >= 5,
+        "low_spike":      0 < avg_score <= 50,
+        "consistent":     total >= 3,
+        "perfect_week":   total > 0 and success_rate == 100,
+        "early_bird":     len(fasting_vals) >= 3,
+    }
+
+    return {
+        "grade": grade, "total": total, "avg_score": avg_score,
+        "success_rate": success_rate, "min_fasting": min_fasting, "badges": badges,
+    }
+
+
+def _render_achievement_tab(t: dict) -> None:
+    """성과 탭: 주간 성적표 + AI 코멘트 + 뱃지 컬렉션."""
+    esc = html_module.escape
+    feed_items = st.session_state.get("feed_items", [])
+    blood_logs = st.session_state.get("blood_sugar_logs", [])
+    _lt = st.session_state.get("login_type")
+
+    stats = _calc_weekly_grade(feed_items, blood_logs)
+    grade = stats["grade"]
+    meta = _GRADE_META[grade]
+
+    # ── 1. 다크 골드 프리미엄 헤더 ──────────────────────────────────────────
+    st.markdown(
+        """
+<div class="ns-ach-header">
+  <div class="ns-ach-header-sub">나의 건강 성적표</div>
+  <div class="ns-ach-header-title">주간 혈당 성적표 🏆</div>
+  <div class="ns-ach-header-hint">최근 7일간의 기록을 AI가 분석했습니다</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    # ── 2. 주간 종합 등급 카드 ──────────────────────────────────────────────
+    _gcolor = esc(meta["color"])
+    _gbg = esc(meta["bg"])
+    _gborder = esc(meta["border"])
+    _glabel = esc(meta["label"])
+    _total = stats["total"]
+    _rate = f"{stats['success_rate']:.0f}"
+    _avg = f"{stats['avg_score']:.0f}"
+
+    st.markdown(
+        f"""
+<div class="ns-ach-grade-card" style="background:{_gbg};border:2px solid {_gborder};">
+  <div class="ns-ach-grade-label" style="color:{_gcolor};">{_glabel}</div>
+  <div class="ns-ach-grade-letter" style="color:{_gcolor};">{esc(grade)}</div>
+  <div class="ns-ach-grade-stats">
+    <div class="ns-ach-stat-item">
+      <div class="ns-ach-stat-val">{_total}회</div>
+      <div class="ns-ach-stat-key">이번 주 기록</div>
+    </div>
+    <div class="ns-ach-stat-divider"></div>
+    <div class="ns-ach-stat-item">
+      <div class="ns-ach-stat-val">{_rate}%</div>
+      <div class="ns-ach-stat-key">방어 성공률</div>
+    </div>
+    <div class="ns-ach-stat-divider"></div>
+    <div class="ns-ach-stat-item">
+      <div class="ns-ach-stat-val">{_avg}</div>
+      <div class="ns-ach-stat-key">평균 점수</div>
+    </div>
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    # ── 3. AI 주간 코멘트 카드 ──────────────────────────────────────────────
+    _comment = esc(meta["comment"])
+    if _total == 0:
+        _comment = esc("아직 이번 주 식단 기록이 없어요. 📸 카메라 버튼을 눌러 첫 기록을 남겨보세요!")
+    st.markdown(
+        f"""
+<div class="ns-ach-comment-card">
+  <div class="ns-ach-comment-icon">🤖</div>
+  <div class="ns-ach-comment-text">{_comment}</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    # ── 4. 뱃지 컬렉션 그리드 ────────────────────────────────────────────────
+    st.markdown(
+        '<div class="ns-dashboard-section-title" style="margin-top:20px;">🏅 뱃지 컬렉션</div>',
+        unsafe_allow_html=True,
+    )
+
+    badges_achieved = stats["badges"]
+    badge_html_items = []
+    for _b in _BADGES_DEF:
+        _achieved = badges_achieved.get(_b["id"], False)
+        if _achieved:
+            badge_html_items.append(
+                f'<div class="ns-ach-badge ns-ach-badge-on">'
+                f'<div class="ns-ach-badge-emoji">{_b["emoji"]}</div>'
+                f'<div class="ns-ach-badge-name">{esc(_b["name"])}</div>'
+                f'<div class="ns-ach-badge-desc">{esc(_b["desc"])}</div>'
+                f'</div>'
+            )
+        else:
+            badge_html_items.append(
+                f'<div class="ns-ach-badge ns-ach-badge-off">'
+                f'<div class="ns-ach-badge-emoji" style="filter:grayscale(1);opacity:0.4;">{_b["emoji"]}</div>'
+                f'<div class="ns-ach-badge-lock">🔒</div>'
+                f'<div class="ns-ach-badge-name" style="color:#94a3b8;">{esc(_b["name"])}</div>'
+                f'<div class="ns-ach-badge-desc" style="color:#cbd5e1;">{esc(_b["desc"])}</div>'
+                f'</div>'
+            )
+
+    st.markdown(
+        f'<div class="ns-ach-badge-grid">{"".join(badge_html_items)}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # 로그인 유도 (게스트)
+    if _lt == "guest":
+        st.info("🔐 로그인하면 Firestore에서 실제 7일 데이터를 연동해 더 정확한 성적표를 볼 수 있습니다!")
+
+
 def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
     """홈(스캐너 main) — 카메라 우선 식전 미션 → 장소 버튼 → AI 미션 팝업."""
     _ensure_pre_meal_state()
@@ -2573,6 +2786,168 @@ st.markdown(f"""
         color: #94a3b8;
         font-weight: 500;
     }}
+
+    /* ── 성과 탭 전용 스타일 ─────────────────────────────────────────────── */
+    .ns-ach-header {{
+        background: linear-gradient(135deg, #1c1208 0%, #2d1f0a 50%, #3d2b10 100%);
+        border-radius: 20px;
+        padding: 20px 22px 18px;
+        margin-bottom: 16px;
+        color: #ffffff;
+        box-shadow: 0 8px 28px rgba(184,134,11,0.22);
+    }}
+    .ns-ach-header-sub {{
+        font-size: 0.70rem;
+        color: rgba(240,192,64,0.85);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }}
+    .ns-ach-header-title {{
+        font-size: 1.25rem;
+        font-weight: 800;
+        line-height: 1.35;
+        letter-spacing: -0.3px;
+        margin-bottom: 7px;
+    }}
+    .ns-ach-header-hint {{
+        font-size: 0.76rem;
+        color: rgba(255,255,255,0.50);
+    }}
+    /* 등급 카드 */
+    .ns-ach-grade-card {{
+        border-radius: 20px;
+        padding: 22px 20px 18px;
+        margin-bottom: 14px;
+        text-align: center;
+    }}
+    .ns-ach-grade-label {{
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }}
+    .ns-ach-grade-letter {{
+        font-size: 5rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -3px;
+        margin-bottom: 18px;
+        text-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }}
+    .ns-ach-grade-stats {{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+    }}
+    .ns-ach-stat-item {{
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+    }}
+    .ns-ach-stat-val {{
+        font-size: 1.2rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        color: #1e293b;
+    }}
+    .ns-ach-stat-key {{
+        font-size: 0.68rem;
+        color: #64748b;
+        font-weight: 600;
+    }}
+    .ns-ach-stat-divider {{
+        width: 1px;
+        height: 32px;
+        background: rgba(0,0,0,0.12);
+        margin: 0 4px;
+    }}
+    /* AI 코멘트 카드 */
+    .ns-ach-comment-card {{
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 16px 18px;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }}
+    .ns-ach-comment-icon {{
+        font-size: 1.6rem;
+        line-height: 1;
+        flex-shrink: 0;
+    }}
+    .ns-ach-comment-text {{
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #1e293b;
+        line-height: 1.55;
+    }}
+    /* 뱃지 그리드 */
+    .ns-ach-badge-grid {{
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-top: 10px;
+        margin-bottom: 20px;
+    }}
+    @media (max-width: 480px) {{
+        .ns-ach-badge-grid {{
+            grid-template-columns: repeat(4, 1fr);
+            gap: 7px;
+        }}
+    }}
+    .ns-ach-badge {{
+        border-radius: 14px;
+        padding: 12px 6px 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        position: relative;
+        text-align: center;
+    }}
+    .ns-ach-badge-on {{
+        background: #ffffff;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+        animation: ns-badge-shine 2.4s ease-in-out infinite alternate;
+    }}
+    .ns-ach-badge-off {{
+        background: #f8fafc;
+        box-shadow: inset 0 0 0 1.5px #e2e8f0;
+    }}
+    @keyframes ns-badge-shine {{
+        from {{ box-shadow: 0 4px 14px rgba(0,0,0,0.07); }}
+        to   {{ box-shadow: 0 4px 20px rgba(16,185,129,0.22); }}
+    }}
+    .ns-ach-badge-emoji {{
+        font-size: 1.6rem;
+        line-height: 1;
+    }}
+    .ns-ach-badge-lock {{
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        font-size: 0.65rem;
+        opacity: 0.5;
+    }}
+    .ns-ach-badge-name {{
+        font-size: 0.62rem;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1.2;
+    }}
+    .ns-ach-badge-desc {{
+        font-size: 0.55rem;
+        color: #64748b;
+        line-height: 1.3;
+    }}
     /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴 및 여백 강제 숨김 */
     .viewerBadge_container {{ display: none !important; }}
     .viewerBadge_link {{ display: none !important; }}
@@ -2710,10 +3085,10 @@ st.markdown(f"""
     div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"],
     div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container,
     div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"] {{
-        width: 20% !important;
-        min-width: 20% !important;
-        max-width: 20% !important;
-        flex: 1 1 20% !important;
+        width: 16.667% !important;
+        min-width: 16.667% !important;
+        max-width: 16.667% !important;
+        flex: 1 1 16.667% !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
@@ -2829,10 +3204,10 @@ st.markdown(f"""
         div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"],
         div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container,
         div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"] {{
-            width: 20% !important;
-            min-width: 20% !important;
-            max-width: 20% !important;
-            flex: 1 1 20% !important;
+            width: 16.667% !important;
+            min-width: 16.667% !important;
+            max-width: 16.667% !important;
+            flex: 1 1 16.667% !important;
         }}
         div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) > div.element-container:not(:nth-child(1)),
         div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) > div[data-testid="element-container"]:not(:nth-child(1)),
@@ -3804,9 +4179,10 @@ def confirm_retake_dialog():
 
 
 def render_bottom_bar():
-    """하단 네비 (No-Columns): st.columns 없이 버튼만 나열, CSS가 stVerticalBlock을 flex row로 고정."""
+    """하단 네비 (No-Columns): st.columns 없이 버튼만 나열, CSS가 stVerticalBlock을 flex row로 고정.
+    탭 구성: 홈 / 일지 / [📸중앙FAB] / 혈당 / 성과 / 설정 (6탭)"""
     menu_key = st.session_state.get("nav_menu") or "scanner"
-    if menu_key not in ("scanner", "history", "glucose"):
+    if menu_key not in ("scanner", "history", "glucose", "achievement"):
         return
     bottom_bar_container = st.container()
     with bottom_bar_container:
@@ -3851,6 +4227,11 @@ def render_bottom_bar():
                 st.rerun()
             if st.button("🩹\n혈당", key="bb_nav_glucose", use_container_width=True):
                 st.session_state["nav_menu"] = "glucose"
+                st.session_state["current_page"] = "main"
+                st.session_state["app_stage"] = "main"
+                st.rerun()
+            if st.button("🏆\n성과", key="bb_nav_achievement", use_container_width=True):
+                st.session_state["nav_menu"] = "achievement"
                 st.session_state["current_page"] = "main"
                 st.session_state["app_stage"] = "main"
                 st.rerun()
@@ -5563,6 +5944,9 @@ elif menu_key == "history":
 """,
             unsafe_allow_html=True,
         )
+
+elif menu_key == "achievement":
+    _render_achievement_tab(t)
 
 # Native Bottom Bar: 본문(스캐너/기록) 이후 렌더 → DOM 맨 아래 (fixed 미적용 시에도 상단에 깔리지 않음)
 render_bottom_bar()
