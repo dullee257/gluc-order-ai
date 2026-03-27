@@ -222,6 +222,7 @@ def _ko():
         "pre_meal_err_vision": "메뉴 인식에 실패했습니다. ",
         "pre_meal_guest_vision_block": "무료 체험 횟수가 부족합니다. 광고 보기 또는 로그인 후 이용해 주세요.",
         "pre_meal_menu_fallback": "오늘의 식사",
+        "pre_meal_retake_label": "🔄 다른 사진으로 다시 찍기",
     }
 
 

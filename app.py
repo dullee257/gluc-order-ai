@@ -305,91 +305,138 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
                 st.rerun()
         return
 
-    if "pre_meal_slot_select" not in st.session_state:
-        _opts_init = ["아침", "점심", "저녁", "간식"]
-        _ds = pm.get("meal_slot", "아침")
-        st.session_state["pre_meal_slot_select"] = _ds if _ds in _opts_init else "아침"
-    if "pre_meal_menu_input" not in st.session_state:
-        st.session_state["pre_meal_menu_input"] = pm.get("menu_text", "")
+    # ── 조건부 렌더링 핵심: 인식된 메뉴가 있으면 카드 모드 ──────────────────
+    _mt_existing = (
+        st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or ""
+    ).strip()
+    _has_card = bool(_mt_existing)
 
-    _cap_v = int(st.session_state.get("pre_meal_capture_version", 0))
+    def _clear_and_retake():
+        """이미지·메뉴 세션 완전 초기화 → 업로더 화면으로 복귀."""
+        pm["menu_text"] = ""
+        pm["step"] = 1
+        for _k in ("pre_meal_menu_image_bytes", "pre_meal_menu_image_valid_for",
+                   "pre_meal_menu_img_hash"):
+            st.session_state.pop(_k, None)
+        st.session_state["pre_meal_capture_version"] = (
+            st.session_state.get("pre_meal_capture_version", 0) + 1
+        )
+        for _k in ("pre_meal_menu_input", "pre_meal_slot_select"):
+            if _k in st.session_state:
+                del st.session_state[_k]
+        st.rerun()
 
-    up = st.file_uploader(
-        t.get("pre_meal_upload_main_label", "📸 오늘 식단 찰칵!"),
-        type=["jpg", "png", "jpeg", "webp"],
-        key=f"pre_meal_up_{_cap_v}",
-        label_visibility="collapsed",
-    )
+    if _has_card:
+        # ── 카드 모드: file_uploader 렌더링 완전 금지 ─────────────────────
+        pm["menu_text"] = _mt_existing
+        _render_pre_meal_result_card(t, pm, _mt_existing)
+        st.markdown(
+            '<div style="text-align:center;margin-top:6px;">',
+            unsafe_allow_html=True,
+        )
+        if st.button(
+            t.get("pre_meal_retake_label", "🔄 다른 사진으로 다시 찍기"),
+            key="pre_meal_retake_photo",
+            use_container_width=False,
+        ):
+            _clear_and_retake()
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    pil_src = None
-    if up is not None:
-        try:
-            pil_src = compress_image(Image.open(up), max_size_kb=500)
-        except Exception:
-            st.warning(t.get("pre_meal_err_image", "이미지를 열 수 없습니다."))
+    else:
+        # ── 업로더 모드: 카메라 버튼 표시 ────────────────────────────────
+        if "pre_meal_slot_select" not in st.session_state:
+            _opts_init = ["아침", "점심", "저녁", "간식"]
+            _ds = pm.get("meal_slot", "아침")
+            st.session_state["pre_meal_slot_select"] = _ds if _ds in _opts_init else "아침"
+        if "pre_meal_menu_input" not in st.session_state:
+            st.session_state["pre_meal_menu_input"] = pm.get("menu_text", "")
 
-    if pil_src is not None:
-        h = _pre_meal_image_hash(pil_src)
-        if h != st.session_state.get("pre_meal_menu_img_hash"):
-            if is_guest and guest_remaining <= 0:
-                st.warning(t.get("pre_meal_guest_vision_block", "무료 체험 횟수가 부족합니다."))
-            else:
-                with st.spinner(
-                    t.get(
-                        "pre_meal_spinner_vision",
-                        "AI 코치가 메뉴를 정밀 스캔하고 맞춤형 방어막을 설계 중입니다...",
-                    )
-                ):
-                    try:
-                        name = extract_pre_meal_menu_name_from_image(pil_src)
-                        if not name:
-                            name = t.get("pre_meal_menu_fallback", "오늘의 식사")
-                        pm["menu_text"] = name
-                        st.session_state["pre_meal_menu_input"] = name
-                        st.session_state["pre_meal_menu_img_hash"] = h
-                        if is_guest:
-                            st.session_state["guest_usage_count"] = st.session_state.get("guest_usage_count", 0) + 1
-                    except Exception as e:
-                        st.error(
-                            t.get("pre_meal_err_vision", "메뉴 인식에 실패했습니다. ")
-                            + str(e)
+        _cap_v = int(st.session_state.get("pre_meal_capture_version", 0))
+
+        up = st.file_uploader(
+            t.get("pre_meal_upload_main_label", "📸 오늘 식단 찰칵!"),
+            type=["jpg", "png", "jpeg", "webp"],
+            key=f"pre_meal_up_{_cap_v}",
+            label_visibility="collapsed",
+        )
+
+        pil_src = None
+        if up is not None:
+            try:
+                pil_src = compress_image(Image.open(up), max_size_kb=500)
+            except Exception:
+                st.warning(t.get("pre_meal_err_image", "이미지를 열 수 없습니다."))
+
+        if pil_src is not None:
+            h = _pre_meal_image_hash(pil_src)
+            if h != st.session_state.get("pre_meal_menu_img_hash"):
+                if is_guest and guest_remaining <= 0:
+                    st.warning(t.get("pre_meal_guest_vision_block", "무료 체험 횟수가 부족합니다."))
+                else:
+                    with st.spinner(
+                        t.get(
+                            "pre_meal_spinner_vision",
+                            "AI 코치가 메뉴를 정밀 스캔하고 맞춤형 방어막을 설계 중입니다...",
                         )
+                    ):
+                        try:
+                            name = extract_pre_meal_menu_name_from_image(pil_src)
+                            if not name:
+                                name = t.get("pre_meal_menu_fallback", "오늘의 식사")
+                            pm["menu_text"] = name
+                            st.session_state["pre_meal_menu_input"] = name
+                            st.session_state["pre_meal_menu_img_hash"] = h
+                            if is_guest:
+                                st.session_state["guest_usage_count"] = (
+                                    st.session_state.get("guest_usage_count", 0) + 1
+                                )
+                        except Exception as e:
+                            st.error(
+                                t.get("pre_meal_err_vision", "메뉴 인식에 실패했습니다. ")
+                                + str(e)
+                            )
 
-        try:
-            _buf = io.BytesIO()
-            _p = pil_src.copy() if hasattr(pil_src, "copy") else pil_src
-            if _p.mode in ("RGBA", "P"):
-                _p = _p.convert("RGB")
-            _p.save(_buf, format="JPEG", quality=88)
-            st.session_state["pre_meal_menu_image_bytes"] = _buf.getvalue()
-            st.session_state["pre_meal_menu_image_valid_for"] = (
-                st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or ""
-            ).strip()
-        except Exception:
-            pass
+            # 이미지 bytes 세션 저장
+            try:
+                _buf = io.BytesIO()
+                _p = pil_src.copy() if hasattr(pil_src, "copy") else pil_src
+                if _p.mode in ("RGBA", "P"):
+                    _p = _p.convert("RGB")
+                _p.save(_buf, format="JPEG", quality=88)
+                st.session_state["pre_meal_menu_image_bytes"] = _buf.getvalue()
+                st.session_state["pre_meal_menu_image_valid_for"] = (
+                    st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or ""
+                ).strip()
+            except Exception:
+                pass
 
-    with st.expander(t.get("pre_meal_expander_manual", "⌨️ 직접 입력하기"), expanded=False):
-        _opts_slot = ["아침", "점심", "저녁", "간식"]
-        meal_slot = st.selectbox(
-            t.get("pre_meal_meal_slot", "현재 끼니"),
-            _opts_slot,
-            key="pre_meal_slot_select",
-        )
-        pm["meal_slot"] = meal_slot
-        st.text_input(
-            t.get("pre_meal_menu_label", "메뉴 (텍스트)"),
-            key="pre_meal_menu_input",
-            placeholder=t.get("pre_meal_menu_ph", "예: 김치찌개 + 현미밥"),
-        )
-        _mt_manual = (st.session_state.get("pre_meal_menu_input") or "").strip()
-        if _mt_manual:
-            pm["menu_text"] = _mt_manual
+        # 직접 입력 expander
+        with st.expander(t.get("pre_meal_expander_manual", "⌨️ 직접 입력하기"), expanded=False):
+            _opts_slot = ["아침", "점심", "저녁", "간식"]
+            meal_slot = st.selectbox(
+                t.get("pre_meal_meal_slot", "현재 끼니"),
+                _opts_slot,
+                key="pre_meal_slot_select",
+            )
+            pm["meal_slot"] = meal_slot
+            st.text_input(
+                t.get("pre_meal_menu_label", "메뉴 (텍스트)"),
+                key="pre_meal_menu_input",
+                placeholder=t.get("pre_meal_menu_ph", "예: 김치찌개 + 현미밥"),
+            )
+            _mt_manual = (st.session_state.get("pre_meal_menu_input") or "").strip()
+            if _mt_manual:
+                pm["menu_text"] = _mt_manual
 
-    pm["meal_slot"] = st.session_state.get("pre_meal_slot_select", pm.get("meal_slot", "아침"))
-    mt_run = (st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or "").strip()
-    if mt_run:
-        pm["menu_text"] = mt_run
-        _render_pre_meal_result_card(t, pm, mt_run)
+        pm["meal_slot"] = st.session_state.get("pre_meal_slot_select", pm.get("meal_slot", "아침"))
+
+        # 이번 실행에서 메뉴가 확정되면 → 즉시 카드 모드로 전환 (rerun)
+        _mt_now = (
+            st.session_state.get("pre_meal_menu_input") or pm.get("menu_text") or ""
+        ).strip()
+        if _mt_now:
+            pm["menu_text"] = _mt_now
+            st.rerun()
 
 
 def _render_dash_today_metrics_cards(t, avg_glucose, latest_glucose, total_carbs, meal_n):
