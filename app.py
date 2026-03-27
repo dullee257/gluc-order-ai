@@ -2593,61 +2593,64 @@ st.markdown(f"""
     [data-testid="stToolbar"] {{display: none !important;}}
     
     /* ══════════════════════════════════════════════════════════════════════
-       초강력 상단 공백 완전 박멸 (최우선 적용)
+       상단 공백 완전 박멸 — 3단 콤보 전략
+       ① stHeader display:none  ② 올바른 셀렉터(stMainBlockContainer)  ③ 음수 마진 트릭
        ══════════════════════════════════════════════════════════════════════ */
-    /* 1. 기본 헤더 완전 삭제 */
+
+    /* ① Streamlit 기본 헤더 완전 삭제 */
     header[data-testid="stHeader"] {{
         display: none !important;
         height: 0px !important;
+        overflow: hidden !important;
     }}
-    /* 2. 최상위 루트 컨테이너 여백 제거 */
-    .appview-container,
-    .main,
-    [data-testid="stAppViewContainer"] {{
-        padding-top: 0rem !important;
-        margin-top: 0rem !important;
-    }}
-    /* 3. 메인 콘텐츠 블록 패딩/마진/탑 좌표 완전 박멸 */
+
+    /* ② 실제 DOM의 정확한 셀렉터: stMainBlockContainer (이전엔 없는 stAppViewBlockContainer를 타겟해 무효) */
+    [data-testid="stMainBlockContainer"],
+    .stMainBlockContainer,
     .block-container {{
-        padding-top: 0rem !important;
-        margin-top: 0rem !important;
-        top: 0px !important;
-        position: relative !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }}
-    /* 4. 최신 Streamlit 숨겨진 뷰 컨테이너 여백 제거 */
-    [data-testid="stAppViewBlockContainer"] {{
-        padding-top: 0px !important;
-    }}
-    /* 5. 첫 번째 자식 요소 밀림 완전 방지 */
-    [data-testid="stAppViewBlockContainer"] > div:first-child,
+
+    /* ③ 음수 마진 트릭: styled-components가 paddingTop:"6rem"을 인라인 style로 주입해
+          CSS !important로 override 불가 → 첫 번째 자식에 -6rem 음수 마진을 줘서 시각적 상쇄 */
+    [data-testid="stMainBlockContainer"] > div:first-child,
+    .stMainBlockContainer > div:first-child,
     .block-container > div:first-child {{
-        margin-top: 0px !important;
-        padding-top: 0px !important;
+        margin-top: -6rem !important;
     }}
-    /* 6. 모바일: safe-area 여백까지 강제 제거 + FAB 영역 확보 */
+
+    /* components.v1.html iframe wrapper 자체가 만드는 빈 공간 제거 */
+    [data-testid="stCustomComponentV1"],
+    iframe[title="st_custom_component"] {{
+        height: 0px !important;
+        min-height: 0px !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+    }}
+    div:has(> iframe[title="st_custom_component"]) {{
+        height: 0px !important;
+        min-height: 0px !important;
+        overflow: hidden !important;
+    }}
+
+    /* 모바일 + FAB 영역 확보 */
     @media screen and (max-width: 768px) {{
-        .appview-container,
-        .main,
-        .block-container {{
-            padding-top: 0rem !important;
-            margin-top: 0rem !important;
-        }}
+        [data-testid="stMainBlockContainer"],
+        .stMainBlockContainer,
         .block-container {{
             padding-left: 0.3rem !important;
             padding-right: 0.3rem !important;
             padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
         }}
-        [data-testid="stAppViewBlockContainer"] {{
-            padding-top: 0px !important;
-        }}
-        [data-testid="stAppViewBlockContainer"] > div:first-child,
+        [data-testid="stMainBlockContainer"] > div:first-child,
+        .stMainBlockContainer > div:first-child,
         .block-container > div:first-child {{
-            margin-top: 0px !important;
-            padding-top: 0px !important;
+            margin-top: -6rem !important;
         }}
     }}
     /* 메트릭 내부 요소 텍스트 짤림 완벽 방지 */
@@ -2924,63 +2927,9 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# JS 인젝션: Streamlit 1.54+ styled-components가 paddingTop을 인라인 스타일로 주입하므로
-# CSS !important로는 덮어쓸 수 없음 → window.parent.document를 통해 직접 inline style 제거
+# 상단 공백 제거용 빈 앵커 마커 (st.html은 Streamlit 1.37+에서만 사용 가능하므로 제거)
+# CSS 음수 마진 트릭 + header display:none 조합으로 해결 (위 <style> 블록 참조)
 # ──────────────────────────────────────────────────────────────────────────────
-import streamlit.components.v1 as _stc
-
-_stc.html(
-    """
-<script>
-(function() {
-    function _fixPadding() {
-        try {
-            var doc = window.parent.document;
-
-            // 1. stMainBlockContainer (실제 block-container) 인라인 paddingTop 제거
-            var mc = doc.querySelector('[data-testid="stMainBlockContainer"]');
-            if (mc) {
-                mc.style.setProperty('padding-top', '0px', 'important');
-                mc.style.setProperty('margin-top', '0px', 'important');
-            }
-
-            // 2. stHeader 완전 제거
-            var hdr = doc.querySelector('header[data-testid="stHeader"]');
-            if (hdr) {
-                hdr.style.setProperty('display', 'none', 'important');
-                hdr.style.setProperty('height', '0px', 'important');
-            }
-
-            // 3. stAppViewContainer / appview-container
-            var avc = doc.querySelector('[data-testid="stAppViewContainer"]');
-            if (avc) {
-                avc.style.setProperty('padding-top', '0px', 'important');
-                avc.style.setProperty('margin-top', '0px', 'important');
-            }
-        } catch(e) {}
-    }
-
-    // 즉시 실행
-    _fixPadding();
-
-    // DOM이 아직 미완성일 수 있으므로 단계별 재실행
-    [100, 300, 600, 1200].forEach(function(ms) {
-        setTimeout(_fixPadding, ms);
-    });
-
-    // Streamlit 재렌더링(stateChange) 시에도 유지되도록 MutationObserver 등록
-    try {
-        var ob = new MutationObserver(function(muts) {
-            _fixPadding();
-        });
-        ob.observe(window.parent.document.body, { childList: true, subtree: false });
-    } catch(e) {}
-})();
-</script>
-""",
-    height=0,
-    scrolling=False,
-)
 
 # --- 🛑 사용자 로그인 및 접근 권한 체크 ---
 import requests
