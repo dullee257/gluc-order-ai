@@ -2593,49 +2593,25 @@ st.markdown(f"""
     [data-testid="stToolbar"] {{display: none !important;}}
     
     /* ══════════════════════════════════════════════════════════════════════
-       상단 공백 완전 박멸 — 3단 콤보 전략
-       ① stHeader display:none  ② 올바른 셀렉터(stMainBlockContainer)  ③ 음수 마진 트릭
+       상단 공백 최소화 — Ghost 요소 제거 후 정상 CSS
        ══════════════════════════════════════════════════════════════════════ */
 
-    /* ① Streamlit 기본 헤더 완전 삭제 */
+    /* Streamlit 기본 헤더 완전 삭제 */
     header[data-testid="stHeader"] {{
         display: none !important;
         height: 0px !important;
         overflow: hidden !important;
     }}
 
-    /* ② 실제 DOM의 정확한 셀렉터: stMainBlockContainer (이전엔 없는 stAppViewBlockContainer를 타겟해 무효) */
+    /* 메인 컨테이너 상단 패딩 최소화 (Ghost 제거 후 1rem 여백만 유지) */
     [data-testid="stMainBlockContainer"],
     .stMainBlockContainer,
     .block-container {{
+        padding-top: 1rem !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
-    }}
-
-    /* ③ 음수 마진 트릭: styled-components가 paddingTop:"6rem"을 인라인 style로 주입해
-          CSS !important로 override 불가 → 첫 번째 자식에 -6rem 음수 마진을 줘서 시각적 상쇄 */
-    [data-testid="stMainBlockContainer"] > div:first-child,
-    .stMainBlockContainer > div:first-child,
-    .block-container > div:first-child {{
-        margin-top: -6rem !important;
-    }}
-
-    /* components.v1.html iframe wrapper 자체가 만드는 빈 공간 제거 */
-    [data-testid="stCustomComponentV1"],
-    iframe[title="st_custom_component"] {{
-        height: 0px !important;
-        min-height: 0px !important;
-        border: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        overflow: hidden !important;
-    }}
-    div:has(> iframe[title="st_custom_component"]) {{
-        height: 0px !important;
-        min-height: 0px !important;
-        overflow: hidden !important;
     }}
 
     /* 모바일 + FAB 영역 확보 */
@@ -2643,14 +2619,10 @@ st.markdown(f"""
         [data-testid="stMainBlockContainer"],
         .stMainBlockContainer,
         .block-container {{
+            padding-top: 1rem !important;
             padding-left: 0.3rem !important;
             padding-right: 0.3rem !important;
             padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
-        }}
-        [data-testid="stMainBlockContainer"] > div:first-child,
-        .stMainBlockContainer > div:first-child,
-        .block-container > div:first-child {{
-            margin-top: -6rem !important;
         }}
     }}
     /* 메트릭 내부 요소 텍스트 짤림 완벽 방지 */
@@ -3877,30 +3849,9 @@ menu_key = st.session_state.get("nav_menu") or "scanner"
 
 # 5-1. 식단 스캐너
 if menu_key == "scanner":
-    # 환영 문구를 로그아웃 버튼 위에 표시
-    render_login_badge()
-    # 메인 상단: 1페이지로 가기 버튼 (사이드바 접힌 상태에서도 보이도록)
+    # Ghost 제거: render_login_badge() + 빈 col_top1 컬럼 완전 삭제
+    # 로그인/로그아웃 버튼은 current_page == "main" 블록 내 헤더 아래로 이동
     _lt = st.session_state.get("login_type")
-    col_top1, col_top2 = st.columns([5, 1])
-    with col_top2:
-        if _lt == "guest":
-            if st.button(f"🔐 {t['sidebar_go_login']}", key="main_go_login", use_container_width=True):
-                st.session_state["logged_in"] = False
-                st.session_state["login_type"] = None
-                st.session_state["user_id"] = None
-                st.session_state["user_email"] = None
-                _reset_meal_feed_state()
-                st.session_state["auth_mode"] = "login"
-                st.rerun()
-        elif _lt == "google":
-            if st.button(f"🚪 {t['sidebar_logout']}", key="main_logout", use_container_width=True):
-                st.session_state["logged_in"] = False
-                st.session_state["login_type"] = None
-                st.session_state["user_id"] = None
-                st.session_state["user_email"] = None
-                _reset_meal_feed_state()
-                st.session_state["auth_mode"] = "login"
-                st.rerun()
     if 'app_stage' not in st.session_state:
         st.session_state['app_stage'] = 'main'
     if 'current_page' not in st.session_state:
@@ -3931,12 +3882,31 @@ if menu_key == "scanner":
             st.markdown("---")
 
         if st.session_state.get("current_page") == "main":
-            # 1️⃣ 메인: 프리미엄 히어로 + (계정) 오늘의 요약 대시보드 (하단 네비는 Bottom Bar)
+            # 1️⃣ 메인: 프리미엄 히어로 (Ghost 제거 후 최상단 첫 요소)
             st.markdown(
                 f'<div class="ns-premium-home-shell" aria-hidden="true"></div>'
                 f'<div class="ns-premium-hero">{html_module.escape(t.get("main_hero_welcome", "오늘도 쾌적하게 혈당 방어, 시작해 볼까요? 🛡️"))}</div>',
                 unsafe_allow_html=True,
             )
+            # 로그인/로그아웃 버튼 (헤더 아래 인라인 — 빈 col_top1 Ghost 제거)
+            if _lt == "guest":
+                if st.button(f"🔐 {t['sidebar_go_login']}", key="main_go_login", use_container_width=True):
+                    st.session_state["logged_in"] = False
+                    st.session_state["login_type"] = None
+                    st.session_state["user_id"] = None
+                    st.session_state["user_email"] = None
+                    _reset_meal_feed_state()
+                    st.session_state["auth_mode"] = "login"
+                    st.rerun()
+            elif _lt == "google":
+                if st.button(f"🚪 {t['sidebar_logout']}", key="main_logout", use_container_width=True):
+                    st.session_state["logged_in"] = False
+                    st.session_state["login_type"] = None
+                    st.session_state["user_id"] = None
+                    st.session_state["user_email"] = None
+                    _reset_meal_feed_state()
+                    st.session_state["auth_mode"] = "login"
+                    st.rerun()
 
             if is_guest and total_remaining <= 0:
                 st.warning(t["guest_trial_exhausted"])
@@ -5099,30 +5069,9 @@ if menu_key == "scanner":
 elif menu_key == "glucose":
     import pytz as _pytz_gl
     current_uid = st.session_state.get("user_id")
-    render_login_badge()
     _lt_gl = st.session_state.get("login_type")
-    _gc1, _gc2 = st.columns([5, 1])
-    with _gc2:
-        if _lt_gl == "guest":
-            if st.button(f"🔐 {t['sidebar_go_login']}", key="glucose_go_login", use_container_width=True):
-                st.session_state["logged_in"] = False
-                st.session_state["login_type"] = None
-                st.session_state["user_id"] = None
-                st.session_state["user_email"] = None
-                _reset_meal_feed_state()
-                st.session_state["auth_mode"] = "login"
-                st.rerun()
-        elif _lt_gl == "google":
-            if st.button(f"🚪 {t['sidebar_logout']}", key="glucose_logout", use_container_width=True):
-                st.session_state["logged_in"] = False
-                st.session_state["login_type"] = None
-                st.session_state["user_id"] = None
-                st.session_state["user_email"] = None
-                _reset_meal_feed_state()
-                st.session_state["auth_mode"] = "login"
-                st.rerun()
 
-    # ── 1. 다크 프리미엄 헤더 ────────────────────────────────────────────────
+    # ── 1. 다크 프리미엄 헤더 (Ghost 제거: 최상단 첫 번째 요소로 끌어올림) ──
     st.markdown(
         """
 <div class="ns-glucose-header">
@@ -5133,6 +5082,26 @@ elif menu_key == "glucose":
 """,
         unsafe_allow_html=True,
     )
+
+    # 로그인/로그아웃 버튼 (헤더 아래 인라인 — 빈 col_top1 Ghost 제거 후 단독 배치)
+    if _lt_gl == "guest":
+        if st.button(f"🔐 {t['sidebar_go_login']}", key="glucose_go_login", use_container_width=True):
+            st.session_state["logged_in"] = False
+            st.session_state["login_type"] = None
+            st.session_state["user_id"] = None
+            st.session_state["user_email"] = None
+            _reset_meal_feed_state()
+            st.session_state["auth_mode"] = "login"
+            st.rerun()
+    elif _lt_gl == "google":
+        if st.button(f"🚪 {t['sidebar_logout']}", key="glucose_logout", use_container_width=True):
+            st.session_state["logged_in"] = False
+            st.session_state["login_type"] = None
+            st.session_state["user_id"] = None
+            st.session_state["user_email"] = None
+            _reset_meal_feed_state()
+            st.session_state["auth_mode"] = "login"
+            st.rerun()
 
     # ── 2. 오늘의 공복 혈당 요약 위젯 ────────────────────────────────────────
     _gl_seoul = _pytz_gl.timezone("Asia/Seoul")
@@ -5410,31 +5379,8 @@ elif menu_key == "history":
         st.error("🚨 진단: 유저 인증 ID를 세션에서 찾을 수 없습니다. (Key 오류)")
 
     _lt_h = st.session_state.get("login_type")
-    # 환영 문구를 로그아웃 버튼 위에 표시
-    render_login_badge()
-    # 메인 상단: 로그인/로그아웃 버튼
-    c1, c2 = st.columns([5, 1])
-    with c2:
-        if _lt_h == "guest":
-            if st.button(f"🔐 {t['sidebar_go_login']}", key="history_go_login", use_container_width=True):
-                st.session_state["logged_in"] = False
-                st.session_state["login_type"] = None
-                st.session_state["user_id"] = None
-                st.session_state["user_email"] = None
-                _reset_meal_feed_state()
-                st.session_state["auth_mode"] = "login"
-                st.rerun()
-        elif _lt_h == "google":
-            if st.button(f"🚪 {t['sidebar_logout']}", key="history_logout", use_container_width=True):
-                st.session_state["logged_in"] = False
-                st.session_state["login_type"] = None
-                st.session_state["user_id"] = None
-                st.session_state["user_email"] = None
-                _reset_meal_feed_state()
-                st.session_state["auth_mode"] = "login"
-                st.rerun()
 
-    # ── 다크 그린 프리미엄 환영 카드 ─────────────────────────────────────────
+    # ── 다크 그린 프리미엄 환영 카드 (Ghost 제거: 최상단 첫 번째 요소로 끌어올림) ──
     st.markdown(
         """
 <div class="ns-hist-welcome-card">
@@ -5445,6 +5391,26 @@ elif menu_key == "history":
 """,
         unsafe_allow_html=True,
     )
+
+    # 로그인/로그아웃 버튼 (헤더 아래 인라인 — 빈 c1 Ghost 제거 후 단독 배치)
+    if _lt_h == "guest":
+        if st.button(f"🔐 {t['sidebar_go_login']}", key="history_go_login", use_container_width=True):
+            st.session_state["logged_in"] = False
+            st.session_state["login_type"] = None
+            st.session_state["user_id"] = None
+            st.session_state["user_email"] = None
+            _reset_meal_feed_state()
+            st.session_state["auth_mode"] = "login"
+            st.rerun()
+    elif _lt_h == "google":
+        if st.button(f"🚪 {t['sidebar_logout']}", key="history_logout", use_container_width=True):
+            st.session_state["logged_in"] = False
+            st.session_state["login_type"] = None
+            st.session_state["user_id"] = None
+            st.session_state["user_email"] = None
+            _reset_meal_feed_state()
+            st.session_state["auth_mode"] = "login"
+            st.rerun()
 
     _uid_hist = st.session_state.get("user_id")
     feed_items = st.session_state.get("feed_items", [])
