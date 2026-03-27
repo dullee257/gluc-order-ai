@@ -2923,6 +2923,65 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
+# ──────────────────────────────────────────────────────────────────────────────
+# JS 인젝션: Streamlit 1.54+ styled-components가 paddingTop을 인라인 스타일로 주입하므로
+# CSS !important로는 덮어쓸 수 없음 → window.parent.document를 통해 직접 inline style 제거
+# ──────────────────────────────────────────────────────────────────────────────
+import streamlit.components.v1 as _stc
+
+_stc.html(
+    """
+<script>
+(function() {
+    function _fixPadding() {
+        try {
+            var doc = window.parent.document;
+
+            // 1. stMainBlockContainer (실제 block-container) 인라인 paddingTop 제거
+            var mc = doc.querySelector('[data-testid="stMainBlockContainer"]');
+            if (mc) {
+                mc.style.setProperty('padding-top', '0px', 'important');
+                mc.style.setProperty('margin-top', '0px', 'important');
+            }
+
+            // 2. stHeader 완전 제거
+            var hdr = doc.querySelector('header[data-testid="stHeader"]');
+            if (hdr) {
+                hdr.style.setProperty('display', 'none', 'important');
+                hdr.style.setProperty('height', '0px', 'important');
+            }
+
+            // 3. stAppViewContainer / appview-container
+            var avc = doc.querySelector('[data-testid="stAppViewContainer"]');
+            if (avc) {
+                avc.style.setProperty('padding-top', '0px', 'important');
+                avc.style.setProperty('margin-top', '0px', 'important');
+            }
+        } catch(e) {}
+    }
+
+    // 즉시 실행
+    _fixPadding();
+
+    // DOM이 아직 미완성일 수 있으므로 단계별 재실행
+    [100, 300, 600, 1200].forEach(function(ms) {
+        setTimeout(_fixPadding, ms);
+    });
+
+    // Streamlit 재렌더링(stateChange) 시에도 유지되도록 MutationObserver 등록
+    try {
+        var ob = new MutationObserver(function(muts) {
+            _fixPadding();
+        });
+        ob.observe(window.parent.document.body, { childList: true, subtree: false });
+    } catch(e) {}
+})();
+</script>
+""",
+    height=0,
+    scrolling=False,
+)
+
 # --- 🛑 사용자 로그인 및 접근 권한 체크 ---
 import requests
 
