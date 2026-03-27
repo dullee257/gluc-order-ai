@@ -2603,26 +2603,43 @@ st.markdown(f"""
         overflow: hidden !important;
     }}
 
-    /* 메인 컨테이너 상단 패딩 최소화 (Ghost 제거 후 1rem 여백만 유지) */
+    /* 메인 컨테이너 상단 패딩 0px 강제 — 네이티브 앱 상단 밀착 */
+    .block-container,
     [data-testid="stMainBlockContainer"],
+    [data-testid="stAppViewBlockContainer"],
     .stMainBlockContainer,
-    .block-container {{
-        padding-top: 1rem !important;
+    .main {{
+        padding-top: 0px !important;
+        margin-top: 0px !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }}
 
+    /* 첫 번째 요소(프리미엄 헤더) 상단 완전 밀착 */
+    .block-container > div:first-child,
+    [data-testid="stMainBlockContainer"] > div:first-child {{
+        padding-top: 0px !important;
+        margin-top: 0px !important;
+    }}
+
     /* 모바일 + FAB 영역 확보 */
     @media screen and (max-width: 768px) {{
+        .block-container,
         [data-testid="stMainBlockContainer"],
         .stMainBlockContainer,
-        .block-container {{
-            padding-top: 1rem !important;
+        .main {{
+            padding-top: 0px !important;
+            margin-top: 0px !important;
             padding-left: 0.3rem !important;
             padding-right: 0.3rem !important;
             padding-bottom: calc(120px + env(safe-area-inset-bottom, 20px)) !important;
+        }}
+        .block-container > div:first-child,
+        [data-testid="stMainBlockContainer"] > div:first-child {{
+            padding-top: 0px !important;
+            margin-top: 0px !important;
         }}
     }}
     /* 메트릭 내부 요소 텍스트 짤림 완벽 방지 */
