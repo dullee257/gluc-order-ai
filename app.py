@@ -2446,6 +2446,133 @@ st.markdown(f"""
         padding: 2px 0 8px;
         letter-spacing: -0.2px;
     }}
+
+    /* ── 혈당 탭 전용 스타일 ────────────────────────────────────────────── */
+    .ns-glucose-header {{
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #1a2a40 100%);
+        border-radius: 20px;
+        padding: 20px 22px 18px;
+        margin-bottom: 16px;
+        color: #ffffff;
+        box-shadow: 0 8px 28px rgba(15,23,42,0.30);
+    }}
+    .ns-glucose-header-sub {{
+        font-size: 0.70rem;
+        color: rgba(248,113,113,0.80);
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }}
+    .ns-glucose-header-title {{
+        font-size: 1.25rem;
+        font-weight: 800;
+        line-height: 1.35;
+        letter-spacing: -0.3px;
+        margin-bottom: 7px;
+    }}
+    .ns-glucose-header-hint {{
+        font-size: 0.76rem;
+        color: rgba(255,255,255,0.55);
+    }}
+    /* 오늘의 공복 혈당 카드 */
+    .ns-glucose-fasting-card {{
+        background: #ffffff;
+        border-radius: 18px;
+        padding: 18px 20px 16px;
+        margin-bottom: 14px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+    }}
+    .ns-glucose-fasting-title {{
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #64748b;
+        letter-spacing: 0.03em;
+        margin-bottom: 10px;
+    }}
+    .ns-glucose-fasting-body {{
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+    }}
+    .ns-glucose-fasting-val {{
+        font-size: 2.6rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -1px;
+    }}
+    .ns-glucose-fasting-unit {{
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #94a3b8;
+        align-self: flex-end;
+        padding-bottom: 4px;
+    }}
+    .ns-glucose-fasting-label {{
+        font-size: 0.82rem;
+        font-weight: 700;
+        align-self: flex-end;
+        padding-bottom: 4px;
+        margin-left: 4px;
+    }}
+    .ns-glucose-fasting-empty {{
+        font-size: 1rem;
+        color: #cbd5e1;
+        font-style: italic;
+        padding: 6px 0;
+    }}
+    /* 입력 폼 */
+    .ns-glucose-form-title {{
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.2px;
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1.5px solid #f1f5f9;
+    }}
+    .ns-glucose-input-label {{
+        font-size: 0.80rem;
+        font-weight: 600;
+        color: #475569;
+        margin: 8px 0 4px;
+    }}
+    /* 기록 히스토리 아이템 */
+    .ns-glucose-history-item {{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }}
+    .ns-glucose-history-left {{
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }}
+    .ns-glucose-history-type {{
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #1e293b;
+    }}
+    .ns-glucose-history-time {{
+        font-size: 0.73rem;
+        color: #94a3b8;
+        font-weight: 500;
+    }}
+    .ns-glucose-history-val {{
+        font-size: 1.5rem;
+        font-weight: 900;
+        letter-spacing: -0.5px;
+    }}
+    .ns-glucose-history-unit {{
+        font-size: 0.72rem;
+        color: #94a3b8;
+        font-weight: 500;
+    }}
     /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴 및 여백 강제 숨김 */
     .viewerBadge_container {{ display: none !important; }}
     .viewerBadge_link {{ display: none !important; }}
@@ -3341,10 +3468,14 @@ def fetch_image_bytes_direct(image_url):
         return None, f"Admin SDK 다운로드 에러: {str(e)}"
 
 
+_GLUCOSE_VALID_TYPES = {"fasting", "postprandial", "pre_meal", "bedtime", "other"}
+
+
 def _save_glucose(uid, type_, value, note=None, timestamp=None):
-    """users/{uid}/glucose 컬렉션에 공복/식후 혈당 저장. type_ in ('fasting','postprandial').
-    timestamp는 반드시 timezone-aware Python datetime으로 전달하고, 문자열로 변환하지 않고 그대로 저장하여 Firestore Native Timestamp로 기록됨."""
-    if not uid or type_ not in ("fasting", "postprandial"):
+    """users/{uid}/glucose 컬렉션에 혈당 저장.
+    type_ in ('fasting','postprandial','pre_meal','bedtime','other').
+    timestamp는 반드시 timezone-aware Python datetime으로 전달."""
+    if not uid or type_ not in _GLUCOSE_VALID_TYPES:
         return False
     try:
         print("저장 시도 중...")  # 임시 디버깅 로그
@@ -4916,6 +5047,7 @@ if menu_key == "scanner":
 
 # ── 혈당 탭 (기간 필터 + 산점도) ──
 elif menu_key == "glucose":
+    import pytz as _pytz_gl
     current_uid = st.session_state.get("user_id")
     render_login_badge()
     _lt_gl = st.session_state.get("login_type")
@@ -4939,42 +5071,254 @@ elif menu_key == "glucose":
                 _reset_meal_feed_state()
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
-    st.title(f"🩹 {t.get('glucose_menu', '혈당')}")
 
-    st.markdown("### 📈 혈당 트렌드")
-    period = st.radio(
-        "조회 기간",
-        ["오늘", "주간", "월간", "연간"],
-        horizontal=True,
-        label_visibility="collapsed",
-        index=1,
+    # ── 1. 다크 프리미엄 헤더 ────────────────────────────────────────────────
+    st.markdown(
+        """
+<div class="ns-glucose-header">
+  <div class="ns-glucose-header-sub">나의 건강 데이터</div>
+  <div class="ns-glucose-header-title">나의 혈당 기록소 🩸</div>
+  <div class="ns-glucose-header-hint">혈당을 기록하면 AI가 패턴을 분석합니다</div>
+</div>
+""",
+        unsafe_allow_html=True,
     )
 
-    if not current_uid:
-        st.info("로그인 후 혈당 트렌드를 확인할 수 있습니다.")
-    else:
-        records = get_glucose_records(current_uid, period)
-        if records:
-            import pandas as pd
+    # ── 2. 오늘의 공복 혈당 요약 위젯 ────────────────────────────────────────
+    _gl_seoul = _pytz_gl.timezone("Asia/Seoul")
+    _gl_today_str = datetime.now(_gl_seoul).strftime("%Y-%m-%d")
+    _blood_logs: list = st.session_state.get("blood_sugar_logs", [])
+    _today_fasting_val = None
+    for _lg in reversed(_blood_logs):
+        if _lg.get("type") == "fasting" and _lg.get("date") == _gl_today_str:
+            _today_fasting_val = _lg.get("value")
+            break
 
-            df = pd.DataFrame(records)
-            time_col = df.get("recorded_at_utc", df.get("timestamp"))
-            if time_col is None:
-                df["recorded_at_utc"] = pd.NaT
-            else:
-                df["recorded_at_utc"] = pd.to_datetime(time_col, errors="coerce")
-            df = df.dropna(subset=["recorded_at_utc"])
-            if not df.empty:
-                df["시간"] = pd.to_datetime(df["recorded_at_utc"], utc=True).dt.tz_convert("Asia/Seoul")
-                if period in ["오늘", "주간"]:
-                    df["시간표시"] = df["시간"].dt.strftime("%m-%d %H:%M")
+    esc = html_module.escape
+    if _today_fasting_val is not None:
+        _fv = int(_today_fasting_val)
+        _fc = "#10B981" if _fv < 100 else "#f59e0b" if _fv < 126 else "#ef4444"
+        _fl = "정상 🟢" if _fv < 100 else "주의 🟡" if _fv < 126 else "고혈당 🔴"
+        _fasting_inner = (
+            f'<div class="ns-glucose-fasting-val" style="color:{_fc};">{_fv}</div>'
+            f'<div class="ns-glucose-fasting-unit">mg/dL</div>'
+            f'<div class="ns-glucose-fasting-label" style="color:{_fc};">{esc(_fl)}</div>'
+        )
+    else:
+        _fasting_inner = '<div class="ns-glucose-fasting-empty">아직 기록되지 않음</div>'
+
+    st.markdown(
+        f"""
+<div class="ns-glucose-fasting-card">
+  <div class="ns-glucose-fasting-title">🌅 오늘의 공복 혈당</div>
+  <div class="ns-glucose-fasting-body">{_fasting_inner}</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    # ── 3. 새 혈당 기록 입력 폼 ──────────────────────────────────────────────
+    _MTYPE_OPTIONS = [
+        "🌅 기상 직후(공복)", "🍽️ 식전", "🏃 식후 2시간", "🌙 취침 전", "❓ 기타",
+    ]
+    _MTYPE_KEYS = {
+        "🌅 기상 직후(공복)": "fasting",
+        "🍽️ 식전":           "pre_meal",
+        "🏃 식후 2시간":      "postprandial",
+        "🌙 취침 전":         "bedtime",
+        "❓ 기타":            "other",
+    }
+
+    with st.container(border=True):
+        st.markdown(
+            '<div class="ns-glucose-form-title">💉 새 혈당 기록</div>',
+            unsafe_allow_html=True,
+        )
+        mtype_label = st.radio(
+            "측정 시점",
+            _MTYPE_OPTIONS,
+            horizontal=True,
+            label_visibility="collapsed",
+            key="glucose_mtype",
+        )
+        mtype_key = _MTYPE_KEYS[mtype_label]
+
+        st.markdown(
+            '<div class="ns-glucose-input-label">혈당 수치 입력 (mg/dL)</div>',
+            unsafe_allow_html=True,
+        )
+        glucose_val = st.number_input(
+            "혈당 수치 (mg/dL)",
+            min_value=40,
+            max_value=500,
+            value=100,
+            step=1,
+            key="glucose_value_input",
+            label_visibility="collapsed",
+        )
+
+        if st.button(
+            "💾 기록 저장하기",
+            key="glucose_save_btn",
+            use_container_width=True,
+            type="primary",
+        ):
+            _val = int(glucose_val)
+            _now_seoul = datetime.now(_gl_seoul)
+            _log_entry = {
+                "type":        mtype_key,
+                "type_label":  mtype_label,
+                "value":       _val,
+                "date":        _gl_today_str,
+                "time":        _now_seoul.strftime("%H:%M"),
+                "timestamp":   _now_seoul.isoformat(),
+            }
+
+            if "blood_sugar_logs" not in st.session_state:
+                st.session_state["blood_sugar_logs"] = []
+            st.session_state["blood_sugar_logs"].append(_log_entry)
+
+            # Firestore 저장 (로그인 유저만)
+            if current_uid and _lt_gl == "google":
+                _now_utc = datetime.now(timezone.utc)
+                _save_glucose(current_uid, mtype_key, _val, timestamp=_now_utc)
+                try:
+                    get_glucose_meals_cached.clear()
+                except Exception:
+                    pass
+
+            # ── 도파민 피드백 ────────────────────────────────────────────────
+            if mtype_key == "fasting":
+                if _val < 100:
+                    st.toast("🎉 완벽한 공복 혈당! 오늘 하루도 쾌적하게 시작하세요!", icon="🌿")
+                elif _val < 126:
+                    st.toast("✅ 공복 혈당이 정상 범위입니다. 오늘도 방어 잘 해봐요!", icon="✅")
                 else:
-                    df["시간표시"] = df["시간"].dt.strftime("%m-%d")
-                st.scatter_chart(df, x="시간표시", y="value", color="type", use_container_width=True)
+                    st.toast("⚠️ 공복 혈당이 높습니다. 오늘 식이섬유를 꼭 챙기세요!", icon="⚠️")
+            elif mtype_key == "postprandial":
+                if _val < 140:
+                    st.toast("🛡️ 방어 성공! 식후 혈당이 안정적입니다!", icon="🛡️")
+                elif _val < 180:
+                    st.toast("⚡ 식후 혈당이 살짝 올랐어요. 15분 걸어보세요!", icon="⚡")
+                else:
+                    st.toast("🚨 식후 혈당이 높습니다! 지금 당장 15분 빠르게 걷기!", icon="🚨")
+            elif mtype_key == "pre_meal":
+                if _val < 100:
+                    st.toast("🌱 식전 혈당 완벽! 방어막 준비 완료입니다!", icon="🌱")
+                else:
+                    st.toast("📋 식전 혈당 기록 완료. 식이섬유 먼저 드세요!", icon="📋")
+            elif mtype_key == "bedtime":
+                if _val < 120:
+                    st.toast("🌙 취침 전 혈당 안정적! 오늘 하루 수고하셨습니다!", icon="🌙")
+                else:
+                    st.toast("🌙 취침 전 혈당을 확인했습니다. 내일 아침 공복 혈당도 체크해보세요!", icon="🌙")
             else:
-                st.info("유효한 시간 데이터가 포함된 혈당 기록이 없습니다. 새로운 혈당을 기록해 보세요.")
+                st.toast("✅ 혈당이 기록되었습니다!", icon="✅")
+            st.rerun()
+
+    # ── 4. 오늘의 최근 기록 미니 히스토리 ───────────────────────────────────
+    _today_logs = [_l for _l in _blood_logs if _l.get("date") == _gl_today_str]
+    if _today_logs:
+        st.markdown(
+            '<div class="ns-dashboard-section-title" style="margin-top:16px;">📋 오늘의 기록</div>',
+            unsafe_allow_html=True,
+        )
+        for _lg in reversed(_today_logs):
+            _lv = int(_lg.get("value", 0))
+            _lt_lbl = str(_lg.get("type_label", _lg.get("type", "")))
+            _lt_time = str(_lg.get("time", ""))
+            if _lv < 100:
+                _lvc = "#10B981"
+            elif _lv < 140:
+                _lvc = "#f59e0b"
+            else:
+                _lvc = "#ef4444"
+            st.markdown(
+                f"""
+<div class="ns-glucose-history-item">
+  <div class="ns-glucose-history-left">
+    <div class="ns-glucose-history-type">{esc(_lt_lbl)}</div>
+    <div class="ns-glucose-history-time">{esc(_lt_time)}</div>
+  </div>
+  <div class="ns-glucose-history-val" style="color:{_lvc};">
+    {_lv}<span class="ns-glucose-history-unit"> mg/dL</span>
+  </div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+
+    # ── 5. 혈당 트렌드 차트 (로그인 유저 + Firestore 기록 있을 때만) ─────────
+    if current_uid and _lt_gl == "google":
+        st.markdown(
+            '<div class="ns-dashboard-section-title" style="margin-top:18px;">📈 혈당 트렌드</div>',
+            unsafe_allow_html=True,
+        )
+        _gl_period = st.radio(
+            "조회 기간",
+            ["오늘", "주간", "월간", "연간"],
+            horizontal=True,
+            label_visibility="collapsed",
+            index=1,
+            key="glucose_chart_period",
+        )
+        _gl_records = get_glucose_records(current_uid, _gl_period)
+        if _gl_records:
+            import pandas as pd
+            import plotly.graph_objects as go
+
+            _gl_df = pd.DataFrame(_gl_records)
+            _gl_df["recorded_at_utc"] = pd.to_datetime(_gl_df["recorded_at_utc"], errors="coerce", utc=True)
+            _gl_df = _gl_df.dropna(subset=["recorded_at_utc"])
+            if not _gl_df.empty:
+                _gl_df["시간"] = _gl_df["recorded_at_utc"].dt.tz_convert("Asia/Seoul")
+                if _gl_period in ["오늘", "주간"]:
+                    _gl_df["표시"] = _gl_df["시간"].dt.strftime("%m-%d %H:%M")
+                else:
+                    _gl_df["표시"] = _gl_df["시간"].dt.strftime("%m-%d")
+
+                _color_map = {"fasting": "#10B981", "postprandial": "#ef4444",
+                              "pre_meal": "#f59e0b", "bedtime": "#8b5cf6", "other": "#94a3b8"}
+                _gl_fig = go.Figure()
+                for _gtype, _gdf in _gl_df.groupby("type"):
+                    _gl_fig.add_trace(go.Scatter(
+                        x=_gdf["표시"], y=_gdf["value"],
+                        mode="lines+markers",
+                        name=str(_gtype),
+                        line=dict(color=_color_map.get(str(_gtype), "#94a3b8"), width=2),
+                        marker=dict(size=8),
+                        hovertemplate="<b>%{x}</b><br>혈당: <b>%{y} mg/dL</b><extra></extra>",
+                    ))
+                _gl_fig.add_hline(y=100, line_dash="dot", line_color="rgba(16,185,129,0.5)",
+                                  annotation_text="공복 정상", annotation_font_size=9)
+                _gl_fig.add_hline(y=140, line_dash="dot", line_color="rgba(239,68,68,0.5)",
+                                  annotation_text="식후 경계", annotation_font_size=9)
+                _gl_fig.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(l=0, r=10, t=10, b=6),
+                    yaxis=dict(
+                        title=dict(text="mg/dL", font=dict(size=10, color="#94a3b8")),
+                        gridcolor="rgba(0,0,0,0.06)", tickfont=dict(size=10), fixedrange=True,
+                    ),
+                    xaxis=dict(gridcolor="rgba(0,0,0,0.06)", tickangle=-30,
+                               tickfont=dict(size=10), fixedrange=True),
+                    hoverlabel=dict(bgcolor="white", bordercolor="#e2e8f0",
+                                   font_size=13, font_family="Noto Sans KR"),
+                    dragmode=False, height=230, showlegend=True,
+                    legend=dict(orientation="h", y=1.1, font=dict(size=11)),
+                )
+                _gl_fig.update_xaxes(fixedrange=True)
+                _gl_fig.update_yaxes(fixedrange=True)
+                with st.container(border=True):
+                    st.plotly_chart(_gl_fig, use_container_width=True,
+                                    config={"displayModeBar": False, "scrollZoom": False})
+            else:
+                st.info("유효한 시간 데이터가 없습니다.")
         else:
-            st.info(f"'{period}' 기간 내에 기록된 혈당 데이터가 없습니다.")
+            st.markdown(
+                '<div style="text-align:center;padding:24px 0;color:#94a3b8;font-size:0.88rem;">📊 Firestore에 저장된 혈당 기록이 없습니다.<br>위 폼으로 기록하면 차트가 나타납니다.</div>',
+                unsafe_allow_html=True,
+            )
 
 # ── 나의 기록 탭 (Cal AI 스타일 히스토리) ──
 elif menu_key == "history":
