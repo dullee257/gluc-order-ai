@@ -353,7 +353,9 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
 
         _cap_v = int(st.session_state.get("pre_meal_capture_version", 0))
 
-        up = st.file_uploader(
+        # st.empty()로 감싸 → 파일 올라오는 순간 즉시 UI 교체 가능
+        _upload_slot = st.empty()
+        up = _upload_slot.file_uploader(
             t.get("pre_meal_upload_main_label", "📸 오늘 식단 찰칵!"),
             type=["jpg", "png", "jpeg", "webp"],
             key=f"pre_meal_up_{_cap_v}",
@@ -373,28 +375,59 @@ def _render_pre_meal_skeleton(t, is_guest=False, guest_remaining=0):
                 if is_guest and guest_remaining <= 0:
                     st.warning(t.get("pre_meal_guest_vision_block", "무료 체험 횟수가 부족합니다."))
                 else:
-                    with st.spinner(
+                    # ✅ 즉시 카메라 버튼·파일명 완전 제거
+                    _upload_slot.empty()
+
+                    # ✅ 세련된 pulse 로딩 카드 표시
+                    _loading_slot = st.empty()
+                    _scan_msg = html_module.escape(
                         t.get(
                             "pre_meal_spinner_vision",
                             "AI 코치가 메뉴를 정밀 스캔하고 맞춤형 방어막을 설계 중입니다...",
                         )
-                    ):
-                        try:
-                            name = extract_pre_meal_menu_name_from_image(pil_src)
-                            if not name:
-                                name = t.get("pre_meal_menu_fallback", "오늘의 식사")
-                            pm["menu_text"] = name
-                            st.session_state["pre_meal_menu_input"] = name
-                            st.session_state["pre_meal_menu_img_hash"] = h
-                            if is_guest:
-                                st.session_state["guest_usage_count"] = (
-                                    st.session_state.get("guest_usage_count", 0) + 1
-                                )
-                        except Exception as e:
-                            st.error(
-                                t.get("pre_meal_err_vision", "메뉴 인식에 실패했습니다. ")
-                                + str(e)
+                    )
+                    _loading_slot.markdown(
+                        f"""
+<div class="ns-loading-card">
+  <div class="ns-loading-row">
+    <div class="ns-loading-icon">🔍</div>
+    <div class="ns-loading-text-wrap">
+      <div class="ns-loading-title">{_scan_msg}</div>
+      <div class="ns-loading-dots">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </div>
+  <div class="ns-loading-bar-track">
+    <div class="ns-loading-bar-fill"></div>
+  </div>
+</div>
+""",
+                        unsafe_allow_html=True,
+                    )
+
+                    _vision_ok = False
+                    try:
+                        name = extract_pre_meal_menu_name_from_image(pil_src)
+                        if not name:
+                            name = t.get("pre_meal_menu_fallback", "오늘의 식사")
+                        pm["menu_text"] = name
+                        st.session_state["pre_meal_menu_input"] = name
+                        st.session_state["pre_meal_menu_img_hash"] = h
+                        if is_guest:
+                            st.session_state["guest_usage_count"] = (
+                                st.session_state.get("guest_usage_count", 0) + 1
                             )
+                        _vision_ok = True
+                    except Exception as e:
+                        _loading_slot.empty()
+                        st.error(
+                            t.get("pre_meal_err_vision", "메뉴 인식에 실패했습니다. ")
+                            + str(e)
+                        )
+
+                    if _vision_ok:
+                        _loading_slot.empty()
 
             # 이미지 bytes 세션 저장
             try:
@@ -1700,6 +1733,79 @@ st.markdown(f"""
         font-weight: 700;
         color: #475569;
         margin-bottom: 4px;
+    }}
+
+    /* ──────────────────────────────────────────────────────────────────
+       Vision AI 로딩 카드 — pulse + bounce dots + sliding progress bar
+    ────────────────────────────────────────────────────────────────── */
+    .ns-loading-card {{
+        background: #ffffff;
+        border-radius: 20px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        padding: 22px 18px 18px 18px;
+        margin: 0 0 10px 0;
+        box-sizing: border-box;
+    }}
+    .ns-loading-row {{
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 16px;
+    }}
+    .ns-loading-icon {{
+        font-size: 2.2rem;
+        flex-shrink: 0;
+        animation: ns-pulse 1.4s ease-in-out infinite;
+        line-height: 1;
+    }}
+    .ns-loading-text-wrap {{ flex: 1; min-width: 0; }}
+    .ns-loading-title {{
+        font-size: clamp(0.85rem, 2.7vw, 0.98rem);
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.45;
+        word-break: keep-all;
+    }}
+    .ns-loading-dots {{
+        display: flex;
+        gap: 5px;
+        margin-top: 8px;
+    }}
+    .ns-loading-dots span {{
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #10B981;
+        display: inline-block;
+        animation: ns-bounce 1.2s ease-in-out infinite;
+    }}
+    .ns-loading-dots span:nth-child(1) {{ animation-delay: 0s; }}
+    .ns-loading-dots span:nth-child(2) {{ animation-delay: 0.2s; }}
+    .ns-loading-dots span:nth-child(3) {{ animation-delay: 0.4s; }}
+    .ns-loading-bar-track {{
+        height: 4px;
+        background: rgba(16,185,129,0.15);
+        border-radius: 999px;
+        overflow: hidden;
+    }}
+    .ns-loading-bar-fill {{
+        height: 100%;
+        width: 40%;
+        background: linear-gradient(90deg, #10B981, #34d399);
+        border-radius: 999px;
+        animation: ns-loading-slide 1.8s ease-in-out infinite;
+    }}
+    @keyframes ns-pulse {{
+        0%,100% {{ transform: scale(1); opacity: 1; }}
+        50% {{ transform: scale(1.15); opacity: 0.7; }}
+    }}
+    @keyframes ns-bounce {{
+        0%,100% {{ transform: translateY(0); opacity: 0.4; }}
+        50% {{ transform: translateY(-6px); opacity: 1; }}
+    }}
+    @keyframes ns-loading-slide {{
+        0%   {{ transform: translateX(-150%); }}
+        100% {{ transform: translateX(350%); }}
     }}
     /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴 및 여백 강제 숨김 */
     .viewerBadge_container {{ display: none !important; }}
