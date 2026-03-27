@@ -725,7 +725,7 @@ def _extract_menu_names(rec: dict, max_items: int = 3) -> str:
 
 
 def _render_history_summary_cards(t: dict, feed_items: list, pm: dict) -> None:
-    """일지 상단 프리미엄 요약 위젯 3개 (평균 위험도 / 방어 성공률 / 췌장 피로도)."""
+    """일지 상단 프리미엄 요약 위젯 3개 — 다크 그린 포인트 컬러 강화."""
     esc = html_module.escape
 
     scores = [int(r.get("blood_sugar_score", 0) or 0) for r in feed_items]
@@ -736,87 +736,175 @@ def _render_history_summary_cards(t: dict, feed_items: list, pm: dict) -> None:
     pancreas_stress = float((pm or {}).get("pancreas_stress", 0) or 0)
 
     if avg_score <= 40:
-        sc_color, sc_label = "#10B981", "안정"
+        sc_color, sc_bg, sc_label = "#065f46", "rgba(6,95,70,0.08)", "안정 🟢"
     elif avg_score <= 65:
-        sc_color, sc_label = "#f59e0b", "주의"
+        sc_color, sc_bg, sc_label = "#92400e", "rgba(146,64,14,0.08)", "주의 🟡"
     else:
-        sc_color, sc_label = "#ef4444", "위험"
+        sc_color, sc_bg, sc_label = "#991b1b", "rgba(153,27,27,0.08)", "위험 🔴"
 
     if success_rate >= 70:
-        sr_color = "#10B981"
+        sr_color, sr_bg = "#065f46", "rgba(6,95,70,0.08)"
     elif success_rate >= 40:
-        sr_color = "#f59e0b"
+        sr_color, sr_bg = "#92400e", "rgba(146,64,14,0.08)"
     else:
-        sr_color = "#ef4444"
+        sr_color, sr_bg = "#991b1b", "rgba(153,27,27,0.08)"
 
     if pancreas_stress <= 30:
-        ps_color, ps_label = "#10B981", "쾌적"
+        ps_color, ps_bg, ps_label = "#065f46", "rgba(6,95,70,0.08)", "쾌적"
     elif pancreas_stress <= 70:
-        ps_color, ps_label = "#f59e0b", "주의"
+        ps_color, ps_bg, ps_label = "#92400e", "rgba(146,64,14,0.08)", "주의"
     else:
-        ps_color, ps_label = "#ef4444", "과부하"
+        ps_color, ps_bg, ps_label = "#991b1b", "rgba(153,27,27,0.08)", "과부하"
 
-    n_label = esc(f"최근 {total_count}식")
-    avg_s = esc(f"{avg_score:.0f}")
-    sr_s = esc(f"{success_rate:.0f}")
-    sr_detail = esc(f"{success_count}/{total_count}식 성공")
-    ps_s = esc(f"{pancreas_stress:.0f}")
+    sr_detail = esc(f"{success_count}/{total_count}식")
 
-    def _card_html(icon, title, value, unit, sub, color):
+    def _card_html(icon, title, value, unit, sub, color, bg):
         return f"""
-<div class="ns-hist-sum-card">
+<div class="ns-hist-sum-card" style="background:{bg};">
   <div class="ns-hist-sum-icon">{icon}</div>
   <div class="ns-hist-sum-title">{esc(title)}</div>
-  <div class="ns-hist-sum-value" style="color:{color};">{value}<span class="ns-hist-sum-unit">{esc(unit)}</span></div>
+  <div class="ns-hist-sum-value" style="color:{color};">{esc(str(value))}<span class="ns-hist-sum-unit">{esc(unit)}</span></div>
   <div class="ns-hist-sum-sub" style="color:{color};">{sub}</div>
 </div>"""
 
     c1, c2, c3 = st.columns(3, gap="small")
     with c1:
-        st.markdown(_card_html("📊", "평균 위험도", avg_s, "/100", sc_label, sc_color), unsafe_allow_html=True)
+        st.markdown(_card_html("📊", "평균 위험도", f"{avg_score:.0f}", "/100", sc_label, sc_color, sc_bg), unsafe_allow_html=True)
     with c2:
-        st.markdown(_card_html("🛡️", "방어 성공률", sr_s, "%", sr_detail, sr_color), unsafe_allow_html=True)
+        st.markdown(_card_html("🛡️", "방어 성공률", f"{success_rate:.0f}", "%", sr_detail, sr_color, sr_bg), unsafe_allow_html=True)
     with c3:
-        st.markdown(_card_html("🫀", "췌장 피로도", ps_s, "/100", ps_label, ps_color), unsafe_allow_html=True)
+        st.markdown(_card_html("🫀", "췌장 피로도", f"{pancreas_stress:.0f}", "/100", ps_label, ps_color, ps_bg), unsafe_allow_html=True)
 
 
-def _render_history_trend_chart(t: dict, feed_items: list) -> None:
-    """최근 식사 기록 혈당 위험도 트렌드 Plotly 라인 차트."""
-    if len(feed_items) < 2:
+def _parse_feed_timestamp(rec: dict):
+    """feed_items 레코드의 타임스탬프를 서울 시각의 datetime으로 반환 (실패 시 None)."""
+    import pytz
+    seoul = pytz.timezone("Asia/Seoul")
+    saved = rec.get("saved_at_utc")
+    if saved:
+        try:
+            s = str(saved).strip().replace("Z", "+00:00")
+            dt_utc = datetime.fromisoformat(s)
+            if dt_utc.tzinfo is None:
+                dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+            return dt_utc.astimezone(seoul)
+        except Exception:
+            pass
+    ca = rec.get("created_at")
+    if ca is not None:
+        try:
+            if hasattr(ca, "timestamp"):
+                return datetime.fromtimestamp(ca.timestamp(), tz=timezone.utc).astimezone(seoul)
+            elif isinstance(ca, datetime):
+                dt = ca if ca.tzinfo else ca.replace(tzinfo=timezone.utc)
+                return dt.astimezone(seoul)
+        except Exception:
+            pass
+    return None
+
+
+def _aggregate_feed_by_period(feed_items: list, period: str):
+    """feed_items를 기간별로 집계 → (labels, avg_scores, full_timestamps) 반환."""
+    groups: dict = {}       # key → [scores]
+    labels_map: dict = {}   # key → display label
+
+    for rec in feed_items:
+        dt = _parse_feed_timestamp(rec)
+        if dt is None:
+            continue
+        score = int(rec.get("blood_sugar_score", 0) or 0)
+
+        if period == "일별":
+            key = dt.strftime("%Y-%m-%d")
+            label = dt.strftime("%m/%d")
+        elif period == "주별":
+            iso = dt.isocalendar()
+            key = f"{iso[0]}-W{iso[1]:02d}"
+            label = f"{iso[0] % 100}/{iso[1]}주"
+        elif period == "월별":
+            key = dt.strftime("%Y-%m")
+            label = dt.strftime("%m월")
+        else:  # 연별
+            key = dt.strftime("%Y")
+            label = dt.strftime("%Y년")
+
+        groups.setdefault(key, []).append(score)
+        labels_map[key] = label
+
+    sorted_keys = sorted(groups.keys())
+    labels = [labels_map[k] for k in sorted_keys]
+    avgs = [sum(groups[k]) / len(groups[k]) for k in sorted_keys]
+    return labels, avgs
+
+
+def _render_history_trend_chart(t: dict, feed_items: list, period: str = "일별") -> None:
+    """기간별 집계 Plotly 라인 차트 (y축 레이블 + 풍부한 툴팁)."""
+    if not feed_items:
         return
 
     import plotly.graph_objects as go
 
-    times = []
-    scores = []
-    for rec in reversed(feed_items):
-        times.append(_meal_feed_display_time(rec)[-11:])  # HH:MM 또는 MM-DD HH:MM
-        scores.append(int(rec.get("blood_sugar_score", 0) or 0))
+    labels, avgs = _aggregate_feed_by_period(feed_items, period)
+    if len(labels) < 1:
+        return
 
-    point_colors = ["#10B981" if s <= 40 else "#f59e0b" if s <= 65 else "#ef4444" for s in scores]
+    point_colors = ["#10B981" if s <= 40 else "#f59e0b" if s <= 65 else "#ef4444" for s in avgs]
 
     fig = go.Figure()
-    fig.add_hrect(y0=0, y1=40, fillcolor="rgba(16,185,129,0.06)", line_width=0)
-    fig.add_hrect(y0=40, y1=65, fillcolor="rgba(245,158,11,0.05)", line_width=0)
-    fig.add_hrect(y0=65, y1=105, fillcolor="rgba(239,68,68,0.05)", line_width=0)
+    fig.add_hrect(y0=0,  y1=40,  fillcolor="rgba(16,185,129,0.07)",  line_width=0)
+    fig.add_hrect(y0=40, y1=65,  fillcolor="rgba(245,158,11,0.05)",  line_width=0)
+    fig.add_hrect(y0=65, y1=105, fillcolor="rgba(239,68,68,0.05)",   line_width=0)
+
+    # 구간 경계선 + 라벨
+    fig.add_hline(y=40, line_dash="dot", line_color="rgba(16,185,129,0.4)",
+                  annotation_text="안정", annotation_position="top left",
+                  annotation_font_size=10, annotation_font_color="#10B981")
+    fig.add_hline(y=65, line_dash="dot", line_color="rgba(245,158,11,0.4)",
+                  annotation_text="경계", annotation_position="top left",
+                  annotation_font_size=10, annotation_font_color="#f59e0b")
+
+    hover_unit = "평균 " if period != "일별" else ""
     fig.add_trace(go.Scatter(
-        x=times, y=scores,
+        x=labels, y=avgs,
         mode="lines+markers",
         line=dict(color="#10B981", width=2.5, shape="spline"),
-        marker=dict(color=point_colors, size=10, line=dict(color="white", width=2)),
-        hovertemplate="%{x}<br>위험도: %{y}<extra></extra>",
+        marker=dict(color=point_colors, size=11, line=dict(color="white", width=2)),
+        hovertemplate=(
+            f"<b>%{{x}}</b><br>"
+            f"{hover_unit}혈당 위험도: <b>%{{y:.1f}}</b> pt<extra></extra>"
+        ),
     ))
+
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=6, r=6, t=36, b=6),
-        title=dict(text="📈 혈당 위험도 추이", font=dict(size=14, color="#0f172a", family="Noto Sans KR"), x=0),
-        yaxis=dict(range=[0, 105], gridcolor="rgba(0,0,0,0.06)", tickfont=dict(size=11)),
-        xaxis=dict(gridcolor="rgba(0,0,0,0.06)", tickangle=-30, tickfont=dict(size=10)),
-        height=220,
+        margin=dict(l=0, r=10, t=10, b=6),
+        yaxis=dict(
+            range=[0, 105],
+            gridcolor="rgba(0,0,0,0.06)",
+            tickfont=dict(size=10),
+            title=dict(text="mg/dL (혈당 위험도 점수)", font=dict(size=10, color="#94a3b8")),
+        ),
+        xaxis=dict(
+            gridcolor="rgba(0,0,0,0.06)",
+            tickangle=-30,
+            tickfont=dict(size=10),
+        ),
+        hoverlabel=dict(
+            bgcolor="white",
+            bordercolor="#e2e8f0",
+            font_size=13,
+            font_family="Noto Sans KR",
+        ),
+        height=230,
         showlegend=False,
     )
+
     with st.container(border=True):
+        st.markdown(
+            '<div class="ns-chart-title">📈 혈당 위험도 추이</div>',
+            unsafe_allow_html=True,
+        )
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 
@@ -2263,6 +2351,46 @@ st.markdown(f"""
         color: #334155;
         line-height: 1.7;
         white-space: pre-wrap;
+    }}
+    /* ── 일지 환영 카드 (다크 그린 그라디언트) ──────────────────────────── */
+    .ns-hist-welcome-card {{
+        background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+        border-radius: 20px;
+        padding: 20px 22px 18px;
+        margin-bottom: 16px;
+        color: #ffffff;
+        box-shadow: 0 8px 24px rgba(6,78,59,0.25);
+    }}
+    .ns-hist-welcome-sub {{
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.65);
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+    }}
+    .ns-hist-welcome-title {{
+        font-size: 1.2rem;
+        font-weight: 800;
+        line-height: 1.4;
+        letter-spacing: -0.3px;
+        margin-bottom: 8px;
+    }}
+    .ns-hist-welcome-hint {{
+        font-size: 0.78rem;
+        color: rgba(255,255,255,0.6);
+    }}
+    /* ── 기간 세그먼트 컨트롤 래퍼 ─────────────────────────────────────── */
+    .ns-seg-ctrl-wrap {{
+        margin: 10px 0 4px;
+    }}
+    /* ── 차트 타이틀 ────────────────────────────────────────────────────── */
+    .ns-chart-title {{
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #0f172a;
+        padding: 2px 0 8px;
+        letter-spacing: -0.2px;
     }}
     /* Streamlit 클라우드 기본 제공 하단 관리자 메뉴 및 여백 강제 숨김 */
     .viewerBadge_container {{ display: none !important; }}
@@ -4834,15 +4962,9 @@ elif menu_key == "history":
         st.error("🚨 진단: 유저 인증 ID를 세션에서 찾을 수 없습니다. (Key 오류)")
 
     _lt_h = st.session_state.get("login_type")
-    with st.expander("🔧 진단", expanded=False):
-        st.write("현재 daily_summary 상태:", st.session_state.get("daily_summary"))
-        st.write(f"현재 세션 feed_items 개수: {len(st.session_state.get('feed_items', []))}")
-        st.write("daily_meals_count:", st.session_state.get("daily_meals_count"))
-        st.write("meal_feed_hydrated_uid:", st.session_state.get("meal_feed_hydrated_uid"))
-        st.write("meal_feed_sort_field:", st.session_state.get("meal_feed_sort_field"))
     # 환영 문구를 로그아웃 버튼 위에 표시
     render_login_badge()
-    # 메인 상단: 1페이지로 가기 버튼
+    # 메인 상단: 로그인/로그아웃 버튼
     c1, c2 = st.columns([5, 1])
     with c2:
         if _lt_h == "guest":
@@ -4863,9 +4985,16 @@ elif menu_key == "history":
                 _reset_meal_feed_state()
                 st.session_state["auth_mode"] = "login"
                 st.rerun()
-    # ── 프리미엄 대시보드 헤더 ───────────────────────────────────────────────
+
+    # ── 다크 그린 프리미엄 환영 카드 ─────────────────────────────────────────
     st.markdown(
-        '<div class="ns-dashboard-section-title">📅 나의 식단 일지</div>',
+        """
+<div class="ns-hist-welcome-card">
+  <div class="ns-hist-welcome-sub">혈당 방어 리포트 센터</div>
+  <div class="ns-hist-welcome-title">오늘도 쾌적하게<br/>혈당 방어전, 결과 보고 🛡️</div>
+  <div class="ns-hist-welcome-hint">최근 식사 기록을 AI가 분석했습니다</div>
+</div>
+""",
         unsafe_allow_html=True,
     )
 
@@ -4876,8 +5005,29 @@ elif menu_key == "history":
     # ── Top 3 요약 위젯 ──────────────────────────────────────────────────────
     _render_history_summary_cards(t, feed_items, _pm_hist)
 
-    # ── 트렌드 차트 ──────────────────────────────────────────────────────────
-    _render_history_trend_chart(t, feed_items)
+    # ── 기간 세그먼트 컨트롤 ─────────────────────────────────────────────────
+    if "hist_period" not in st.session_state:
+        st.session_state["hist_period"] = "일별"
+    _hist_period = st.session_state["hist_period"]
+    _periods = ["일별", "주별", "월별", "연별"]
+
+    st.markdown('<div class="ns-seg-ctrl-wrap">', unsafe_allow_html=True)
+    _pc = st.columns(len(_periods), gap="small")
+    for _pi, _prd in enumerate(_periods):
+        with _pc[_pi]:
+            _is_active = _hist_period == _prd
+            if st.button(
+                _prd,
+                key=f"hist_period_{_prd}",
+                use_container_width=True,
+                type="primary" if _is_active else "secondary",
+            ):
+                st.session_state["hist_period"] = _prd
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # ── 트렌드 차트 (선택 기간 적용) ─────────────────────────────────────────
+    _render_history_trend_chart(t, feed_items, _hist_period)
 
     # ── 타임라인 히스토리 섹션 타이틀 ────────────────────────────────────────
     if feed_items:
