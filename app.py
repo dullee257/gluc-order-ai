@@ -3094,17 +3094,7 @@ st.markdown(f"""
         align-items: center !important;
         box-sizing: border-box !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4),
-    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4),
-    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4),
-    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) {{
-        position: relative !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        height: 100% !important;
-        min-height: 0 !important;
-    }}
+    /* nth-child(4) FAB 위치 기준 블록 제거 — 플랫 통일 디자인으로 대체 */
     div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) > div.element-container:not(:nth-child(1)),
     div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.result-nav) > div[data-testid="element-container"]:not(:nth-child(1)),
     div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.result-nav) > div.element-container:not(:nth-child(1)),
@@ -3144,42 +3134,7 @@ st.markdown(f"""
         align-items: center;
         text-align: center !important;
     }}
-    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button,
-    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button,
-    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button,
-    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button {{
-        position: absolute !important;
-        left: 50% !important;
-        bottom: 10px !important;
-        transform: translateX(-50%) !important;
-        width: 65px !important;
-        height: 65px !important;
-        min-height: 65px !important;
-        background: #2ecc71 !important;
-        border-radius: 50% !important;
-        box-shadow: 0 4px 12px rgba(46, 204, 113, 0.4) !important;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }}
-    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button p,
-    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button p,
-    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button p,
-    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button p {{
-        font-size: 28px !important;
-        color: white !important;
-        margin: 0 !important;
-        font-weight: 700 !important;
-        line-height: 1 !important;
-    }}
-    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button:active,
-    div[data-testid="stVerticalBlock"]:has(> div.element-container:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button:active,
-    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div.element-container:nth-child(4) button:active,
-    div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"]:nth-child(1) .bottom-bar-anchor.main-nav) > div[data-testid="element-container"]:nth-child(4) button:active {{
-        transform: translateX(-50%) scale(0.95) !important;
-    }}
+    /* FAB 특수 스타일 제거 — 모든 6탭 플랫(Flat) 통일 디자인 적용 */
     div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor.main-nav),
     div[data-testid="stVerticalBlock"]:has(> div > div > div[data-testid="stVerticalBlock"] .bottom-bar-anchor.result-nav) {{
         position: static !important;
@@ -4180,7 +4135,7 @@ def confirm_retake_dialog():
 
 def render_bottom_bar():
     """하단 네비 (No-Columns): st.columns 없이 버튼만 나열, CSS가 stVerticalBlock을 flex row로 고정.
-    탭 구성: 홈 / 일지 / [📸중앙FAB] / 혈당 / 성과 / 설정 (6탭)"""
+    탭 구성: 홈 / 일지 / 📸촬영 / 혈당 / 성과 / 설정 (6탭 플랫 통일)"""
     menu_key = st.session_state.get("nav_menu") or "scanner"
     if menu_key not in ("scanner", "history", "glucose", "achievement"):
         return
@@ -4220,7 +4175,7 @@ def render_bottom_bar():
                 st.session_state["nav_menu"] = "history"
                 st.session_state["app_stage"] = "main"
                 st.rerun()
-            if st.button("📸", key="bb_nav_capture", use_container_width=True):
+            if st.button("📸\n촬영", key="bb_nav_capture", use_container_width=True):
                 st.session_state["nav_menu"] = "scanner"
                 st.session_state["current_page"] = "main"
                 st.session_state["app_stage"] = "main"
