@@ -3871,6 +3871,13 @@ if not st.session_state['logged_in']:
       margin: 0 0 10px 0 !important;
       -webkit-overflow-scrolling: touch !important;
     }
+    /* #58: 45vh 스크롤 박스 밖에 마스터 체크가 보이도록 압착 시에도 잘리지 않게 */
+    body.auth-login-splash.auth-terms-page .block-container .tc-master-wrap {
+      flex: 0 0 auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
     body.auth-login-splash.auth-terms-page [data-testid="stVerticalBlockBorderWrapper"]::-webkit-scrollbar {
       width: 5px;
     }
@@ -4105,7 +4112,7 @@ try {
         # ── 마스터 "전체 동의" — 맨 아래 배치, 크고 굵게 ──────────────────────
         st.markdown("<div class='tc-master-wrap'>", unsafe_allow_html=True)
         st.checkbox(
-            "약관 전체 동의 (필수 3개 + 선택 3개)",
+            "약관 전체 동의",
             key="tc_all_master",
             on_change=_on_all_change,
         )
@@ -4160,18 +4167,25 @@ try {
             st.session_state["splash_drawer_open"] = False
         if "splash_auth_intent" not in st.session_state:
             st.session_state["splash_auth_intent"] = "login"
+        if "auth_intent" not in st.session_state:
+            st.session_state["auth_intent"] = st.session_state.get("splash_auth_intent", "login")
 
         def _cb_drawer_login():
             st.session_state["splash_drawer_open"] = True
             st.session_state["splash_auth_intent"] = "login"
+            st.session_state["auth_intent"] = "login"
 
         def _cb_drawer_signup():
             st.session_state["splash_drawer_open"] = True
             st.session_state["splash_auth_intent"] = "signup"
+            st.session_state["auth_intent"] = "signup"
 
         def _cb_soc(provider: str):
             if "splash_auth_intent" not in st.session_state:
                 st.session_state["splash_auth_intent"] = "login"
+            st.session_state["auth_intent"] = st.session_state.get(
+                "splash_auth_intent", "login"
+            )
             st.session_state["auth_mode"] = st.session_state.get("splash_auth_intent", "login")
             st.session_state["auth_splash_done"] = True
             st.session_state["auth_sheet_open"] = True
@@ -4184,11 +4198,29 @@ try {
 
         _ov = " open" if st.session_state.get("splash_drawer_open") else ""
         _dr = " open" if st.session_state.get("splash_drawer_open") else ""
+        st.session_state["auth_intent"] = st.session_state.get(
+            "splash_auth_intent", "login"
+        )
+        _ai = st.session_state["auth_intent"]
         _int_js = (
             st.session_state.get("splash_auth_intent", "login")
             .replace("\\", "\\\\")
             .replace("'", "\\'")
         )
+        if _ai == "signup":
+            _ph_d_title = "처음이신가요? Sign Up"
+            _ph_d_sub = "3초 가입하기 → 7일 PRO 무료 체험 시작"
+            _ph_bg_lbl = "Google로 가입하기"
+            _ph_bn_lbl = "네이버로 가입하기"
+            _ph_bk_lbl = "카카오로 가입하기"
+            _ph_be_lbl = "이메일로 가입하기"
+        else:
+            _ph_d_title = "반가워요! 로그인"
+            _ph_d_sub = "3초 소셜 로그인으로 바로 시작하세요"
+            _ph_bg_lbl = "Google로 계속하기"
+            _ph_bn_lbl = "네이버로 계속하기"
+            _ph_bk_lbl = "카카오로 계속하기"
+            _ph_be_lbl = "이메일로 계속하기"
 
         st.components.v1.html(
             """
@@ -4477,8 +4509,8 @@ try {
 <div class="overlay__OVERLAY_OPEN__" id="overlay" onclick="closeDrawer()"></div>
 <div class="drawer__DRAWER_OPEN__" id="drawer">
   <div class="handle"></div>
-  <div class="drawer-title" id="d-title">반가워요! 로그인</div>
-  <div class="drawer-sub" id="d-sub">3초 소셜 로그인으로 바로 시작하세요</div>
+  <div class="drawer-title" id="d-title">__D_TITLE__</div>
+  <div class="drawer-sub" id="d-sub">__D_SUB__</div>
   <button type="button" class="social-btn btn-google" id="bg">
     <span class="ico">
       <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
@@ -4488,7 +4520,7 @@ try {
         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
       </svg>
     </span>
-    <span class="lbl" id="bg-lbl">Google로 계속하기</span>
+    <span class="lbl" id="bg-lbl">__BG_LBL__</span>
   </button>
   <button type="button" class="social-btn btn-naver" id="bn">
     <span class="ico">
@@ -4496,7 +4528,7 @@ try {
         <path fill="#ffffff" d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
       </svg>
     </span>
-    <span class="lbl" id="bn-lbl">네이버로 계속하기</span>
+    <span class="lbl" id="bn-lbl">__BN_LBL__</span>
   </button>
   <button type="button" class="social-btn btn-kakao" id="bk">
     <span class="ico">
@@ -4504,7 +4536,7 @@ try {
         <path fill="#191919" d="M12 3C6.477 3 2 6.477 2 10.8c0 2.7 1.617 5.077 4.077 6.523l-.985 3.677 4.246-2.8A11.8 11.8 0 0 0 12 18.6c5.523 0 10-3.477 10-7.8S17.523 3 12 3z"/>
       </svg>
     </span>
-    <span class="lbl" id="bk-lbl">카카오로 계속하기</span>
+    <span class="lbl" id="bk-lbl">__BK_LBL__</span>
   </button>
   <button type="button" class="social-btn btn-email" id="be">
     <span class="ico">
@@ -4513,7 +4545,7 @@ try {
         <path d="M2 8l10 7 10-7" stroke="#34d399" stroke-width="1.8" stroke-linecap="round"/>
       </svg>
     </span>
-    <span class="lbl" id="be-lbl">이메일로 계속하기</span>
+    <span class="lbl" id="be-lbl">__BE_LBL__</span>
   </button>
 </div>
 <script>
@@ -4546,30 +4578,42 @@ var _intent = '__INTENT_JS__';
     if (!dr || !dr.classList.contains('open')) return;
     var mode = _intent;
     var isLogin = (mode === 'login');
-    document.getElementById('d-title').textContent = isLogin ? '반가워요! 로그인' : '처음이신가요? 회원가입';
+    document.getElementById('d-title').textContent = isLogin ? '반가워요! 로그인' : '처음이신가요? Sign Up';
     document.getElementById('d-sub').textContent = isLogin
       ? '3초 소셜 로그인으로 바로 시작하세요'
-      : '3초 회원가입 → 7일 PRO 무료 체험 시작';
-    var sfx = isLogin ? '로그인' : '회원가입';
-    document.getElementById('bg-lbl').textContent = 'Google로 ' + sfx;
-    document.getElementById('bn-lbl').textContent = '네이버로 ' + sfx;
-    document.getElementById('bk-lbl').textContent = '카카오로 ' + sfx;
-    document.getElementById('be-lbl').textContent = '이메일로 ' + sfx;
+      : '3초 가입하기 → 7일 PRO 무료 체험 시작';
+    if (isLogin) {
+      document.getElementById('bg-lbl').textContent = 'Google로 계속하기';
+      document.getElementById('bn-lbl').textContent = '네이버로 계속하기';
+      document.getElementById('bk-lbl').textContent = '카카오로 계속하기';
+      document.getElementById('be-lbl').textContent = '이메일로 계속하기';
+    } else {
+      document.getElementById('bg-lbl').textContent = 'Google로 가입하기';
+      document.getElementById('bn-lbl').textContent = '네이버로 가입하기';
+      document.getElementById('bk-lbl').textContent = '카카오로 가입하기';
+      document.getElementById('be-lbl').textContent = '이메일로 가입하기';
+    }
   } catch(e0) {}
 })();
 
 function openDrawer(mode) {
   _intent = mode;
   var isLogin = (mode === 'login');
-  document.getElementById('d-title').textContent = isLogin ? '반가워요! 로그인' : '처음이신가요? 회원가입';
+  document.getElementById('d-title').textContent = isLogin ? '반가워요! 로그인' : '처음이신가요? Sign Up';
   document.getElementById('d-sub').textContent = isLogin
     ? '3초 소셜 로그인으로 바로 시작하세요'
-    : '3초 회원가입 → 7일 PRO 무료 체험 시작';
-  var sfx = isLogin ? '로그인' : '회원가입';
-  document.getElementById('bg-lbl').textContent = 'Google로 ' + sfx;
-  document.getElementById('bn-lbl').textContent = '네이버로 ' + sfx;
-  document.getElementById('bk-lbl').textContent = '카카오로 ' + sfx;
-  document.getElementById('be-lbl').textContent = '이메일로 ' + sfx;
+    : '3초 가입하기 → 7일 PRO 무료 체험 시작';
+  if (isLogin) {
+    document.getElementById('bg-lbl').textContent = 'Google로 계속하기';
+    document.getElementById('bn-lbl').textContent = '네이버로 계속하기';
+    document.getElementById('bk-lbl').textContent = '카카오로 계속하기';
+    document.getElementById('be-lbl').textContent = '이메일로 계속하기';
+  } else {
+    document.getElementById('bg-lbl').textContent = 'Google로 가입하기';
+    document.getElementById('bn-lbl').textContent = '네이버로 가입하기';
+    document.getElementById('bk-lbl').textContent = '카카오로 가입하기';
+    document.getElementById('be-lbl').textContent = '이메일로 가입하기';
+  }
   document.getElementById('overlay').classList.add('open');
   document.getElementById('drawer').classList.add('open');
 }
@@ -4597,7 +4641,13 @@ function goAuth(provider) {
 </html>
 """.replace("__OVERLAY_OPEN__", _ov)
             .replace("__DRAWER_OPEN__", _dr)
-            .replace("__INTENT_JS__", _int_js),
+            .replace("__INTENT_JS__", _int_js)
+            .replace("__D_TITLE__", html_module.escape(_ph_d_title))
+            .replace("__D_SUB__", html_module.escape(_ph_d_sub))
+            .replace("__BG_LBL__", html_module.escape(_ph_bg_lbl))
+            .replace("__BN_LBL__", html_module.escape(_ph_bn_lbl))
+            .replace("__BK_LBL__", html_module.escape(_ph_bk_lbl))
+            .replace("__BE_LBL__", html_module.escape(_ph_be_lbl)),
             height=680,
             scrolling=False,
         )
@@ -4607,12 +4657,14 @@ function goAuth(provider) {
 <style>
 body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] button {
   opacity: 0 !important;
-  z-index: 10000000 !important;
+  z-index: 2147483000 !important;
   position: fixed !important;
   margin: 0 !important;
   padding: 0 !important;
   min-height: 0 !important;
   box-sizing: border-box !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
 }
 </style>
 """,
@@ -4673,11 +4725,15 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
             f"""<script>
 (function() {{
   var drawerOpen = {_gluc_js_drawer};
+  var debounce = null;
   function applyRects() {{
     try {{
       var d = window.parent.document;
       var body = d.body;
       if (!body || !body.classList.contains('auth-splash-screen')) return;
+      var main = d.querySelector('section[data-testid="stMain"]') || d.querySelector('main');
+      if (!main) return;
+      var bc = main.querySelector('.block-container') || main;
       var ifr = null;
       var list = d.querySelectorAll('iframe');
       for (var i = 0; i < list.length; i++) {{
@@ -4700,9 +4756,7 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
         if (bm) rects.push(bm.getBoundingClientRect());
         if (bs) rects.push(bs.getBoundingClientRect());
       }}
-      var main = d.querySelector('section[data-testid="stMain"]');
-      if (!main) return;
-      var btns = main.querySelectorAll('[data-testid="stButton"] button');
+      var btns = bc.querySelectorAll('[data-testid="stButton"] button');
       var n = Math.min(rects.length, btns.length);
       for (var k = 0; k < n; k++) {{
         var r = rects[k];
@@ -4711,13 +4765,48 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
         b.style.top = r.top + 'px';
         b.style.width = r.width + 'px';
         b.style.height = r.height + 'px';
+        b.style.zIndex = '2147483000';
+        b.style.pointerEvents = 'auto';
       }}
     }} catch(e2) {{}}
   }}
+  function scheduleRects() {{
+    if (debounce) clearTimeout(debounce);
+    debounce = setTimeout(function() {{
+      requestAnimationFrame(function() {{
+        requestAnimationFrame(applyRects);
+      }});
+    }}, 0);
+  }}
+  function bindDrawer(idoc) {{
+    var dr = idoc.getElementById('drawer');
+    if (!dr || dr.__glucBound) return;
+    dr.__glucBound = true;
+    dr.addEventListener('transitionend', function(ev) {{
+      if (ev.propertyName === 'bottom') scheduleRects();
+    }});
+  }}
+  var list0 = window.parent.document.querySelectorAll('iframe');
+  for (var j = 0; j < list0.length; j++) {{
+    try {{
+      var id0 = list0[j].contentDocument;
+      if (id0 && id0.getElementById('drawer')) bindDrawer(id0);
+    }} catch(e4) {{}}
+  }}
   applyRects();
+  scheduleRects();
+  setTimeout(applyRects, 16);
   setTimeout(applyRects, 50);
-  setTimeout(applyRects, 400);
-  try {{ window.parent.addEventListener('resize', applyRects); }} catch(e3) {{}}
+  setTimeout(applyRects, 120);
+  setTimeout(applyRects, 420);
+  setTimeout(applyRects, 500);
+  setTimeout(applyRects, 700);
+  try {{ window.parent.addEventListener('resize', scheduleRects); }} catch(e3) {{}}
+  try {{
+    window.parent.addEventListener('orientationchange', function() {{
+      setTimeout(applyRects, 350);
+    }});
+  }} catch(e5) {{}}
 }})();
 </script>""",
             height=0,
