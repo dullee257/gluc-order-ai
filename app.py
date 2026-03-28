@@ -4143,32 +4143,27 @@ try {
     width: 100%; height: 100%;
     background: #0f172a;
     font-family: 'Noto Sans KR', -apple-system, sans-serif;
-    overflow-y: auto; /* 극단적 소형 화면 safe-fallback */
-    touch-action: pan-y;
+    overflow: hidden;
   }
-  /* ── 메인 화면 레이아웃 — 진짜 Flexbox 기둥 구조 ── */
+  /* ── 수학적 분할 컨테이너 ── */
   .screen {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 100%;       /* auto-grow: 컨텐츠가 크면 늘어남 */
-    width: 100%;
-    padding: 0 20px;
-    box-sizing: border-box;
+    position: relative;
+    width: 100%; height: 100%;
+    overflow: hidden;
     text-align: center;
   }
-  /* ── 상단 비주얼 — 남는 공간을 유연하게 차지 ── */
+  /* ── 상단 비주얼: 전체 - 버튼 160px ── */
   .visual {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    bottom: 160px;                  /* ★ 하단 버튼 구역과 정확히 맞닿음 */
+    height: calc(100% - 160px);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex: 1;
-    min-height: 0;           /* ★ Flex 핵심: 내부 컨텐츠보다 작아질 수 있게 허용 */
-    overflow: hidden;        /* 내부 컨텐츠 넘침 차단 */
-    width: 100%;
-    padding-top: 16px;
-    position: relative;
+    overflow: hidden;
+    padding: 16px 20px 0;
     z-index: 1;
   }
   .glow-bg {
@@ -4200,8 +4195,15 @@ try {
   /* ── SVG 차트 ── */
   .chart-wrap {
     width: 100%; max-width: 280px;
-    margin: 0 auto 12px;
+    max-height: 40%;           /* ★ 부모(.visual) 높이 40% 초과 불가 */
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+    flex-shrink: 1;            /* 공간 부족 시 차트가 먼저 줄어듦 */
     animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.42s both;
+  }
+  .chart-wrap svg {
+    width: 100%; height: auto; /* 비율 유지하며 max-height 에 순응 */
   }
   .path-safe {
     stroke-dasharray: 180; stroke-dashoffset: 180;
@@ -4225,15 +4227,17 @@ try {
     animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;
   }
   .copy2 em { font-style: normal; color: #10b981; }
-  /* ── 하단 버튼 섹션 — 생존권 철벽 보장 ── */
+  /* ── 하단 버튼 구역 — 수학적 절대 고정 160px ── */
   .btn-section {
-    width: 100%; max-width: 420px;
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 160px;             /* ★ .visual의 bottom: 160px 과 정확히 대응 */
     display: flex; flex-direction: column;
-    align-items: center; gap: 10px;
-    margin-top: auto;        /* 남는 공간을 위쪽으로 밀어 자연스럽게 최하단 배치 */
-    flex-shrink: 0 !important; /* ★ 절대 압축 불가 — 화면이 좁아도 버튼 높이 유지 */
-    padding-top: 12px;
-    padding-bottom: max(2vh, calc(env(safe-area-inset-bottom, 0px) + 16px));
+    align-items: center; justify-content: center;
+    gap: 10px;
+    padding: 8px 20px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+    z-index: 2;
     animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;
   }
   .btn-main {
@@ -4315,33 +4319,24 @@ try {
   }
   @keyframes draw   { to { stroke-dashoffset: 0; } }
   @keyframes fadein { to { opacity: 1; } }
-  /* ── 세로 높이 750px 이하 기기 압착 뷰 ── */
+  /* ── 세로 750px 이하: 텍스트·로고 크기 축소 ── */
   @media screen and (max-height: 750px) {
-    .visual { padding-top: 8px; }
-    .logo   { font-size: 2.0rem !important; margin-bottom: 5px; }
-    .title  { font-size: 1.1rem  !important; margin-bottom: 2px; }
-    .tagline { font-size: 0.58rem !important; margin-bottom: 8px; letter-spacing: 0.08em; }
-    .chart-wrap {
-      max-width: 220px !important;
-      margin-bottom: 7px !important;
-      transform: scale(0.85);
-      transform-origin: center top;
-    }
-    .copy1 { font-size: 0.72rem !important; margin-bottom: 2px; line-height: 1.3; }
-    .copy2 { font-size: 0.75rem !important; line-height: 1.3; }
-    .btn-section { padding-top: 8px; gap: 8px; }
-    .btn-main    { height: 48px !important; }
-    .btn-sub     { height: 40px !important; }
+    .logo    { font-size: 2.0rem !important; margin-bottom: 5px; }
+    .title   { font-size: 1.05rem !important; margin-bottom: 2px; }
+    .tagline { font-size: 0.57rem !important; margin-bottom: 8px; }
+    .copy1   { font-size: 0.70rem !important; margin-bottom: 2px; line-height: 1.3; }
+    .copy2   { font-size: 0.72rem !important; line-height: 1.3; }
+    .btn-main { height: 48px !important; }
+    .btn-sub  { height: 40px !important; }
   }
-  /* ── 세로 높이 600px 이하 초소형 기기 (폴더블 외부) ── */
+  /* ── 세로 600px 이하: 태그라인 숨김, 추가 축소 ── */
   @media screen and (max-height: 600px) {
-    .logo      { font-size: 1.6rem !important; margin-bottom: 3px; }
-    .title     { font-size: 0.96rem !important; }
-    .tagline   { display: none; }
-    .chart-wrap { transform: scale(0.70); transform-origin: center top; margin-bottom: 2px !important; }
-    .copy1, .copy2 { font-size: 0.68rem !important; margin-bottom: 1px; }
-    .btn-main  { height: 44px !important; font-size: 0.88rem !important; }
-    .btn-sub   { height: 36px !important; font-size: 0.78rem !important; }
+    .logo    { font-size: 1.5rem !important; margin-bottom: 3px; }
+    .title   { font-size: 0.92rem !important; }
+    .tagline { display: none !important; }
+    .copy1, .copy2 { font-size: 0.66rem !important; margin-bottom: 1px; }
+    .btn-main { height: 44px !important; font-size: 0.88rem !important; }
+    .btn-sub  { height: 36px !important; font-size: 0.78rem !important; }
   }
 </style>
 </head>
@@ -4354,8 +4349,8 @@ try {
     <div class="title">나의 혈당 기록소</div>
     <div class="tagline">BLOOD GLUCOSE SCANNER AI</div>
     <div class="chart-wrap">
-      <svg viewBox="0 0 280 108" width="100%" height="108"
-           style="overflow:visible" aria-hidden="true">
+      <svg viewBox="0 0 280 108" width="100%"
+           style="overflow:visible;height:auto;display:block;" aria-hidden="true">
         <rect x="0" y="0" width="280" height="108" rx="14"
               fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
         <line x1="12" y1="26" x2="268" y2="26" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
@@ -4417,15 +4412,18 @@ try {
   try {
     var fr = window.frameElement;
     if (fr) {
-      var h = (window.parent.innerHeight
-           || window.parent.document.documentElement.clientHeight
-           || 700) - 10;   /* 하단 여백 10px 보정 */
-      fr.style.height = h + 'px';
-      fr.style.width = '100%';
-      fr.style.border = 'none';
-      fr.style.display = 'block';
-      fr.style.maxWidth = '100%';
-      fr.style.margin = '0';
+      /* ★ Iframe 탈옥: Streamlit 레이아웃을 완전히 무시하고 풀스크린 강제 */
+      fr.style.position   = 'fixed';
+      fr.style.top        = '0';
+      fr.style.left       = '0';
+      fr.style.width      = '100vw';
+      fr.style.height     = '100dvh';
+      fr.style.zIndex     = '999999';
+      fr.style.border     = 'none';
+      fr.style.margin     = '0';
+      fr.style.padding    = '0';
+      fr.style.maxWidth   = 'none';
+      fr.style.display    = 'block';
     }
     window.parent.document.body.classList.add('auth-login-splash');
     window.parent.document.body.classList.add('auth-splash-screen');
