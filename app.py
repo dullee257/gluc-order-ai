@@ -63,6 +63,14 @@ st.set_page_config(
 # ══════════════════════════════════════════════════════════════════════════════
 _TOP_AUTH = st.query_params.get("__auth", "")
 if _TOP_AUTH:
+    try:
+        st.cache_data.clear()
+    except Exception:
+        pass
+    try:
+        st.cache_resource.clear()
+    except Exception:
+        pass
     _TOP_INTENT = st.query_params.get("intent", "login")
     st.query_params.clear()                        # 즉시 제거 — 무한 루프 방지
     st.session_state["auth_splash_done"] = True
@@ -4153,13 +4161,13 @@ try {
             r"""<script>
 (function() {
   try {
-    var tw = window.top;
-    if (tw.__glucAuthListener) return;
-    tw.__glucAuthListener = true;
-    tw.addEventListener("message", function(ev) {
+    var w = window.parent;
+    if (w.__glucAuthListener) return;
+    w.__glucAuthListener = true;
+    w.addEventListener("message", function(ev) {
       if (!ev.data || ev.data.type !== "GLUC_AUTH_NAV" || !ev.data.url) return;
-      try { tw.location.replace(ev.data.url); } catch(e1) {
-        try { tw.location.href = ev.data.url; } catch(e2) {}
+      try { w.location.replace(ev.data.url); } catch(e1) {
+        try { w.location.href = ev.data.url; } catch(e2) {}
       }
     });
   } catch(e) {}
@@ -4549,20 +4557,22 @@ function goAuth(provider) {
     + window.parent.location.pathname
     + '?__auth=' + encodeURIComponent(provider)
     + '&intent=' + encodeURIComponent(_intent);
-  /* 샌드박스 우회: 최상위 창 postMessage → 리스너가 location.replace (명령문 #50 __auth 핸들러와 동일 URL) */
+  try { console.log("NAVIGATING TO:", finalUrl); } catch(_log) {}
   try {
-    window.top.postMessage({ type: 'GLUC_AUTH_NAV', url: finalUrl }, '*');
+    var a = document.createElement('a');
+    a.href = finalUrl;
+    a.target = '_top';
+    a.rel = 'noopener noreferrer';
+    a.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   } catch(e3) {
-    try {
-      var a = document.createElement('a');
-      a.href = finalUrl;
-      a.target = '_top';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch(e4) {}
+    try { window.open(finalUrl, '_top'); } catch(e4) {}
   }
+  try {
+    window.parent.postMessage({ type: 'GLUC_AUTH_NAV', url: finalUrl }, '*');
+  } catch(e5) {}
 }
 
 (function() {
