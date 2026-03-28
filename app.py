@@ -4163,9 +4163,11 @@ try {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex: 1;                 /* 핵심: 남는 수직 공간 모두 흡수 */
+    flex: 1;
+    min-height: 0;           /* ★ Flex 핵심: 내부 컨텐츠보다 작아질 수 있게 허용 */
+    overflow: hidden;        /* 내부 컨텐츠 넘침 차단 */
     width: 100%;
-    padding-top: 20px;
+    padding-top: 16px;
     position: relative;
     z-index: 1;
   }
@@ -4223,15 +4225,15 @@ try {
     animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;
   }
   .copy2 em { font-style: normal; color: #10b981; }
-  /* ── 하단 버튼 섹션 — Flexbox 맨 아래 자연 배치 ── */
+  /* ── 하단 버튼 섹션 — 생존권 철벽 보장 ── */
   .btn-section {
     width: 100%; max-width: 420px;
     display: flex; flex-direction: column;
     align-items: center; gap: 10px;
     margin-top: auto;        /* 남는 공간을 위쪽으로 밀어 자연스럽게 최하단 배치 */
-    padding-top: 16px;
-    padding-bottom: max(5vh, calc(env(safe-area-inset-bottom, 0px) + 20px));
-    flex-shrink: 0;          /* 절대 압축되지 않도록 */
+    flex-shrink: 0 !important; /* ★ 절대 압축 불가 — 화면이 좁아도 버튼 높이 유지 */
+    padding-top: 12px;
+    padding-bottom: max(2vh, calc(env(safe-area-inset-bottom, 0px) + 16px));
     animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;
   }
   .btn-main {
@@ -4313,6 +4315,34 @@ try {
   }
   @keyframes draw   { to { stroke-dashoffset: 0; } }
   @keyframes fadein { to { opacity: 1; } }
+  /* ── 세로 높이 750px 이하 기기 압착 뷰 ── */
+  @media screen and (max-height: 750px) {
+    .visual { padding-top: 8px; }
+    .logo   { font-size: 2.0rem !important; margin-bottom: 5px; }
+    .title  { font-size: 1.1rem  !important; margin-bottom: 2px; }
+    .tagline { font-size: 0.58rem !important; margin-bottom: 8px; letter-spacing: 0.08em; }
+    .chart-wrap {
+      max-width: 220px !important;
+      margin-bottom: 7px !important;
+      transform: scale(0.85);
+      transform-origin: center top;
+    }
+    .copy1 { font-size: 0.72rem !important; margin-bottom: 2px; line-height: 1.3; }
+    .copy2 { font-size: 0.75rem !important; line-height: 1.3; }
+    .btn-section { padding-top: 8px; gap: 8px; }
+    .btn-main    { height: 48px !important; }
+    .btn-sub     { height: 40px !important; }
+  }
+  /* ── 세로 높이 600px 이하 초소형 기기 (폴더블 외부) ── */
+  @media screen and (max-height: 600px) {
+    .logo      { font-size: 1.6rem !important; margin-bottom: 3px; }
+    .title     { font-size: 0.96rem !important; }
+    .tagline   { display: none; }
+    .chart-wrap { transform: scale(0.70); transform-origin: center top; margin-bottom: 2px !important; }
+    .copy1, .copy2 { font-size: 0.68rem !important; margin-bottom: 1px; }
+    .btn-main  { height: 44px !important; font-size: 0.88rem !important; }
+    .btn-sub   { height: 36px !important; font-size: 0.78rem !important; }
+  }
 </style>
 </head>
 <body>
