@@ -3797,48 +3797,29 @@ if not st.session_state['logged_in']:
     }
     /* KR 단일: Facebook 버튼 제거 */
     .auth-terms-panel { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem; background: rgba(255,255,255,0.05); max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
-    /* ── popover 전문 보기 버튼 — expand_more 아이콘 겹침 완전 방지 ── */
-    /* Material Icons 폰트 미로드 시 "expand_more" 텍스트가 노출되는 버그 차단 */
-    body.auth-login-splash .stApp [data-testid="stPopover"] [data-testid="stIconMaterial"],
-    body.auth-login-splash .stApp [data-testid="stPopover"] button span[class*="material"],
-    body.auth-login-splash .stApp [data-testid="stPopover"] button [aria-hidden="true"],
-    body.auth-login-splash .stApp [data-testid="stPopover"] button svg {
-      display: none !important;
-      visibility: hidden !important;
-      width: 0 !important;
-      height: 0 !important;
-      overflow: hidden !important;
+    /* ── 약관 expander 다크 스타일 (모바일 100% 안정) ── */
+    body.auth-login-splash .stApp .tc-expander [data-testid="stExpander"] > details,
+    body.auth-login-splash .stApp [data-testid="stExpander"] > details {
+      background: rgba(255,255,255,0.04) !important;
+      border: 1px solid rgba(255,255,255,0.10) !important;
+      border-radius: 8px !important;
+      margin-bottom: 2px !important;
     }
-    /* popover 트리거 버튼 — 다크 에메랄드 스타일 */
-    body.auth-login-splash .stApp [data-testid="stPopover"] > button {
-      background: rgba(52,211,153,0.07) !important;
-      border: 1px solid rgba(52,211,153,0.26) !important;
-      color: #34d399 !important;
-      font-size: 0.68rem !important;
+    body.auth-login-splash .stApp [data-testid="stExpander"] summary {
+      color: rgba(52,211,153,0.85) !important;
+      font-size: 0.76rem !important;
       font-weight: 600 !important;
-      padding: 0 10px !important;
-      min-height: 28px !important;
-      height: 28px !important;
-      border-radius: 6px !important;
-      box-shadow: none !important;
-      white-space: nowrap !important;
-      overflow: hidden !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
+      padding: 6px 10px !important;
     }
-    body.auth-login-splash .stApp [data-testid="stPopover"] > button p,
-    body.auth-login-splash .stApp [data-testid="stPopover"] > button [data-testid="stMarkdownContainer"] p {
-      color: #34d399 !important;
-      font-size: 0.68rem !important;
-      font-weight: 600 !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      line-height: 1 !important;
+    body.auth-login-splash .stApp [data-testid="stExpander"] summary p,
+    body.auth-login-splash .stApp [data-testid="stExpander"] summary span {
+      color: rgba(52,211,153,0.85) !important;
+      font-size: 0.76rem !important;
     }
-    /* 약관 행 레이아웃 — 세로 중앙 정렬 */
-    body.auth-login-splash .stApp .tc-row [data-testid="stVerticalBlock"] {
-      justify-content: center !important;
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
+      max-height: 260px !important;
+      overflow-y: auto !important;
+      padding: 8px 10px !important;
     }
     </style>
     """,
@@ -3923,59 +3904,41 @@ if not st.session_state['logged_in']:
             unsafe_allow_html=True,
         )
 
-        # ── 약관 행 (체크박스 + 전문 보기 한 줄 정렬) ───────────────────────
+        # ── 약관 항목 (체크박스 → expander 아코디언 세로 배치) ─────────────
         # [필수 1] 서비스 이용약관
-        _col_cb, _col_btn = st.columns([8, 2])
-        with _col_cb:
-            st.checkbox("**[필수]** 서비스 이용약관 동의", key="tc_tos")
-        with _col_btn:
-            with st.popover("전문 보기"):
-                st.markdown(TERMS_TOS)
+        st.checkbox("**[필수]** 서비스 이용약관 동의", key="tc_tos")
+        with st.expander("📄 내용 보기", expanded=False):
+            st.markdown(TERMS_TOS)
 
         # [필수 2] 개인정보 수집·이용
-        _col_cb, _col_btn = st.columns([8, 2])
-        with _col_cb:
-            st.checkbox("**[필수]** 개인정보 수집 및 이용 동의", key="tc_priv")
-        with _col_btn:
-            with st.popover("전문 보기"):
-                st.markdown(TERMS_PRIVACY)
+        st.checkbox("**[필수]** 개인정보 수집 및 이용 동의", key="tc_priv")
+        with st.expander("📄 내용 보기", expanded=False):
+            st.markdown(TERMS_PRIVACY)
 
         # [필수 3] 민감정보(건강정보) 처리
-        _col_cb, _col_btn = st.columns([8, 2])
-        with _col_cb:
-            st.checkbox("**[필수]** 민감정보(건강정보) 처리 동의", key="tc_health")
-        with _col_btn:
-            with st.popover("전문 보기"):
-                st.markdown(TERMS_HEALTH)
+        st.checkbox("**[필수]** 민감정보(건강정보) 처리 동의", key="tc_health")
+        with st.expander("📄 내용 보기", expanded=False):
+            st.markdown(TERMS_HEALTH)
 
         st.markdown(
-            "<div style='height:1px;background:rgba(255,255,255,0.06);margin:4px 0 6px;'></div>",
+            "<div style='height:1px;background:rgba(255,255,255,0.06);margin:6px 0;'></div>",
             unsafe_allow_html=True,
         )
 
         # [선택 1] 마케팅 정보 수신
-        _col_cb, _col_btn = st.columns([8, 2])
-        with _col_cb:
-            st.checkbox("**[선택]** 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
-        with _col_btn:
-            with st.popover("전문 보기"):
-                st.markdown(TERMS_MARKETING)
+        st.checkbox("**[선택]** 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
+        with st.expander("📄 내용 보기", expanded=False):
+            st.markdown(TERMS_MARKETING)
 
         # [선택 2] 맞춤형 서비스 개인정보 추가 수집
-        _col_cb, _col_btn = st.columns([8, 2])
-        with _col_cb:
-            st.checkbox("**[선택]** 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
-        with _col_btn:
-            with st.popover("전문 보기"):
-                st.markdown(TERMS_CUSTOM_PRIV)
+        st.checkbox("**[선택]** 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
+        with st.expander("📄 내용 보기", expanded=False):
+            st.markdown(TERMS_CUSTOM_PRIV)
 
         # [선택 3] 빅데이터 분석 및 신규 서비스 개발
-        _col_cb, _col_btn = st.columns([8, 2])
-        with _col_cb:
-            st.checkbox("**[선택]** 빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", key="tc_bigdata")
-        with _col_btn:
-            with st.popover("전문 보기"):
-                st.markdown(TERMS_BIGDATA)
+        st.checkbox("**[선택]** 빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", key="tc_bigdata")
+        with st.expander("📄 내용 보기", expanded=False):
+            st.markdown(TERMS_BIGDATA)
 
         # ── 진행 조건 체크 (필수 3개만) ──────────────────────────────────────
         _can_proceed = all(st.session_state.get(k, False) for k in _req_keys)
