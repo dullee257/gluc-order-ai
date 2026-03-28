@@ -4156,7 +4156,34 @@ try {
 
     # ---------- 프리미엄 랜딩 화면 (풀스크린 Zero-Scroll + Bottom Drawer) ----------
     if not st.session_state.get("auth_splash_done"):
-        # 부모 창에서만 동작: iframe 샌드박스 우회용 postMessage 수신 (소셜 클릭 → ?__auth 로드)
+        # ── PWA/standalone: URL 변경 없이 숨김 Streamlit 버튼 클릭으로 세션 갱신 (#54) ──
+        _PWA_CH = (
+            ("login", "google"),
+            ("login", "naver"),
+            ("login", "kakao"),
+            ("login", "email"),
+            ("signup", "google"),
+            ("signup", "naver"),
+            ("signup", "kakao"),
+            ("signup", "email"),
+        )
+        for _pi, (_pmode, _pprov) in enumerate(_PWA_CH):
+            if st.button(
+                f"__PWA_{_pi}__",
+                key=f"pwa_ch_{_pi}",
+                label_visibility="collapsed",
+            ):
+                st.session_state["auth_mode"] = _pmode
+                st.session_state["auth_splash_done"] = True
+                st.session_state["auth_sheet_open"] = True
+                if _pprov in ("google", "naver", "kakao"):
+                    st.session_state["pending_social_provider"] = _pprov
+                    st.session_state["auth_phase"] = "terms"
+                else:
+                    st.session_state["auth_phase"] = "sheet"
+                st.rerun()
+
+        # 부모 창: postMessage → 숨김 버튼 programmatic click (PWA) / URL 폴백 (일반 브라우저)
         st.components.v1.html(
             r"""<script>
 (function() {
@@ -4164,10 +4191,57 @@ try {
     var w = window.parent;
     if (w.__glucAuthListener) return;
     w.__glucAuthListener = true;
+    if (!w.__glucPwaCssInjected) {
+      w.__glucPwaCssInjected = true;
+      var st = w.document.createElement("style");
+      st.id = "gluc-pwa-bridge-css";
+      st.textContent = ".gluc-pwa-hidden{position:fixed!important;left:-9999px!important;top:0!important;width:2px!important;height:2px!important;opacity:0!important;overflow:hidden!important;pointer-events:auto!important;}";
+      w.document.head.appendChild(st);
+    }
+    function markBridge() {
+      var all = w.document.querySelectorAll("button");
+      for (var i = 0; i < all.length; i++) {
+        var t = all[i].textContent || "";
+        if (/__PWA_[0-7]__/.test(t)) all[i].classList.add("gluc-pwa-hidden");
+      }
+    }
+    setTimeout(markBridge, 0);
+    setTimeout(markBridge, 400);
+    function clickPwaBridge(idx) {
+      var want = "__PWA_" + idx + "__";
+      var all = w.document.querySelectorAll("button");
+      for (var i = 0; i < all.length; i++) {
+        var t = all[i].textContent || "";
+        if (t.indexOf(want) >= 0) {
+          all[i].click();
+          return true;
+        }
+      }
+      return false;
+    }
+    function navByUrl(url) {
+      try { w.location.replace(url); } catch(e1) {
+        try { w.location.href = url; } catch(e2) {}
+      }
+    }
     w.addEventListener("message", function(ev) {
-      if (!ev.data || ev.data.type !== "GLUC_AUTH_NAV" || !ev.data.url) return;
-      try { w.location.replace(ev.data.url); } catch(e1) {
-        try { w.location.href = ev.data.url; } catch(e2) {}
+      if (!ev.data) return;
+      if (ev.data.type === "GLUC_PWA_AUTH") {
+        var idx = ev.data.idx;
+        if (typeof idx !== "number" && typeof idx !== "string") return;
+        idx = parseInt(idx, 10);
+        if (idx < 0 || idx > 7) return;
+        try { console.log("PWA BRIDGE CLICK idx=", idx); } catch(_l) {}
+        if (!clickPwaBridge(idx) && ev.data.provider && ev.data.intent) {
+          var u = w.location.origin + w.location.pathname
+            + "?__auth=" + encodeURIComponent(ev.data.provider)
+            + "&intent=" + encodeURIComponent(ev.data.intent);
+          navByUrl(u);
+        }
+        return;
+      }
+      if (ev.data.type === "GLUC_AUTH_NAV" && ev.data.url) {
+        navByUrl(ev.data.url);
       }
     });
   } catch(e) {}
@@ -4553,25 +4627,16 @@ function goAuth(provider) {
     pb.style.background = '#0f172a';
     pb.style.backgroundColor = '#0f172a';
   } catch(e2) {}
-  var finalUrl = window.parent.location.origin
-    + window.parent.location.pathname
-    + '?__auth=' + encodeURIComponent(provider)
-    + '&intent=' + encodeURIComponent(_intent);
-  try { console.log("NAVIGATING TO:", finalUrl); } catch(_log) {}
+  var map = { google: 0, naver: 1, kakao: 2, email: 3 };
+  var idx = (_intent === 'login' ? 0 : 4) + (map[provider] !== undefined ? map[provider] : 0);
+  try { console.log("PWA BRIDGE postMessage idx=", idx, "provider=", provider, "intent=", _intent); } catch(_log) {}
   try {
-    var a = document.createElement('a');
-    a.href = finalUrl;
-    a.target = '_top';
-    a.rel = 'noopener noreferrer';
-    a.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  } catch(e3) {
-    try { window.open(finalUrl, '_top'); } catch(e4) {}
-  }
-  try {
-    window.parent.postMessage({ type: 'GLUC_AUTH_NAV', url: finalUrl }, '*');
+    window.parent.postMessage({
+      type: 'GLUC_PWA_AUTH',
+      idx: idx,
+      provider: provider,
+      intent: _intent
+    }, '*');
   } catch(e5) {}
 }
 
