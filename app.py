@@ -3821,6 +3821,45 @@ if not st.session_state['logged_in']:
     }
     /* KR 단일: Facebook 버튼 제거 */
     .auth-terms-panel { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem; background: rgba(255,255,255,0.05); max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
+    /* ── 약관 동의 화면: 전체 스크롤 차단 + 박스 내부 스크롤 ── */
+    body.auth-login-splash.auth-terms-page {
+      overflow: hidden !important;
+      height: 100dvh !important;
+    }
+    body.auth-login-splash.auth-terms-page .stApp,
+    body.auth-login-splash.auth-terms-page [data-testid="stAppViewContainer"],
+    body.auth-login-splash.auth-terms-page section[tabindex="0"] {
+      overflow: hidden !important;
+      height: 100dvh !important;
+    }
+    /* 약관 항목 영역 — 내부 스크롤 박스 */
+    body.auth-login-splash.auth-terms-page .block-container {
+      height: 100dvh !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      padding-bottom: 120px !important;
+      scrollbar-width: thin !important;
+      scrollbar-color: rgba(16,185,129,0.35) transparent !important;
+    }
+    body.auth-login-splash.auth-terms-page .block-container::-webkit-scrollbar {
+      width: 4px;
+    }
+    body.auth-login-splash.auth-terms-page .block-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    body.auth-login-splash.auth-terms-page .block-container::-webkit-scrollbar-thumb {
+      background: rgba(16,185,129,0.35);
+      border-radius: 2px;
+    }
+    /* CTA 버튼 영역: 화면 최하단 고정 */
+    body.auth-login-splash.auth-terms-page div:has(> [data-testid="stButton"] > button[kind="primary"]) {
+      position: fixed !important;
+      bottom: 0 !important;
+      left: 0 !important; right: 0 !important;
+      z-index: 99 !important;
+      background: linear-gradient(to top, #0f172a 70%, transparent) !important;
+      padding: 12px 16px 20px !important;
+    }
     /* ── 스플래시 화면 스크롤 제로 + Streamlit 크롬 완전 숨김 ── */
     body.auth-login-splash.auth-splash-screen {
       overflow: hidden !important;
@@ -3872,12 +3911,23 @@ if not st.session_state['logged_in']:
       overflow-y: auto !important;
       padding: 8px 10px !important;
     }
-    /* ── 마스터 "전체 동의" 체크박스 — 크고 굵게 ── */
+    /* ── 마스터 "전체 동의" 체크박스 — 크고 굵게 + Glow 배경 ── */
+    body.auth-login-splash .stApp .tc-master-wrap {
+      background: linear-gradient(135deg,
+        rgba(16,185,129,0.12) 0%,
+        rgba(251,191,36,0.08) 100%) !important;
+      border: 1px solid rgba(16,185,129,0.30) !important;
+      border-radius: 14px !important;
+      padding: 12px 14px !important;
+      margin: 4px 0 8px !important;
+      box-shadow: 0 0 18px rgba(16,185,129,0.18),
+                  0 0 40px rgba(16,185,129,0.06) !important;
+    }
     body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] label p,
     body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] label span,
     body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] label {
-      font-size: 1.05rem !important;
-      font-weight: 800 !important;
+      font-size: 1.1rem !important;
+      font-weight: 900 !important;
       color: #ffffff !important;
       letter-spacing: -0.01em !important;
     }
@@ -3933,6 +3983,17 @@ if not st.session_state['logged_in']:
     # ---------- 약관 동의 화면 (소셜 클릭 후) — 토스/카카오 수준 상용 폼팩터 ----------
     if st.session_state.get("auth_phase") == "terms" and st.session_state.get("pending_social_provider"):
         prov = st.session_state["pending_social_provider"]
+
+        # 약관 페이지 전용 body 클래스 주입 (스크롤 제어용)
+        st.components.v1.html(
+            """<script>
+try {
+  window.parent.document.body.classList.add('auth-terms-page');
+  window.parent.document.body.classList.remove('auth-splash-screen');
+} catch(e) {}
+</script>""",
+            height=0,
+        )
 
         # ── 헤더 ─────────────────────────────────────────────────────────────
         st.markdown(
@@ -4106,8 +4167,10 @@ if not st.session_state['logged_in']:
     flex: 1;
     width: 100%;
     padding-top: 20px;
+    padding-bottom: 160px; /* 하단 고정 버튼 공간 확보 */
     position: relative;
     z-index: 1;
+    overflow: hidden;
   }
   .glow-bg {
     position: fixed; top: 0; left: 50%;
@@ -4163,16 +4226,23 @@ if not st.session_state['logged_in']:
     animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;
   }
   .copy2 em { font-style: normal; color: #10b981; }
-  /* ── 하단 버튼 섹션 ── */
+  /* ── 하단 버튼 섹션 — 화면 하단에 고정 ── */
   .btn-section {
-    width: 100%; max-width: 420px;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
     display: flex; flex-direction: column;
     align-items: center; gap: 10px;
+    padding: 16px 20px;
+    padding-bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 16px));
+    background: linear-gradient(to top,
+      rgba(15,23,42,1.0) 65%,
+      rgba(15,23,42,0.72) 88%,
+      transparent 100%);
+    z-index: 10;
     animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;
-    position: relative; z-index: 1;
   }
   .btn-main {
-    width: 100%; height: 54px;
+    width: 100%; max-width: 420px; height: 54px;
     background: rgba(255,255,255,0.11);
     border: 1px solid rgba(255,255,255,0.24);
     border-radius: 16px; color: #ffffff;
@@ -4185,7 +4255,7 @@ if not st.session_state['logged_in']:
   }
   .btn-main:active { transform: scale(0.97); background: rgba(255,255,255,0.17); }
   .btn-sub {
-    width: 100%; height: 46px;
+    width: 100%; max-width: 420px; height: 46px;
     background: transparent;
     border: 1.5px solid rgba(16,185,129,0.50);
     border-radius: 14px; color: #34d399;
