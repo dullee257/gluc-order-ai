@@ -3798,7 +3798,6 @@ if not st.session_state['logged_in']:
     /* KR 단일: Facebook 버튼 제거 */
     .auth-terms-panel { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem; background: rgba(255,255,255,0.05); max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
     /* ── 약관 expander 다크 스타일 (모바일 100% 안정) ── */
-    body.auth-login-splash .stApp .tc-expander [data-testid="stExpander"] > details,
     body.auth-login-splash .stApp [data-testid="stExpander"] > details {
       background: rgba(255,255,255,0.04) !important;
       border: 1px solid rgba(255,255,255,0.10) !important;
@@ -3820,6 +3819,40 @@ if not st.session_state['logged_in']:
       max-height: 260px !important;
       overflow-y: auto !important;
       padding: 8px 10px !important;
+    }
+    /* ── 마스터 "전체 동의" 체크박스 — 크고 굵게 ── */
+    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] label p,
+    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] label span,
+    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] label {
+      font-size: 1.05rem !important;
+      font-weight: 800 !important;
+      color: #ffffff !important;
+      letter-spacing: -0.01em !important;
+    }
+    /* ── "동의하고 가입완료" CTA 버튼 — 활성/비활성 모두 명확한 직사각형 ── */
+    body.auth-login-splash .stApp [data-testid="stButton"] > button[kind="primary"] {
+      background: #10b981 !important;
+      border: none !important;
+      color: #ffffff !important;
+      font-weight: 800 !important;
+      font-size: 1.0rem !important;
+      border-radius: 12px !important;
+      padding: 14px 0 !important;
+      min-height: 52px !important;
+      box-shadow: 0 4px 22px rgba(16,185,129,0.38) !important;
+      letter-spacing: -0.01em !important;
+    }
+    body.auth-login-splash .stApp [data-testid="stButton"] > button[kind="primary"]:disabled,
+    body.auth-login-splash .stApp [data-testid="stButton"] > button[kind="primary"][disabled] {
+      background: #374151 !important;
+      color: rgba(255,255,255,0.40) !important;
+      box-shadow: none !important;
+      cursor: not-allowed !important;
+    }
+    body.auth-login-splash .stApp [data-testid="stButton"] > button[kind="primary"] p,
+    body.auth-login-splash .stApp [data-testid="stButton"] > button[kind="primary"] span {
+      color: inherit !important;
+      font-weight: 800 !important;
     }
     </style>
     """,
@@ -3878,7 +3911,7 @@ if not st.session_state['logged_in']:
         for _k in _sub_keys:
             st.session_state.setdefault(_k, False)
 
-        # ── [전체 동의] 마스터 체크박스 — on_change로 하위 6개 동기화 ──────────
+        # 마스터 on_change 콜백 (하위 6개 동기화)
         def _on_all_change():
             _v = st.session_state.get("tc_all_master", False)
             for _k2 in _sub_keys:
@@ -3887,63 +3920,61 @@ if not st.session_state['logged_in']:
         _all_currently = all(st.session_state.get(k, False) for k in _sub_keys)
         st.session_state["tc_all_master"] = _all_currently
 
+        # ── 약관 항목 6개 — 이모지 없이 순수 텍스트 + expander 아코디언 ─────
+        # [필수 1] 서비스 이용약관
+        st.checkbox("[필수] 서비스 이용약관 동의", key="tc_tos")
+        with st.expander("내용 보기", expanded=False):
+            st.markdown(TERMS_TOS)
+
+        # [필수 2] 개인정보 수집·이용
+        st.checkbox("[필수] 개인정보 수집 및 이용 동의", key="tc_priv")
+        with st.expander("내용 보기", expanded=False):
+            st.markdown(TERMS_PRIVACY)
+
+        # [필수 3] 민감정보(건강정보) 처리
+        st.checkbox("[필수] 민감정보(건강정보) 처리 동의", key="tc_health")
+        with st.expander("내용 보기", expanded=False):
+            st.markdown(TERMS_HEALTH)
+
         st.markdown(
-            "<div style='background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.30);"
-            "border-radius:12px;padding:10px 14px;margin-bottom:10px;'>",
+            "<div style='height:1px;background:rgba(255,255,255,0.06);margin:8px 0;'></div>",
             unsafe_allow_html=True,
         )
+
+        # [선택 1] 마케팅 정보 수신
+        st.checkbox("[선택] 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
+        with st.expander("내용 보기", expanded=False):
+            st.markdown(TERMS_MARKETING)
+
+        # [선택 2] 맞춤형 서비스 개인정보 추가 수집
+        st.checkbox("[선택] 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
+        with st.expander("내용 보기", expanded=False):
+            st.markdown(TERMS_CUSTOM_PRIV)
+
+        # [선택 3] 빅데이터 분석 및 신규 서비스 개발
+        st.checkbox("[선택] 빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", key="tc_bigdata")
+        with st.expander("내용 보기", expanded=False):
+            st.markdown(TERMS_BIGDATA)
+
+        # ── 구분선 ─────────────────────────────────────────────────────────
+        st.markdown(
+            "<div style='height:1px;background:rgba(255,255,255,0.12);margin:12px 0 10px;'></div>",
+            unsafe_allow_html=True,
+        )
+
+        # ── 마스터 "전체 동의" — 맨 아래 배치, 크고 굵게 ──────────────────────
+        st.markdown("<div class='tc-master-wrap'>", unsafe_allow_html=True)
         st.checkbox(
-            "**✅ 약관 전체 동의** (필수 3개 + 선택 3개)",
+            "약관 전체 동의 (필수 3개 + 선택 3개)",
             key="tc_all_master",
             on_change=_on_all_change,
         )
         st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown(
-            "<div style='height:1px;background:rgba(255,255,255,0.08);margin:2px 0 10px;'></div>",
-            unsafe_allow_html=True,
-        )
-
-        # ── 약관 항목 (체크박스 → expander 아코디언 세로 배치) ─────────────
-        # [필수 1] 서비스 이용약관
-        st.checkbox("**[필수]** 서비스 이용약관 동의", key="tc_tos")
-        with st.expander("📄 내용 보기", expanded=False):
-            st.markdown(TERMS_TOS)
-
-        # [필수 2] 개인정보 수집·이용
-        st.checkbox("**[필수]** 개인정보 수집 및 이용 동의", key="tc_priv")
-        with st.expander("📄 내용 보기", expanded=False):
-            st.markdown(TERMS_PRIVACY)
-
-        # [필수 3] 민감정보(건강정보) 처리
-        st.checkbox("**[필수]** 민감정보(건강정보) 처리 동의", key="tc_health")
-        with st.expander("📄 내용 보기", expanded=False):
-            st.markdown(TERMS_HEALTH)
-
-        st.markdown(
-            "<div style='height:1px;background:rgba(255,255,255,0.06);margin:6px 0;'></div>",
-            unsafe_allow_html=True,
-        )
-
-        # [선택 1] 마케팅 정보 수신
-        st.checkbox("**[선택]** 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
-        with st.expander("📄 내용 보기", expanded=False):
-            st.markdown(TERMS_MARKETING)
-
-        # [선택 2] 맞춤형 서비스 개인정보 추가 수집
-        st.checkbox("**[선택]** 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
-        with st.expander("📄 내용 보기", expanded=False):
-            st.markdown(TERMS_CUSTOM_PRIV)
-
-        # [선택 3] 빅데이터 분석 및 신규 서비스 개발
-        st.checkbox("**[선택]** 빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", key="tc_bigdata")
-        with st.expander("📄 내용 보기", expanded=False):
-            st.markdown(TERMS_BIGDATA)
+        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
         # ── 진행 조건 체크 (필수 3개만) ──────────────────────────────────────
         _can_proceed = all(st.session_state.get(k, False) for k in _req_keys)
-
-        st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
         if not _can_proceed:
             _missing = []
@@ -3960,7 +3991,7 @@ if not st.session_state['logged_in']:
             )
 
         if st.button(
-            "✅ 동의하고 가입완료",
+            "동의하고 가입완료",
             type="primary",
             use_container_width=True,
             key="terms_submit",
