@@ -3726,6 +3726,41 @@ if not st.session_state['logged_in']:
     body.auth-login-splash [data-testid="stCaptionContainer"] p {
       color: rgba(255,255,255,0.38) !important;
     }
+    /* ── 약관 동의 / 로그인 폼: 다크 배경 텍스트 시인성 전면 강제 ── */
+    body.auth-login-splash .stApp [data-testid="stMarkdownContainer"] h1,
+    body.auth-login-splash .stApp [data-testid="stMarkdownContainer"] h2,
+    body.auth-login-splash .stApp [data-testid="stMarkdownContainer"] h3,
+    body.auth-login-splash .stApp [data-testid="stMarkdownContainer"] h4 {
+      color: #ffffff !important;
+    }
+    body.auth-login-splash .stApp [data-testid="stMarkdownContainer"] p,
+    body.auth-login-splash .stApp [data-testid="stMarkdownContainer"] li,
+    body.auth-login-splash .stApp [data-testid="stMarkdownContainer"] a {
+      color: rgba(255,255,255,0.80) !important;
+    }
+    body.auth-login-splash .stApp [data-testid="stCheckbox"] label,
+    body.auth-login-splash .stApp [data-testid="stCheckbox"] label p,
+    body.auth-login-splash .stApp [data-testid="stCheckbox"] span {
+      color: rgba(255,255,255,0.88) !important;
+    }
+    body.auth-login-splash .stApp [data-testid="stExpander"] > details {
+      background: rgba(255,255,255,0.05) !important;
+      border: 1px solid rgba(255,255,255,0.13) !important;
+      border-radius: 12px !important;
+    }
+    body.auth-login-splash .stApp [data-testid="stExpander"] summary p,
+    body.auth-login-splash .stApp [data-testid="stExpander"] summary span,
+    body.auth-login-splash .stApp [data-testid="stExpander"] summary {
+      color: rgba(255,255,255,0.78) !important;
+    }
+    body.auth-login-splash .stApp [data-testid="stSpinner"] p,
+    body.auth-login-splash .stApp [data-testid="stSpinner"] span {
+      color: #34d399 !important;
+    }
+    body.auth-login-splash .stApp [data-testid="stNotification"] p,
+    body.auth-login-splash .stApp [data-testid="stAlert"] p {
+      color: rgba(15,23,42,0.9) !important;
+    }
     /* KR 단일: Facebook 버튼 제거 */
     .auth-terms-panel { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem; background: rgba(255,255,255,0.05); max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
     </style>
@@ -3784,20 +3819,6 @@ if not st.session_state['logged_in']:
                     st.session_state["auth_flash_msg"] = get_text(_lg, "social_provider_stub", provider=pname)
                 st.rerun()
 
-        st.stop()
-
-    # ---------- 게스트 확정 ----------
-    if st.session_state.get("auth_guest_step"):
-        st.info(f"{_t['guest_info_title']}\n\n{_t['guest_info_body']}", icon="🚀")
-        if st.button(_t["guest_confirm_btn"], type="primary", use_container_width=True):
-            st.session_state["logged_in"] = True
-            st.session_state["user_id"] = "guest_user_demo"
-            st.session_state["login_type"] = "guest"
-            st.session_state["auth_guest_step"] = False
-            st.rerun()
-        if st.button(_t["auth_back"], key="guest_back"):
-            st.session_state["auth_guest_step"] = False
-            st.rerun()
         st.stop()
 
     # ---------- 프리미엄 랜딩 화면 (첫 진입 — 다크 네이비 스킨) ----------
@@ -4024,11 +4045,126 @@ if not st.session_state['logged_in']:
               </style>
             </svg>
           </div>
-          <div style="font-weight:900;font-size:1.25rem;letter-spacing:-0.02em;color:#ffffff;">{LOGIN_TITLE}</div>
-          <div style="font-size:0.95rem;color:#34d399;font-weight:700;margin-top:6px;">혈당 관리 시작</div>
+          <div style="font-weight:900;font-size:1.3rem;letter-spacing:-0.03em;color:#ffffff;line-height:1.2;">
+            AI 췌장 비서, 혈당스캐너
+          </div>
+          <div style="font-size:0.82rem;color:rgba(255,255,255,0.58);font-weight:500;
+                      margin-top:10px;line-height:1.7;padding:0 6px;">
+            3초 로그인으로 소중한 데이터를 평생 지키고,<br>
+            <span style="color:#fbbf24;font-weight:800;">7일 PRO 무료 체험</span>을 시작하세요!
+          </div>
         </div>
         """.replace("{LOGIN_TITLE}", html_module.escape(_t.get("login_sheet_title", ""))),
         unsafe_allow_html=True,
+    )
+
+    # ── 프리미엄 AI 방어 쉴드 비주얼 (로고 ↔ 소셜 버튼 사이) ──
+    st.components.v1.html(
+        """
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body {
+  background: #0f172a;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 158px;
+}
+@keyframes domeGlow {
+  0%,100% { opacity:0.62; }
+  50%      { opacity:1.0; }
+}
+@keyframes sparkle {
+  0%,100% { opacity:0.28; }
+  50%      { opacity:0.92; }
+}
+.dome { animation: domeGlow 3.8s ease-in-out infinite; }
+.s1   { animation: sparkle 2.3s ease-in-out infinite; }
+.s2   { animation: sparkle 2.9s ease-in-out infinite 0.65s; }
+.s3   { animation: sparkle 2.1s ease-in-out infinite 1.3s; }
+</style>
+</head>
+<body>
+<svg viewBox="0 0 280 152" width="280" height="152" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="domeFill" cx="50%" cy="100%" r="70%">
+      <stop offset="0%" stop-color="rgba(16,185,129,0.16)"/>
+      <stop offset="100%" stop-color="rgba(16,185,129,0.02)"/>
+    </radialGradient>
+    <radialGradient id="plateBase" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.10)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.03)"/>
+    </radialGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="2.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Ground shadow -->
+  <ellipse cx="140" cy="144" rx="78" ry="8" fill="rgba(0,0,0,0.28)"/>
+  <!-- Plate rim -->
+  <ellipse cx="140" cy="137" rx="78" ry="10" fill="url(#plateBase)" stroke="rgba(255,255,255,0.14)" stroke-width="1.2"/>
+  <ellipse cx="140" cy="134" rx="69" ry="8"  fill="rgba(255,255,255,0.04)"/>
+  <!-- Salad - dark green base -->
+  <ellipse cx="128" cy="120" rx="30" ry="13" fill="#064e3b" opacity="0.93"/>
+  <ellipse cx="143" cy="118" rx="24" ry="11" fill="#059669" opacity="0.88"/>
+  <ellipse cx="121" cy="123" rx="16" ry="7"  fill="#047857" opacity="0.85"/>
+  <!-- Tomato -->
+  <circle cx="165" cy="115" r="10.5" fill="#991b1b" opacity="0.88"/>
+  <circle cx="165" cy="115" r="8.5"  fill="#dc2626" opacity="0.82"/>
+  <circle cx="162" cy="112" r="3"    fill="rgba(255,255,255,0.14)"/>
+  <!-- Egg/protein -->
+  <ellipse cx="138" cy="112" rx="13" ry="7.5" fill="rgba(253,224,71,0.90)"/>
+  <circle  cx="138" cy="112" r="5"              fill="rgba(234,179,8,0.84)"/>
+  <!-- Avocado -->
+  <circle cx="112" cy="120" r="9"   fill="#166534" opacity="0.88"/>
+  <circle cx="112" cy="120" r="6"   fill="#15803d" opacity="0.76"/>
+  <circle cx="112" cy="120" r="3.5" fill="#92400e" opacity="0.58"/>
+  <!-- Herb dots -->
+  <circle cx="151" cy="108" r="2.2" fill="#34d399" opacity="0.95"/>
+  <circle cx="130" cy="107" r="1.8" fill="#10b981" opacity="0.90"/>
+  <circle cx="156" cy="127" r="3.5" fill="#c2410c" opacity="0.82"/>
+  <!-- AI Emerald Shield Dome -->
+  <path class="dome"
+        d="M 65 137 Q 65 28 140 18 Q 215 28 215 137 Z"
+        fill="url(#domeFill)"
+        stroke="rgba(52,211,153,0.60)"
+        stroke-width="1.8"
+        filter="url(#glow)"/>
+  <path d="M 82 137 Q 82 44 140 36 Q 198 44 198 137 Z"
+        fill="none" stroke="rgba(52,211,153,0.15)" stroke-width="1"/>
+  <!-- Dome top glow -->
+  <ellipse cx="140" cy="25" rx="11" ry="4.5" fill="rgba(52,211,153,0.38)"/>
+  <!-- AI label -->
+  <text x="140" y="49" text-anchor="middle" font-size="7.5"
+        fill="rgba(52,211,153,0.85)" font-family="'-apple-system','Helvetica Neue',sans-serif"
+        font-weight="700" letter-spacing="2">AI DEFENSE</text>
+  <!-- Scan grid lines -->
+  <line x1="92"  y1="88"  x2="188" y2="88"  stroke="rgba(52,211,153,0.10)" stroke-width="1"/>
+  <line x1="84"  y1="103" x2="196" y2="103" stroke="rgba(52,211,153,0.07)" stroke-width="1"/>
+  <line x1="78"  y1="118" x2="202" y2="118" stroke="rgba(52,211,153,0.05)" stroke-width="1"/>
+  <!-- Gold sparkles -->
+  <circle class="s1" cx="80"  cy="65" r="2.8" fill="#fbbf24"/>
+  <circle class="s2" cx="200" cy="68" r="2.8" fill="#fbbf24"/>
+  <circle class="s3" cx="140" cy="24" r="3.2" fill="#fbbf24" opacity="0.65"/>
+  <!-- GL badge -->
+  <rect x="210" y="78" width="34" height="28" rx="7"
+        fill="rgba(16,185,129,0.12)" stroke="rgba(52,211,153,0.32)" stroke-width="1"/>
+  <text x="227" y="90" text-anchor="middle" font-size="6.5"
+        fill="rgba(52,211,153,0.68)" font-family="'-apple-system',sans-serif" font-weight="600">GL</text>
+  <text x="227" y="101" text-anchor="middle" font-size="8.5"
+        fill="#34d399" font-family="'-apple-system',sans-serif" font-weight="800">LOW</text>
+</svg>
+</body>
+</html>
+""",
+        height=162,
+        scrolling=False,
     )
 
     st.markdown('<div class="auth-soc-row">', unsafe_allow_html=True)
@@ -4051,11 +4187,6 @@ if not st.session_state['logged_in']:
             st.rerun()
     # KR 단일: 해외 소셜(예: Facebook) 제거
     st.markdown("</div>", unsafe_allow_html=True)
-
-    st.caption(_t.get("or_social", ""))
-    if st.button(_t.get("guest_entry_link", "Guest"), key="guest_entry"):
-        st.session_state["auth_guest_step"] = True
-        st.rerun()
 
     with st.expander(_t.get("auth_email_expand", "Email")):
         c1, c2, c3 = st.columns(3)
@@ -5266,8 +5397,8 @@ if menu_key == "scanner":
                 _s_icon, _s_label = "✉️", "이메일 로그인"
                 _s_display = _user_email_s or "이메일 계정"
             else:
-                _s_icon, _s_label = "👤", "게스트 체험 중"
-                _s_display = "로그인 없이 이용 중"
+                _s_icon, _s_label = "🔐", "로그인 필요"
+                _s_display = "로그인하여 데이터를 저장하세요"
             st.markdown(
                 f"""
                 <div style="background:#fff;border-radius:16px;padding:16px 18px 14px;
@@ -5303,7 +5434,7 @@ if menu_key == "scanner":
                     st.session_state["auth_mode"] = "login"
                     st.session_state["current_page"] = "main"
                     st.rerun()
-            elif _login_type_s == "guest":
+            else:
                 if st.button(f"🔐 {t['sidebar_go_login']}", key="settings_go_login", use_container_width=True):
                     st.session_state["logged_in"] = False
                     st.session_state["login_type"] = None
