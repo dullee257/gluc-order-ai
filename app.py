@@ -4156,105 +4156,42 @@ try {
 
     # ---------- 프리미엄 랜딩 화면 (풀스크린 Zero-Scroll + Bottom Drawer) ----------
     if not st.session_state.get("auth_splash_done"):
-        # ── PWA/standalone: URL 변경 없이 숨김 Streamlit 버튼 클릭으로 세션 갱신 (#54) ──
-        _PWA_CH = (
-            ("login", "google"),
-            ("login", "naver"),
-            ("login", "kakao"),
-            ("login", "email"),
-            ("signup", "google"),
-            ("signup", "naver"),
-            ("signup", "kakao"),
-            ("signup", "email"),
-        )
-        for _pi in range(len(_PWA_CH)):
-            _pmode, _pprov = _PWA_CH[_pi]
-            if st.button(
-                f"__PWA_{_pi}__",
-                key=f"pwa_btn_{_pi}_{_pprov}",
-            ):
-                try:
-                    st.session_state["auth_mode"] = _pmode
-                    st.session_state["auth_splash_done"] = True
-                    st.session_state["auth_sheet_open"] = True
-                    if _pprov in ("google", "naver", "kakao"):
-                        st.session_state["pending_social_provider"] = _pprov
-                        st.session_state["auth_phase"] = "terms"
-                    else:
-                        st.session_state["auth_phase"] = "sheet"
-                except Exception:
-                    pass
-                st.rerun()
+        if "splash_drawer_open" not in st.session_state:
+            st.session_state["splash_drawer_open"] = False
+        if "splash_auth_intent" not in st.session_state:
+            st.session_state["splash_auth_intent"] = "login"
 
-        # 부모 창: postMessage → 숨김 버튼 programmatic click (PWA) / URL 폴백 (일반 브라우저)
-        st.components.v1.html(
-            r"""<script>
-(function() {
-  try {
-    var w = window.parent;
-    if (w.__glucAuthListener) return;
-    w.__glucAuthListener = true;
-    if (!w.__glucPwaCssInjected) {
-      w.__glucPwaCssInjected = true;
-      var st = w.document.createElement("style");
-      st.id = "gluc-pwa-bridge-css";
-      st.textContent = ".gluc-pwa-hidden{position:fixed!important;left:-9999px!important;top:0!important;width:2px!important;height:2px!important;opacity:0!important;overflow:hidden!important;pointer-events:auto!important;}";
-      w.document.head.appendChild(st);
-    }
-    function markBridge() {
-      var all = w.document.querySelectorAll("button");
-      for (var i = 0; i < all.length; i++) {
-        var t = all[i].textContent || "";
-        if (/__PWA_[0-7]__/.test(t)) all[i].classList.add("gluc-pwa-hidden");
-      }
-    }
-    setTimeout(markBridge, 0);
-    setTimeout(markBridge, 400);
-    function clickPwaBridge(idx) {
-      var want = "__PWA_" + idx + "__";
-      var all = w.document.querySelectorAll("button");
-      for (var i = 0; i < all.length; i++) {
-        var t = all[i].textContent || "";
-        if (t.indexOf(want) >= 0) {
-          all[i].click();
-          return true;
-        }
-      }
-      return false;
-    }
-    function navByUrl(url) {
-      try { w.location.replace(url); } catch(e1) {
-        try { w.location.href = url; } catch(e2) {}
-      }
-    }
-    w.addEventListener("message", function(ev) {
-      if (!ev.data) return;
-      if (ev.data.type === "GLUC_PWA_AUTH") {
-        var idx = ev.data.idx;
-        if (typeof idx !== "number" && typeof idx !== "string") return;
-        idx = parseInt(idx, 10);
-        if (idx < 0 || idx > 7) return;
-        try { console.log("PWA BRIDGE CLICK idx=", idx); } catch(_l) {}
-        if (!clickPwaBridge(idx) && ev.data.provider && ev.data.intent) {
-          var u = w.location.origin + w.location.pathname
-            + "?__auth=" + encodeURIComponent(ev.data.provider)
-            + "&intent=" + encodeURIComponent(ev.data.intent);
-          navByUrl(u);
-        }
-        return;
-      }
-      if (ev.data.type === "GLUC_AUTH_NAV" && ev.data.url) {
-        navByUrl(ev.data.url);
-      }
-    });
-  } catch(e) {}
-})();
-</script>""",
-            height=0,
+        def _cb_drawer_login():
+            st.session_state["splash_drawer_open"] = True
+            st.session_state["splash_auth_intent"] = "login"
+
+        def _cb_drawer_signup():
+            st.session_state["splash_drawer_open"] = True
+            st.session_state["splash_auth_intent"] = "signup"
+
+        def _cb_soc(provider: str):
+            if "splash_auth_intent" not in st.session_state:
+                st.session_state["splash_auth_intent"] = "login"
+            st.session_state["auth_mode"] = st.session_state.get("splash_auth_intent", "login")
+            st.session_state["auth_splash_done"] = True
+            st.session_state["auth_sheet_open"] = True
+            if provider in ("google", "naver", "kakao"):
+                st.session_state["pending_social_provider"] = provider
+                st.session_state["auth_phase"] = "terms"
+            else:
+                st.session_state["auth_phase"] = "sheet"
+            st.session_state["splash_drawer_open"] = False
+
+        _ov = " open" if st.session_state.get("splash_drawer_open") else ""
+        _dr = " open" if st.session_state.get("splash_drawer_open") else ""
+        _int_js = (
+            st.session_state.get("splash_auth_intent", "login")
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
         )
 
         st.components.v1.html(
-            r"""
+            """
 <!DOCTYPE html>
 <html>
 <head>
@@ -4431,6 +4368,8 @@ try {
   .social-btn:last-child { margin-bottom: 0; }
   .social-btn .ico { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
   .social-btn .lbl { flex: 1; text-align: center; }
+  /* #56: iframe 버튼은 시각만 — 실제 터치는 부모의 투명 st.button */
+  .btn-main, .btn-sub, .social-btn { pointer-events: none !important; }
   .btn-google { background: #ffffff; color: #3c4043; }
   .btn-naver  { background: #03C75A; color: #ffffff; }
   .btn-kakao  { background: #FEE500; color: #191919; }
@@ -4527,20 +4466,20 @@ try {
     <div class="copy2"><em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em></div>
   </div>
   <div class="btn-section">
-    <button type="button" class="btn-main" onclick="openDrawer('login')">로그인</button>
-    <button type="button" class="btn-sub" onclick="openDrawer('signup')">회원가입</button>
+    <button type="button" class="btn-main">로그인</button>
+    <button type="button" class="btn-sub">회원가입</button>
   </div>
 </div>
 <div class="loading-overlay" id="loading-overlay">
   <div class="spinner"></div>
   <div class="loading-text">잠시만 기다려주세요...</div>
 </div>
-<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
-<div class="drawer" id="drawer">
+<div class="overlay__OVERLAY_OPEN__" id="overlay" onclick="closeDrawer()"></div>
+<div class="drawer__DRAWER_OPEN__" id="drawer">
   <div class="handle"></div>
   <div class="drawer-title" id="d-title">반가워요! 로그인</div>
   <div class="drawer-sub" id="d-sub">3초 소셜 로그인으로 바로 시작하세요</div>
-  <button type="button" class="social-btn btn-google" id="bg" onclick="goAuth('google')">
+  <button type="button" class="social-btn btn-google" id="bg">
     <span class="ico">
       <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -4551,7 +4490,7 @@ try {
     </span>
     <span class="lbl" id="bg-lbl">Google로 계속하기</span>
   </button>
-  <button type="button" class="social-btn btn-naver" id="bn" onclick="goAuth('naver')">
+  <button type="button" class="social-btn btn-naver" id="bn">
     <span class="ico">
       <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
         <path fill="#ffffff" d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
@@ -4559,7 +4498,7 @@ try {
     </span>
     <span class="lbl" id="bn-lbl">네이버로 계속하기</span>
   </button>
-  <button type="button" class="social-btn btn-kakao" id="bk" onclick="goAuth('kakao')">
+  <button type="button" class="social-btn btn-kakao" id="bk">
     <span class="ico">
       <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
         <path fill="#191919" d="M12 3C6.477 3 2 6.477 2 10.8c0 2.7 1.617 5.077 4.077 6.523l-.985 3.677 4.246-2.8A11.8 11.8 0 0 0 12 18.6c5.523 0 10-3.477 10-7.8S17.523 3 12 3z"/>
@@ -4567,7 +4506,7 @@ try {
     </span>
     <span class="lbl" id="bk-lbl">카카오로 계속하기</span>
   </button>
-  <button type="button" class="social-btn btn-email" id="be" onclick="goAuth('email')">
+  <button type="button" class="social-btn btn-email" id="be">
     <span class="ico">
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="4" width="20" height="16" rx="3" stroke="#34d399" stroke-width="1.8"/>
@@ -4599,7 +4538,25 @@ try {
   } catch(e) {}
 })();
 
-var _intent = 'login';
+var _intent = '__INTENT_JS__';
+
+(function() {
+  try {
+    var dr = document.getElementById('drawer');
+    if (!dr || !dr.classList.contains('open')) return;
+    var mode = _intent;
+    var isLogin = (mode === 'login');
+    document.getElementById('d-title').textContent = isLogin ? '반가워요! 로그인' : '처음이신가요? 회원가입';
+    document.getElementById('d-sub').textContent = isLogin
+      ? '3초 소셜 로그인으로 바로 시작하세요'
+      : '3초 회원가입 → 7일 PRO 무료 체험 시작';
+    var sfx = isLogin ? '로그인' : '회원가입';
+    document.getElementById('bg-lbl').textContent = 'Google로 ' + sfx;
+    document.getElementById('bn-lbl').textContent = '네이버로 ' + sfx;
+    document.getElementById('bk-lbl').textContent = '카카오로 ' + sfx;
+    document.getElementById('be-lbl').textContent = '이메일로 ' + sfx;
+  } catch(e0) {}
+})();
 
 function openDrawer(mode) {
   _intent = mode;
@@ -4623,24 +4580,7 @@ function closeDrawer() {
 }
 
 function goAuth(provider) {
-  var lo = document.getElementById('loading-overlay');
-  if (lo) lo.classList.add('active');
-  try {
-    var pb = window.parent.document.body;
-    pb.style.background = '#0f172a';
-    pb.style.backgroundColor = '#0f172a';
-  } catch(e2) {}
-  var map = { google: 0, naver: 1, kakao: 2, email: 3 };
-  var idx = (_intent === 'login' ? 0 : 4) + (map[provider] !== undefined ? map[provider] : 0);
-  try { console.log("PWA BRIDGE postMessage idx=", idx, "provider=", provider, "intent=", _intent); } catch(_log) {}
-  try {
-    window.parent.postMessage({
-      type: 'GLUC_PWA_AUTH',
-      idx: idx,
-      provider: provider,
-      intent: _intent
-    }, '*');
-  } catch(e5) {}
+  /* #56: 인증은 부모 문서의 투명 st.button → Python on_click */
 }
 
 (function() {
@@ -4655,10 +4595,134 @@ function goAuth(provider) {
 </script>
 </body>
 </html>
-""",
+""".replace("__OVERLAY_OPEN__", _ov)
+            .replace("__DRAWER_OPEN__", _dr)
+            .replace("__INTENT_JS__", _int_js),
             height=680,
             scrolling=False,
         )
+
+        st.markdown(
+            """
+<style>
+body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] button {
+  opacity: 0 !important;
+  z-index: 10000000 !important;
+  position: fixed !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+  box-sizing: border-box !important;
+}
+</style>
+""",
+            unsafe_allow_html=True,
+        )
+
+        if not st.session_state.get("splash_drawer_open"):
+            st.button(
+                " ",
+                key="gluc_touch_login",
+                on_click=_cb_drawer_login,
+                use_container_width=True,
+                help="gluc_touch_main_login",
+            )
+            st.button(
+                " ",
+                key="gluc_touch_signup",
+                on_click=_cb_drawer_signup,
+                use_container_width=True,
+                help="gluc_touch_main_signup",
+            )
+        else:
+            st.button(
+                " ",
+                key="gluc_touch_soc_google",
+                on_click=_cb_soc,
+                args=("google",),
+                use_container_width=True,
+                help="gluc_touch_soc_google",
+            )
+            st.button(
+                " ",
+                key="gluc_touch_soc_naver",
+                on_click=_cb_soc,
+                args=("naver",),
+                use_container_width=True,
+                help="gluc_touch_soc_naver",
+            )
+            st.button(
+                " ",
+                key="gluc_touch_soc_kakao",
+                on_click=_cb_soc,
+                args=("kakao",),
+                use_container_width=True,
+                help="gluc_touch_soc_kakao",
+            )
+            st.button(
+                " ",
+                key="gluc_touch_soc_email",
+                on_click=_cb_soc,
+                args=("email",),
+                use_container_width=True,
+                help="gluc_touch_soc_email",
+            )
+
+        _gluc_js_drawer = "true" if st.session_state.get("splash_drawer_open") else "false"
+        st.components.v1.html(
+            f"""<script>
+(function() {{
+  var drawerOpen = {_gluc_js_drawer};
+  function applyRects() {{
+    try {{
+      var d = window.parent.document;
+      var body = d.body;
+      if (!body || !body.classList.contains('auth-splash-screen')) return;
+      var ifr = null;
+      var list = d.querySelectorAll('iframe');
+      for (var i = 0; i < list.length; i++) {{
+        try {{
+          var idoc = list[i].contentDocument;
+          if (idoc && idoc.getElementById('drawer')) {{ ifr = list[i]; break; }}
+        }} catch(e1) {{}}
+      }}
+      if (!ifr) return;
+      var idoc = ifr.contentDocument;
+      var rects = [];
+      if (drawerOpen) {{
+        ['bg','bn','bk','be'].forEach(function(sid) {{
+          var el = idoc.getElementById(sid);
+          if (el) rects.push(el.getBoundingClientRect());
+        }});
+      }} else {{
+        var bm = idoc.querySelector('.btn-main');
+        var bs = idoc.querySelector('.btn-sub');
+        if (bm) rects.push(bm.getBoundingClientRect());
+        if (bs) rects.push(bs.getBoundingClientRect());
+      }}
+      var main = d.querySelector('section[data-testid="stMain"]');
+      if (!main) return;
+      var btns = main.querySelectorAll('[data-testid="stButton"] button');
+      var n = Math.min(rects.length, btns.length);
+      for (var k = 0; k < n; k++) {{
+        var r = rects[k];
+        var b = btns[k];
+        b.style.left = r.left + 'px';
+        b.style.top = r.top + 'px';
+        b.style.width = r.width + 'px';
+        b.style.height = r.height + 'px';
+      }}
+    }} catch(e2) {{}}
+  }}
+  applyRects();
+  setTimeout(applyRects, 50);
+  setTimeout(applyRects, 400);
+  try {{ window.parent.addEventListener('resize', applyRects); }} catch(e3) {{}}
+}})();
+</script>""",
+            height=0,
+        )
+
         st.stop()
 
     # ---------- 슬라이드업 느낌의 로그인 시트 ----------
