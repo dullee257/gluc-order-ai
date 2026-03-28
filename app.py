@@ -3687,40 +3687,45 @@ if not st.session_state['logged_in']:
     @keyframes flash-slash, break-and-fall, tracking-in {}
     .auth-sheet-enter main .block-container { animation: authSlideUp 0.42s ease-out; }
     @keyframes authSlideUp { from { transform: translateY(72%); opacity: 0.65; } to { transform: translateY(0); opacity: 1; } }
-    /* ── 소셜 로그인 버튼: 다크 글래스모피즘 ── */
-    .auth-soc-row button {
-      height: 52px !important;
-      font-weight: 700 !important;
-      border-radius: 14px !important;
-      font-size: 0.97rem !important;
-      letter-spacing: -0.2px !important;
-      transition: background 0.2s ease, box-shadow 0.2s ease !important;
+    /* ── 전체 배경 다크 네이비 강제 (약관/중간 화면 포함) ── */
+    body.auth-login-splash section[tabindex="0"],
+    body.auth-login-splash [data-testid="stAppViewContainer"],
+    body.auth-login-splash .block-container {
+      background: #0f172a !important;
     }
-    .auth-mark-google + div button {
+    /* ── 소셜/일반 버튼: 다크 글래스모피즘 ─────────────────────────────
+       ★ 원인: Streamlit은 버튼 텍스트를 stMarkdownContainer>p 안에 렌더링.
+               .auth-mark-* + div button 선택자는 DOM 구조상 매칭 불가.
+               body 클래스 스코프로 [data-testid="stButton"] > button 직접 타겟팅.
+    ───────────────────────────────────────────────────────────────── */
+    body.auth-login-splash .stApp [data-testid="stButton"] > button:not([kind="primary"]) {
       background: rgba(255,255,255,0.10) !important;
       color: #ffffff !important;
       border: 1px solid rgba(255,255,255,0.22) !important;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
+      border-radius: 14px !important;
+      height: 52px !important;
+      font-weight: 700 !important;
+      font-size: 0.96rem !important;
+      letter-spacing: -0.2px !important;
+      transition: background 0.2s ease, border-color 0.2s ease !important;
     }
-    .auth-mark-google + div button:hover {
+    body.auth-login-splash .stApp [data-testid="stButton"] > button:not([kind="primary"]):hover {
       background: rgba(255,255,255,0.18) !important;
-      box-shadow: 0 4px 20px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.12) !important;
     }
-    .auth-mark-naver + div button {
-      background: rgba(3,199,90,0.13) !important;
-      color: #2ecc71 !important;
-      border: 1px solid rgba(3,199,90,0.40) !important;
+    /* ★ stMarkdownContainer p 색상 누수 → 버튼 내부 p 흰색으로 명시 교정 */
+    body.auth-login-splash .stApp [data-testid="stButton"] [data-testid="stMarkdownContainer"] p {
+      color: #ffffff !important;
     }
-    .auth-mark-naver + div button:hover {
-      background: rgba(3,199,90,0.24) !important;
+    /* 뒤로가기 버튼 높이 자동 조정 (terms 페이지) */
+    body.auth-login-splash .stApp [data-testid="stButton"] > button[kind="secondary"] {
+      height: auto !important;
+      min-height: 42px !important;
+      padding: 8px 16px !important;
     }
-    .auth-mark-kakao + div button {
-      background: rgba(254,229,0,0.11) !important;
-      color: #FFE600 !important;
-      border: 1px solid rgba(254,229,0,0.35) !important;
-    }
-    .auth-mark-kakao + div button:hover {
-      background: rgba(254,229,0,0.21) !important;
+    /* 소셜 버튼 3개는 전체 높이 유지 (auth-soc-row 내부) */
+    body.auth-login-splash .stApp .auth-soc-row ~ * [data-testid="stButton"] > button:not([kind="primary"]),
+    body.auth-login-splash .stApp [data-testid="stButton"]:nth-child(-n+6) > button:not([kind="primary"]) {
+      height: 52px !important;
     }
     /* 캡션 다크 오버라이드 */
     body.auth-login-splash [data-testid="stCaptionContainer"] p {
@@ -4167,6 +4172,18 @@ html, body {
         scrolling=False,
     )
 
+    # ── 소셜 버튼 섹션 헤더 ──────────────────────────────────────────
+    st.markdown(
+        """
+        <div style="text-align:center;margin:14px 0 8px;
+                    font-size:0.78rem;letter-spacing:0.05em;font-weight:700;
+                    color:rgba(255,255,255,0.40);text-transform:uppercase;">
+          ⚡ 3초 만에 빠른 시작 &nbsp;(가입 · 로그인)
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.markdown('<div class="auth-soc-row">', unsafe_allow_html=True)
     _is_ko = _lg == "KO"
     if _is_ko:
@@ -4188,7 +4205,7 @@ html, body {
     # KR 단일: 해외 소셜(예: Facebook) 제거
     st.markdown("</div>", unsafe_allow_html=True)
 
-    with st.expander(_t.get("auth_email_expand", "Email")):
+    with st.expander("✉️ 이메일로 계속하기"):
         c1, c2, c3 = st.columns(3)
         with c1:
             if st.button(t["btn_login"], type="primary" if st.session_state["auth_mode"] == "login" else "secondary", use_container_width=True):
