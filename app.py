@@ -5234,6 +5234,124 @@ if menu_key == "scanner":
                 unsafe_allow_html=True,
             )
 
+            # ── 👑 PRO 구독 카드 (설정 탭 최상단) ─────────────────────────
+            _is_premium = st.session_state.get("is_premium", False)
+
+            if _is_premium:
+                # ▶ 이미 PRO 구독 중인 경우: 상태 배지 카드만 표시
+                st.markdown(
+                    """
+                    <div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 100%);
+                                border-radius:20px;padding:20px 22px;margin-bottom:18px;
+                                border:2px solid #fbbf24;
+                                box-shadow:0 0 28px rgba(251,191,36,0.3),0 4px 20px rgba(0,0,0,0.45);">
+                      <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="font-size:2.4rem;flex-shrink:0;">👑</span>
+                        <div>
+                          <div style="font-size:1.1rem;font-weight:900;
+                                      background:linear-gradient(90deg,#fbbf24 0%,#fff7ed 50%,#f59e0b 100%);
+                                      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+                                      background-clip:text;">
+                            현재 PRO 구독 중입니다
+                          </div>
+                          <div style="font-size:0.8rem;color:rgba(255,255,255,0.6);margin-top:4px;">
+                            혈당스캐너 PRO의 모든 기능을 이용 중이에요 🎉
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                # ▶ 무료 유저: PRO Paywall 카드 + 결제 버튼 표시
+                st.markdown(
+                    """
+                    <style>
+                    div[data-testid="stHorizontalBlock"]:has(.pro-sub-marker)
+                      div[data-testid="stButton"] > button {
+                        background: linear-gradient(135deg,#7c3aed 0%,#4f46e5 50%,#6d28d9 100%) !important;
+                        color: #fffbeb !important;
+                        font-weight: 900 !important;
+                        font-size: 1.07rem !important;
+                        border: none !important;
+                        border-radius: 14px !important;
+                        padding: 0.85rem 1rem !important;
+                        box-shadow: 0 8px 28px rgba(124,58,237,0.55) !important;
+                        letter-spacing: 0.3px !important;
+                        transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+                        width: 100% !important;
+                    }
+                    div[data-testid="stHorizontalBlock"]:has(.pro-sub-marker)
+                      div[data-testid="stButton"] > button:hover {
+                        transform: translateY(-2px) !important;
+                        box-shadow: 0 12px 36px rgba(124,58,237,0.72) !important;
+                    }
+                    div[data-testid="stHorizontalBlock"]:has(.pro-sub-marker)
+                      div[data-testid="stButton"] > button:active {
+                        transform: translateY(0px) !important;
+                        box-shadow: 0 4px 16px rgba(124,58,237,0.6) !important;
+                    }
+                    </style>
+                    <div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 55%,#2d1b69 100%);
+                                border-radius:22px;padding:26px 22px 20px;margin-bottom:0px;
+                                border:1.5px solid rgba(251,191,36,0.85);
+                                box-shadow:0 0 40px rgba(251,191,36,0.18),0 8px 40px rgba(0,0,0,0.55);">
+                      <!-- 왕관 + 타이틀 -->
+                      <div style="text-align:center;margin-bottom:6px;">
+                        <div style="font-size:2.6rem;line-height:1.1;margin-bottom:4px;">👑</div>
+                        <div style="font-size:1.55rem;font-weight:900;letter-spacing:-0.5px;
+                                    background:linear-gradient(90deg,#fbbf24 0%,#fff7ed 42%,#f59e0b 100%);
+                                    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+                                    background-clip:text;line-height:1.2;">
+                          혈당스캐너 PRO
+                        </div>
+                      </div>
+                      <!-- 가격 -->
+                      <div style="text-align:center;margin-bottom:18px;">
+                        <div style="font-size:2.2rem;font-weight:900;color:#ffffff;line-height:1.1;">
+                          월 ₩4,900
+                        </div>
+                        <div style="font-size:0.78rem;color:rgba(255,255,255,0.48);margin-top:6px;line-height:1.5;">
+                          ☕ 커피 한 잔 값으로 췌장을 평생 지키세요
+                        </div>
+                      </div>
+                      <!-- 혜택 리스트 -->
+                      <div style="background:rgba(255,255,255,0.07);border-radius:14px;
+                                  padding:14px 16px;margin-bottom:4px;">
+                        <div style="font-size:0.9rem;color:#e0f2fe;line-height:2.1;font-weight:500;">
+                          ✅&nbsp;<b style="color:#fff;">AI 식단·혈당 분석 무제한</b>
+                          <span style="color:rgba(255,255,255,0.36);font-size:0.74rem;font-weight:400;">(무료 = 일 1회)</span><br>
+                          ✅&nbsp;<b style="color:#fff;">췌장 피로도 심층 주간 리포트</b><br>
+                          ✅&nbsp;<b style="color:#fff;">광고 없는 쾌적한 프리미엄 환경</b><br>
+                          ✅&nbsp;<b style="color:#fff;">가족 연동 알림 기능</b>
+                          <span style="color:#fbbf24;font-size:0.74rem;font-weight:700;">(오픈 예정)</span>
+                        </div>
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
+                # 결제 버튼 — marker 기반 CSS 스코프로 그라데이션 스타일 적용
+                _pro_col = st.columns([1])[0]
+                with _pro_col:
+                    st.markdown(
+                        '<span class="pro-sub-marker" style="display:none"></span>',
+                        unsafe_allow_html=True,
+                    )
+                    if st.button(
+                        "✨ 7일 무료 체험 시작하기",
+                        key="subscribe_pro_btn",
+                        use_container_width=True,
+                    ):
+                        st.session_state["is_premium"] = True
+                        st.toast("👑 PRO 버전으로 업그레이드 되었습니다!", icon="🎉")
+                        st.balloons()
+                        st.rerun()
+
+            st.markdown("<div style='margin-bottom:8px;'></div>", unsafe_allow_html=True)
+
             # ── 🔔 알림 설정 카드 ────────────────────────────────────────
             st.markdown(
                 """
