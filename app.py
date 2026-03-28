@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from firebase_admin import storage as firebase_admin_storage
 
 from translation import LANG_DICT, get_text, GOAL_INTERNAL_KEYS
+from terms import TERMS_TOS, TERMS_PRIVACY, TERMS_HEALTH, TERMS_MARKETING
 from prompts import (
     get_analysis_prompt,
     PRE_MEAL_INSIGHTS_SYSTEM_PROMPT,
@@ -3811,16 +3812,19 @@ if not st.session_state['logged_in']:
         height=0,
     )
 
-    # ---------- 약관 동의 화면 (소셜 클릭 후) — 철벽 방어 종합 약관 ----------
+    # ---------- 약관 동의 화면 (소셜 클릭 후) — 토스/카카오 수준 상용 폼팩터 ----------
     if st.session_state.get("auth_phase") == "terms" and st.session_state.get("pending_social_provider"):
         prov = st.session_state["pending_social_provider"]
 
+        # ── 헤더 ─────────────────────────────────────────────────────────────
         st.markdown(
             """
-            <div style="text-align:center;margin:0 0 18px;">
-              <div style="font-size:1.4rem;font-weight:900;color:#fff;">📋 서비스 이용 약관 동의</div>
-              <div style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-top:6px;">
-                아래 필수 약관에 동의하셔야 서비스 이용이 가능합니다.
+            <div style="text-align:center;margin:0 0 20px;">
+              <div style="font-size:1.35rem;font-weight:900;color:#fff;letter-spacing:-0.02em;">
+                📋 서비스 약관 동의
+              </div>
+              <div style="font-size:0.78rem;color:rgba(255,255,255,0.46);margin-top:6px;">
+                필수 항목에 모두 동의해야 서비스를 이용하실 수 있습니다.
               </div>
             </div>
             """,
@@ -3830,69 +3834,92 @@ if not st.session_state['logged_in']:
         if st.button("← 뒤로가기", key="terms_back"):
             st.session_state["auth_phase"] = "sheet"
             st.session_state["pending_social_provider"] = None
-            for x in ("terms_cb_tos", "terms_cb_privacy"):
+            for x in ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "_tc_all_prev"):
                 st.session_state.pop(x, None)
             st.rerun()
 
-        # ── [필수 1] 서비스 이용약관 ──────────────────────────────────────
-        with st.expander("📄 [필수 1] 서비스 이용약관 (통합본) — 펼쳐서 읽기", expanded=False):
-            st.markdown(
-                """
-**제1조 (목적)**
-본 약관은 '혈당스캐너 AI' 서비스의 이용 조건을 규정합니다.
+        # ── 체크박스 상태 초기화 ─────────────────────────────────────────────
+        for _k in ("tc_tos", "tc_priv", "tc_health", "tc_mkt"):
+            st.session_state.setdefault(_k, False)
 
-**제2조 (의료적 면책)**
-본 서비스의 AI 혈당 예측 및 분석 결과는 참고용 통계 정보이며, 의학적 진단이나 치료를 대신할 수 없습니다. 서비스 이용 결과에 대한 법적 책임은 사용자 본인에게 있습니다.
+        _sub_keys = ("tc_tos", "tc_priv", "tc_health", "tc_mkt")
+        _req_keys = ("tc_tos", "tc_priv", "tc_health")
 
-**제3조 (서비스 제공 및 중단)**
-① 회사는 연중무휴 1일 24시간 서비스 제공을 원칙으로 합니다.
-② 단, 컴퓨터 등 정보통신설비의 보수점검, 교체, 고장, 통신두절 또는 천재지변 등의 불가항력적 사유가 발생한 경우 서비스 제공을 일시 중단할 수 있으며, 이로 인한 데이터 손실이나 피해에 대해 회사는 고의 또는 중과실이 없는 한 책임을 지지 않습니다.
+        # ── [전체 동의] 마스터 체크박스 — on_change로 하위 동기화 ─────────────
+        def _on_all_change():
+            _v = st.session_state.get("tc_all_master", False)
+            for _k2 in _sub_keys:
+                st.session_state[_k2] = _v
 
-**제4조 (계약 해지 및 서비스 종료)**
-① 사용자는 언제든지 탈퇴를 요청할 수 있습니다.
-② 회사는 영업 양도, 폐업, 수익성 악화 등 경영상의 중대한 사유로 서비스를 영구 종료할 수 있으며, 최소 30일 전 공지사항을 통해 안내합니다. 종료 시 모든 데이터는 파기되며, 이에 대한 보상 책임은 없습니다.
+        _all_currently = all(st.session_state.get(k, False) for k in _sub_keys)
+        # 마스터 상태를 현재 하위 상태에 맞게 강제 동기화
+        st.session_state["tc_all_master"] = _all_currently
 
-**제5조 (사용자의 의무)**
-사용자는 비정상적인 방법으로 서버에 부하를 주거나, 타인의 정보를 도용하는 행위를 할 수 없으며, 적발 시 즉각 계정 정지 및 법적 조치를 취할 수 있습니다.
-                """,
-                unsafe_allow_html=False,
-            )
+        st.markdown(
+            "<div style='background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.30);"
+            "border-radius:12px;padding:10px 14px;margin-bottom:10px;'>",
+            unsafe_allow_html=True,
+        )
+        st.checkbox(
+            "**✅ 약관 전체 동의** (필수 3개 + 선택 1개)",
+            key="tc_all_master",
+            on_change=_on_all_change,
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        cb_tos = st.checkbox(
-            "✅ [필수] 서비스 이용약관에 동의합니다.",
-            key="terms_cb_tos",
+        st.markdown(
+            "<div style='height:1px;background:rgba(255,255,255,0.08);margin:2px 0 12px;'></div>",
+            unsafe_allow_html=True,
         )
 
-        # ── [필수 2] 개인정보 및 건강정보 수집·이용 동의 ──────────────────
-        with st.expander("🔒 [필수 2] 개인정보 및 민감정보(건강정보) 수집·이용 동의 — 펼쳐서 읽기", expanded=False):
-            st.markdown(
-                """
-**1. 수집 항목**
-이메일, 이름, 식별자, 식단 사진, 기기 정보 및 사용자가 직접 입력한 건강/신체 정보 (혈당 수치, 식사 기록 등)
+        # ── [필수 1] 서비스 이용약관 ─────────────────────────────────────────
+        _c1, _c2 = st.columns([0.88, 0.12])
+        with _c1:
+            st.checkbox("**[필수]** 서비스 이용약관 동의", key="tc_tos")
+        with _c2:
+            with st.popover("전문"):
+                st.markdown(TERMS_TOS)
 
-**2. 수집 목적**
-회원 가입, AI 식단 분석, 주간 췌장 피로도 분석 등 개인화된 서비스 제공
+        # ── [필수 2] 개인정보 수집·이용 동의 ─────────────────────────────────
+        _c1, _c2 = st.columns([0.88, 0.12])
+        with _c1:
+            st.checkbox("**[필수]** 개인정보 수집 및 이용 동의", key="tc_priv")
+        with _c2:
+            with st.popover("전문"):
+                st.markdown(TERMS_PRIVACY)
 
-**3. 보유 기간**
-회원 탈퇴 시 또는 서비스 종료 시 즉시 영구 파기. (단, 관련 법령에 의한 보존 의무가 있는 경우 해당 기간 보관)
+        # ── [필수 3] 민감정보(건강정보) 처리 동의 ────────────────────────────
+        _c1, _c2 = st.columns([0.88, 0.12])
+        with _c1:
+            st.checkbox("**[필수]** 민감정보(건강정보) 처리 동의", key="tc_health")
+        with _c2:
+            with st.popover("전문"):
+                st.markdown(TERMS_HEALTH)
 
-**4. 동의 거부권**
-귀하는 동의를 거부할 권리가 있으나, 거부 시 핵심 AI 분석 및 리포트 서비스 이용이 불가능합니다.
-                """,
-                unsafe_allow_html=False,
-            )
+        # ── [선택] 마케팅 정보 수신 동의 ─────────────────────────────────────
+        _c1, _c2 = st.columns([0.88, 0.12])
+        with _c1:
+            st.checkbox("**[선택]** 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
+        with _c2:
+            with st.popover("전문"):
+                st.markdown(TERMS_MARKETING)
 
-        cb_priv = st.checkbox(
-            "✅ [필수] 개인정보 및 건강정보 수집·이용에 동의합니다.",
-            key="terms_cb_privacy",
-        )
+        # ── 진행 조건 체크 (필수 3개만 확인) ────────────────────────────────
+        _can_proceed = all(st.session_state.get(k, False) for k in _req_keys)
 
-        _can_proceed = cb_tos and cb_priv
+        st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
         if not _can_proceed:
+            _missing = []
+            if not st.session_state.get("tc_tos"):
+                _missing.append("서비스 이용약관")
+            if not st.session_state.get("tc_priv"):
+                _missing.append("개인정보 수집·이용")
+            if not st.session_state.get("tc_health"):
+                _missing.append("민감정보 처리")
             st.markdown(
-                "<div style='font-size:0.78rem;color:rgba(255,180,0,0.85);text-align:center;"
-                "margin:10px 0 4px;'>⚠️ 두 항목 모두 동의하셔야 가입이 완료됩니다.</div>",
+                f"<div style='font-size:0.76rem;color:rgba(255,180,0,0.9);text-align:center;"
+                f"margin-bottom:6px;'>⚠️ 미동의 필수 항목: {' / '.join(_missing)}</div>",
                 unsafe_allow_html=True,
             )
 
@@ -3904,6 +3931,7 @@ if not st.session_state['logged_in']:
             disabled=not _can_proceed,
         ):
             st.session_state["terms_accepted_provider"] = prov
+            st.session_state["terms_marketing_agreed"] = st.session_state.get("tc_mkt", False)
             decision = handle_social_login(prov)
             st.session_state["auth_phase"] = "sheet"
             st.session_state["pending_social_provider"] = None
