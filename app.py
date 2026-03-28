@@ -4143,34 +4143,31 @@ try {
     width: 100%; height: 100%;
     background: #0f172a;
     font-family: 'Noto Sans KR', -apple-system, sans-serif;
-    overflow: hidden;
+    overflow-y: auto; /* 극단적 소형 화면 safe-fallback */
     touch-action: pan-y;
   }
-  /* ── 메인 화면 레이아웃 ── */
+  /* ── 메인 화면 레이아웃 — 진짜 Flexbox 기둥 구조 ── */
   .screen {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    height: 100%;
+    min-height: 100%;       /* auto-grow: 컨텐츠가 크면 늘어남 */
     width: 100%;
-    padding: 0 20px 28px;
-    overflow: hidden;
+    padding: 0 20px;
+    box-sizing: border-box;
     text-align: center;
   }
-  /* ── 상단 비주얼 ── */
+  /* ── 상단 비주얼 — 남는 공간을 유연하게 차지 ── */
   .visual {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    flex: 1;
+    flex: 1;                 /* 핵심: 남는 수직 공간 모두 흡수 */
     width: 100%;
     padding-top: 20px;
-    padding-bottom: 160px; /* 하단 고정 버튼 공간 확보 */
     position: relative;
     z-index: 1;
-    overflow: hidden;
   }
   .glow-bg {
     position: fixed; top: 0; left: 50%;
@@ -4226,19 +4223,15 @@ try {
     animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;
   }
   .copy2 em { font-style: normal; color: #10b981; }
-  /* ── 하단 버튼 섹션 — 화면 하단에 고정 ── */
+  /* ── 하단 버튼 섹션 — Flexbox 맨 아래 자연 배치 ── */
   .btn-section {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
+    width: 100%; max-width: 420px;
     display: flex; flex-direction: column;
     align-items: center; gap: 10px;
-    padding: 16px 20px;
-    padding-bottom: max(28px, calc(env(safe-area-inset-bottom, 0px) + 16px));
-    background: linear-gradient(to top,
-      rgba(15,23,42,1.0) 65%,
-      rgba(15,23,42,0.72) 88%,
-      transparent 100%);
-    z-index: 10;
+    margin-top: auto;        /* 남는 공간을 위쪽으로 밀어 자연스럽게 최하단 배치 */
+    padding-top: 16px;
+    padding-bottom: max(5vh, calc(env(safe-area-inset-bottom, 0px) + 20px));
+    flex-shrink: 0;          /* 절대 압축되지 않도록 */
     animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;
   }
   .btn-main {
@@ -4394,9 +4387,9 @@ try {
   try {
     var fr = window.frameElement;
     if (fr) {
-      var h = window.parent.innerHeight
+      var h = (window.parent.innerHeight
            || window.parent.document.documentElement.clientHeight
-           || 700;
+           || 700) - 10;   /* 하단 여백 10px 보정 */
       fr.style.height = h + 'px';
       fr.style.width = '100%';
       fr.style.border = 'none';
