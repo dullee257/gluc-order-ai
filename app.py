@@ -3462,6 +3462,34 @@ if not st.session_state['logged_in']:
     import urllib.parse
     import uuid
 
+    # ─── 영구 자동 로그인: localStorage 인증 정보 복원 ───────────────────────
+    # 로그아웃 시 localStorage 클리어 JS 주입
+    if st.session_state.pop("_logout_pending_ls_clear", False):
+        st.session_state["_ls_auth_revoked"] = True
+        st.components.v1.html(
+            "<script>try{(window.parent||window).localStorage.removeItem('bgs_auth');}catch(e){}</script>",
+            height=0,
+        )
+    # localStorage → query param 방식으로 세션 복원
+    if "__al" in st.query_params and not st.session_state.get("_ls_auth_revoked"):
+        try:
+            _al_raw = st.query_params.get("__al", "")
+            _pad = (4 - len(_al_raw) % 4) % 4
+            _al_data = json.loads(base64.b64decode(_al_raw + "=" * _pad).decode("utf-8"))
+            if _al_data.get("t") in ("google", "email") and _al_data.get("u"):
+                st.session_state["logged_in"] = True
+                st.session_state["user_id"] = _al_data["u"]
+                st.session_state["user_email"] = _al_data.get("e") or ""
+                st.session_state["login_type"] = _al_data["t"]
+                st.query_params.clear()
+                st.rerun()
+        except Exception:
+            try:
+                st.query_params.clear()
+            except Exception:
+                pass
+    # ─────────────────────────────────────────────────────────────────────────
+
     if "oauth_state" not in st.session_state:
         st.session_state["oauth_state"] = str(uuid.uuid4())
         
@@ -3783,46 +3811,109 @@ if not st.session_state['logged_in']:
         height=0,
     )
 
-    # ---------- 약관 동의 화면 (소셜 클릭 후) ----------
+    # ---------- 약관 동의 화면 (소셜 클릭 후) — 철벽 방어 종합 약관 ----------
     if st.session_state.get("auth_phase") == "terms" and st.session_state.get("pending_social_provider"):
         prov = st.session_state["pending_social_provider"]
-        st.markdown(f"### {_t['terms_modal_title']}")
-        if st.button(_t["auth_back"], key="terms_back"):
+
+        st.markdown(
+            """
+            <div style="text-align:center;margin:0 0 18px;">
+              <div style="font-size:1.4rem;font-weight:900;color:#fff;">📋 서비스 이용 약관 동의</div>
+              <div style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-top:6px;">
+                아래 필수 약관에 동의하셔야 서비스 이용이 가능합니다.
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if st.button("← 뒤로가기", key="terms_back"):
             st.session_state["auth_phase"] = "sheet"
             st.session_state["pending_social_provider"] = None
-            for x in ("terms_cb_all", "terms_cb_tos", "terms_cb_privacy"):
+            for x in ("terms_cb_tos", "terms_cb_privacy"):
                 st.session_state.pop(x, None)
             st.rerun()
 
-        agree_all = st.checkbox(_t["terms_agree_all"], key="terms_cb_all")
-        with st.expander(_t.get("terms_expander_tos", _t["terms_required_tos"]), expanded=False):
-            st.markdown(_load_legal_markdown("terms", _lg))
-        with st.expander(_t.get("terms_expander_privacy", _t["terms_required_privacy"]), expanded=False):
-            st.markdown(_load_legal_markdown("privacy", _lg))
+        # ── [필수 1] 서비스 이용약관 ──────────────────────────────────────
+        with st.expander("📄 [필수 1] 서비스 이용약관 (통합본) — 펼쳐서 읽기", expanded=False):
+            st.markdown(
+                """
+**제1조 (목적)**
+본 약관은 '혈당스캐너 AI' 서비스의 이용 조건을 규정합니다.
 
-        if agree_all:
-            cb_tos = True
-            cb_priv = True
-            st.caption("✓ " + _t["terms_required_tos"] + " / " + _t["terms_required_privacy"])
-        else:
-            cb_tos = st.checkbox(_t["terms_required_tos"] + " — " + _t.get("terms_continue_btn", ""), key="terms_cb_tos")
-            cb_priv = st.checkbox(_t["terms_required_privacy"], key="terms_cb_privacy")
+**제2조 (의료적 면책)**
+본 서비스의 AI 혈당 예측 및 분석 결과는 참고용 통계 정보이며, 의학적 진단이나 치료를 대신할 수 없습니다. 서비스 이용 결과에 대한 법적 책임은 사용자 본인에게 있습니다.
 
-        if st.button(_t["terms_continue_btn"], type="primary", use_container_width=True, key="terms_submit"):
-            if not (cb_tos and cb_priv):
-                st.error(_t["terms_must_check"])
-            else:
-                st.session_state["terms_accepted_provider"] = prov
-                decision = handle_social_login(prov)
-                st.session_state["auth_phase"] = "sheet"
-                st.session_state["pending_social_provider"] = None
-                if decision.get("action") == "oauth_google":
-                    st.session_state["proceed_google_oauth"] = True
-                    st.rerun()
-                elif decision.get("action") == "stub":
-                    pname = str(decision.get("provider", prov) or "").title()
-                    st.session_state["auth_flash_msg"] = get_text(_lg, "social_provider_stub", provider=pname)
+**제3조 (서비스 제공 및 중단)**
+① 회사는 연중무휴 1일 24시간 서비스 제공을 원칙으로 합니다.
+② 단, 컴퓨터 등 정보통신설비의 보수점검, 교체, 고장, 통신두절 또는 천재지변 등의 불가항력적 사유가 발생한 경우 서비스 제공을 일시 중단할 수 있으며, 이로 인한 데이터 손실이나 피해에 대해 회사는 고의 또는 중과실이 없는 한 책임을 지지 않습니다.
+
+**제4조 (계약 해지 및 서비스 종료)**
+① 사용자는 언제든지 탈퇴를 요청할 수 있습니다.
+② 회사는 영업 양도, 폐업, 수익성 악화 등 경영상의 중대한 사유로 서비스를 영구 종료할 수 있으며, 최소 30일 전 공지사항을 통해 안내합니다. 종료 시 모든 데이터는 파기되며, 이에 대한 보상 책임은 없습니다.
+
+**제5조 (사용자의 의무)**
+사용자는 비정상적인 방법으로 서버에 부하를 주거나, 타인의 정보를 도용하는 행위를 할 수 없으며, 적발 시 즉각 계정 정지 및 법적 조치를 취할 수 있습니다.
+                """,
+                unsafe_allow_html=False,
+            )
+
+        cb_tos = st.checkbox(
+            "✅ [필수] 서비스 이용약관에 동의합니다.",
+            key="terms_cb_tos",
+        )
+
+        # ── [필수 2] 개인정보 및 건강정보 수집·이용 동의 ──────────────────
+        with st.expander("🔒 [필수 2] 개인정보 및 민감정보(건강정보) 수집·이용 동의 — 펼쳐서 읽기", expanded=False):
+            st.markdown(
+                """
+**1. 수집 항목**
+이메일, 이름, 식별자, 식단 사진, 기기 정보 및 사용자가 직접 입력한 건강/신체 정보 (혈당 수치, 식사 기록 등)
+
+**2. 수집 목적**
+회원 가입, AI 식단 분석, 주간 췌장 피로도 분석 등 개인화된 서비스 제공
+
+**3. 보유 기간**
+회원 탈퇴 시 또는 서비스 종료 시 즉시 영구 파기. (단, 관련 법령에 의한 보존 의무가 있는 경우 해당 기간 보관)
+
+**4. 동의 거부권**
+귀하는 동의를 거부할 권리가 있으나, 거부 시 핵심 AI 분석 및 리포트 서비스 이용이 불가능합니다.
+                """,
+                unsafe_allow_html=False,
+            )
+
+        cb_priv = st.checkbox(
+            "✅ [필수] 개인정보 및 건강정보 수집·이용에 동의합니다.",
+            key="terms_cb_privacy",
+        )
+
+        _can_proceed = cb_tos and cb_priv
+
+        if not _can_proceed:
+            st.markdown(
+                "<div style='font-size:0.78rem;color:rgba(255,180,0,0.85);text-align:center;"
+                "margin:10px 0 4px;'>⚠️ 두 항목 모두 동의하셔야 가입이 완료됩니다.</div>",
+                unsafe_allow_html=True,
+            )
+
+        if st.button(
+            "✅ 동의하고 가입완료",
+            type="primary",
+            use_container_width=True,
+            key="terms_submit",
+            disabled=not _can_proceed,
+        ):
+            st.session_state["terms_accepted_provider"] = prov
+            decision = handle_social_login(prov)
+            st.session_state["auth_phase"] = "sheet"
+            st.session_state["pending_social_provider"] = None
+            if decision.get("action") == "oauth_google":
+                st.session_state["proceed_google_oauth"] = True
                 st.rerun()
+            elif decision.get("action") == "stub":
+                pname = str(decision.get("provider", prov) or "").title()
+                st.session_state["auth_flash_msg"] = get_text(_lg, "social_provider_stub", provider=pname)
+            st.rerun()
 
         st.stop()
 
@@ -4172,13 +4263,13 @@ html, body {
         scrolling=False,
     )
 
-    # ── 소셜 버튼 섹션 헤더 ──────────────────────────────────────────
+    # ── [로그인 섹션] 기존 회원 ───────────────────────────────────────
     st.markdown(
         """
-        <div style="text-align:center;margin:14px 0 8px;
-                    font-size:0.78rem;letter-spacing:0.05em;font-weight:700;
-                    color:rgba(255,255,255,0.40);text-transform:uppercase;">
-          ⚡ 3초 만에 빠른 시작 &nbsp;(가입 · 로그인)
+        <div style="text-align:center;margin:18px 0 10px;
+                    font-size:0.82rem;font-weight:700;
+                    color:rgba(255,255,255,0.55);letter-spacing:0.02em;">
+          기존 회원이신가요? &nbsp;빠르게 로그인하세요
         </div>
         """,
         unsafe_allow_html=True,
@@ -4202,7 +4293,6 @@ html, body {
             st.session_state["pending_social_provider"] = "kakao"
             st.session_state["auth_phase"] = "terms"
             st.rerun()
-    # KR 단일: 해외 소셜(예: Facebook) 제거
     st.markdown("</div>", unsafe_allow_html=True)
 
     with st.expander("✉️ 이메일로 계속하기"):
@@ -4262,7 +4352,72 @@ html, body {
                                     "Firebase 콘솔 → Authentication → Email/Password 활성화가 필요합니다."
                                 )
 
+    # ── [회원가입 섹션] 처음이신가요? ─────────────────────────────────
+    st.markdown(
+        """
+        <div style="text-align:center;margin:22px 0 4px;">
+          <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);margin-bottom:18px;"></div>
+          <div style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.55);letter-spacing:0.02em;">
+            처음이신가요? &nbsp;3초 만에 무료로 시작하세요
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.expander("✨ 3초 만에 회원가입 시작하기", expanded=False):
+        st.markdown(
+            "<div style='font-size:0.78rem;color:rgba(255,255,255,0.50);text-align:center;"
+            "margin-bottom:12px;'>아래 채널 중 하나로 가입하면 바로 AI 분석이 시작됩니다!</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="auth-soc-row">', unsafe_allow_html=True)
+        st.markdown('<div class="auth-mark-google"></div>', unsafe_allow_html=True)
+        if st.button("🔵 Google로 회원가입하기", key="reg_ko_g", use_container_width=True):
+            st.session_state["pending_social_provider"] = "google"
+            st.session_state["auth_phase"] = "terms"
+            st.rerun()
+        st.markdown('<div class="auth-mark-naver"></div>', unsafe_allow_html=True)
+        if st.button("🟢 Naver로 회원가입하기", key="reg_ko_n", use_container_width=True):
+            st.session_state["pending_social_provider"] = "naver"
+            st.session_state["auth_phase"] = "terms"
+            st.rerun()
+        st.markdown('<div class="auth-mark-kakao"></div>', unsafe_allow_html=True)
+        if st.button("🟡 Kakao로 회원가입하기", key="reg_ko_k", use_container_width=True):
+            st.session_state["pending_social_provider"] = "kakao"
+            st.session_state["auth_phase"] = "terms"
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+        if st.button("✉️ 이메일로 회원가입하기", key="reg_ko_email", use_container_width=True):
+            st.session_state["auth_mode"] = "signup"
+            st.rerun()
+
     st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+
+    # ─── localStorage 자동 로그인 체크 JS (로그인 화면 진입 시 실행) ──────────
+    st.components.v1.html(
+        """
+<script>
+(function(){
+  try{
+    var s=(window.parent||window).localStorage;
+    var a=s.getItem('bgs_auth');
+    if(!a)return;
+    var d=JSON.parse(a);
+    if(!d||!d.u||!d.t)return;
+    var url=new URL(window.parent.location.href);
+    if(url.searchParams.has('__al'))return;
+    var raw=JSON.stringify(d);
+    var enc=btoa(unescape(encodeURIComponent(raw)));
+    url.searchParams.set('__al',enc);
+    window.parent.location.replace(url.toString());
+  }catch(e){}
+})();
+</script>
+""",
+        height=0,
+    )
     st.stop()
 
 
@@ -4691,6 +4846,19 @@ def render_bottom_bar():
                 st.rerun()
 
 
+# ─── 영구 자동 로그인: 로그인 직후 localStorage에 인증 정보 저장 (1회) ─────
+if not st.session_state.get("_ls_auth_saved") and st.session_state.get("login_type") in ("google", "email"):
+    st.session_state["_ls_auth_saved"] = True
+    _ls_u = json.dumps(st.session_state.get("user_id") or "")
+    _ls_e = json.dumps(st.session_state.get("user_email") or "")
+    _ls_t = json.dumps(st.session_state.get("login_type") or "")
+    st.components.v1.html(
+        f"<script>try{{(window.parent||window).localStorage.setItem('bgs_auth',"
+        f"JSON.stringify({{u:{_ls_u},e:{_ls_e},t:{_ls_t}}}));}}catch(e){{}}</script>",
+        height=0,
+    )
+# ─────────────────────────────────────────────────────────────────────────────
+
 # 5. 메인 영역 — 스캐너/기록 전환은 하단 바 + session_state.nav_menu만 사용 (상단 중복 탭 제거)
 menu_key = st.session_state.get("nav_menu") or "scanner"
 
@@ -4751,6 +4919,9 @@ if menu_key == "scanner":
                     st.session_state["login_type"] = None
                     st.session_state["user_id"] = None
                     st.session_state["user_email"] = None
+                    st.session_state["_ls_auth_saved"] = False
+                    st.session_state["_ls_auth_revoked"] = False
+                    st.session_state["_logout_pending_ls_clear"] = True
                     _reset_meal_feed_state()
                     st.session_state["auth_mode"] = "login"
                     st.rerun()
@@ -5447,6 +5618,9 @@ if menu_key == "scanner":
                     st.session_state["login_type"] = None
                     st.session_state["user_id"] = None
                     st.session_state["user_email"] = None
+                    st.session_state["_ls_auth_saved"] = False
+                    st.session_state["_ls_auth_revoked"] = False
+                    st.session_state["_logout_pending_ls_clear"] = True
                     _reset_meal_feed_state()
                     st.session_state["auth_mode"] = "login"
                     st.session_state["current_page"] = "main"
@@ -5457,6 +5631,9 @@ if menu_key == "scanner":
                     st.session_state["login_type"] = None
                     st.session_state["user_id"] = None
                     st.session_state["user_email"] = None
+                    st.session_state["_ls_auth_saved"] = False
+                    st.session_state["_ls_auth_revoked"] = False
+                    st.session_state["_logout_pending_ls_clear"] = True
                     _reset_meal_feed_state()
                     st.session_state["auth_mode"] = "login"
                     st.session_state["current_page"] = "main"
