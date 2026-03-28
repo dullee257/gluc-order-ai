@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from firebase_admin import storage as firebase_admin_storage
 
 from translation import LANG_DICT, get_text, GOAL_INTERNAL_KEYS
-from terms import TERMS_TOS, TERMS_PRIVACY, TERMS_HEALTH, TERMS_MARKETING
+from terms import TERMS_TOS, TERMS_PRIVACY, TERMS_HEALTH, TERMS_MARKETING, TERMS_CUSTOM_PRIV
 from prompts import (
     get_analysis_prompt,
     PRE_MEAL_INSIGHTS_SYSTEM_PROMPT,
@@ -3797,6 +3797,30 @@ if not st.session_state['logged_in']:
     }
     /* KR 단일: Facebook 버튼 제거 */
     .auth-terms-panel { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem; background: rgba(255,255,255,0.05); max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
+    /* 약관 전문 보기 popover 버튼 — 다크 톤으로 튜닝 */
+    body.auth-login-splash .stApp [data-testid="stPopover"] > button,
+    body.auth-login-splash .stApp [data-testid="stPopover"] button {
+      background: rgba(52,211,153,0.08) !important;
+      border: 1px solid rgba(52,211,153,0.28) !important;
+      color: #34d399 !important;
+      font-size: 0.68rem !important;
+      font-weight: 600 !important;
+      padding: 2px 8px !important;
+      min-height: 28px !important;
+      height: 28px !important;
+      border-radius: 6px !important;
+      box-shadow: none !important;
+      white-space: nowrap !important;
+    }
+    body.auth-login-splash .stApp [data-testid="stPopover"] button p,
+    body.auth-login-splash .stApp [data-testid="stPopover"] button span {
+      color: #34d399 !important;
+      font-size: 0.68rem !important;
+    }
+    /* 약관 행 레이아웃 — 세로 중앙 정렬 */
+    body.auth-login-splash .stApp .tc-row [data-testid="stVerticalBlock"] {
+      justify-content: center !important;
+    }
     </style>
     """,
         unsafe_allow_html=True,
@@ -3834,25 +3858,24 @@ if not st.session_state['logged_in']:
         if st.button("← 뒤로가기", key="terms_back"):
             st.session_state["auth_phase"] = "sheet"
             st.session_state["pending_social_provider"] = None
-            for x in ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "_tc_all_prev"):
+            for x in ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "tc_custom_priv", "_tc_all_prev"):
                 st.session_state.pop(x, None)
             st.rerun()
 
         # ── 체크박스 상태 초기화 ─────────────────────────────────────────────
-        for _k in ("tc_tos", "tc_priv", "tc_health", "tc_mkt"):
-            st.session_state.setdefault(_k, False)
-
-        _sub_keys = ("tc_tos", "tc_priv", "tc_health", "tc_mkt")
+        _sub_keys = ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "tc_custom_priv")
         _req_keys = ("tc_tos", "tc_priv", "tc_health")
 
-        # ── [전체 동의] 마스터 체크박스 — on_change로 하위 동기화 ─────────────
+        for _k in _sub_keys:
+            st.session_state.setdefault(_k, False)
+
+        # ── [전체 동의] 마스터 체크박스 — on_change로 하위 5개 동기화 ──────────
         def _on_all_change():
             _v = st.session_state.get("tc_all_master", False)
             for _k2 in _sub_keys:
                 st.session_state[_k2] = _v
 
         _all_currently = all(st.session_state.get(k, False) for k in _sub_keys)
-        # 마스터 상태를 현재 하위 상태에 맞게 강제 동기화
         st.session_state["tc_all_master"] = _all_currently
 
         st.markdown(
@@ -3861,50 +3884,64 @@ if not st.session_state['logged_in']:
             unsafe_allow_html=True,
         )
         st.checkbox(
-            "**✅ 약관 전체 동의** (필수 3개 + 선택 1개)",
+            "**✅ 약관 전체 동의** (필수 3개 + 선택 2개)",
             key="tc_all_master",
             on_change=_on_all_change,
         )
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown(
-            "<div style='height:1px;background:rgba(255,255,255,0.08);margin:2px 0 12px;'></div>",
+            "<div style='height:1px;background:rgba(255,255,255,0.08);margin:2px 0 10px;'></div>",
             unsafe_allow_html=True,
         )
 
-        # ── [필수 1] 서비스 이용약관 ─────────────────────────────────────────
-        _c1, _c2 = st.columns([0.88, 0.12])
-        with _c1:
+        # ── 약관 행 렌더링 헬퍼 ───────────────────────────────────────────────
+        # [필수 1] 서비스 이용약관
+        _col_cb, _col_btn = st.columns([8, 2])
+        with _col_cb:
             st.checkbox("**[필수]** 서비스 이용약관 동의", key="tc_tos")
-        with _c2:
-            with st.popover("전문"):
+        with _col_btn:
+            with st.popover("전문 보기"):
                 st.markdown(TERMS_TOS)
 
-        # ── [필수 2] 개인정보 수집·이용 동의 ─────────────────────────────────
-        _c1, _c2 = st.columns([0.88, 0.12])
-        with _c1:
+        # [필수 2] 개인정보 수집·이용
+        _col_cb, _col_btn = st.columns([8, 2])
+        with _col_cb:
             st.checkbox("**[필수]** 개인정보 수집 및 이용 동의", key="tc_priv")
-        with _c2:
-            with st.popover("전문"):
+        with _col_btn:
+            with st.popover("전문 보기"):
                 st.markdown(TERMS_PRIVACY)
 
-        # ── [필수 3] 민감정보(건강정보) 처리 동의 ────────────────────────────
-        _c1, _c2 = st.columns([0.88, 0.12])
-        with _c1:
+        # [필수 3] 민감정보(건강정보) 처리
+        _col_cb, _col_btn = st.columns([8, 2])
+        with _col_cb:
             st.checkbox("**[필수]** 민감정보(건강정보) 처리 동의", key="tc_health")
-        with _c2:
-            with st.popover("전문"):
+        with _col_btn:
+            with st.popover("전문 보기"):
                 st.markdown(TERMS_HEALTH)
 
-        # ── [선택] 마케팅 정보 수신 동의 ─────────────────────────────────────
-        _c1, _c2 = st.columns([0.88, 0.12])
-        with _c1:
+        st.markdown(
+            "<div style='height:1px;background:rgba(255,255,255,0.06);margin:4px 0 6px;'></div>",
+            unsafe_allow_html=True,
+        )
+
+        # [선택 1] 마케팅 정보 수신
+        _col_cb, _col_btn = st.columns([8, 2])
+        with _col_cb:
             st.checkbox("**[선택]** 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
-        with _c2:
-            with st.popover("전문"):
+        with _col_btn:
+            with st.popover("전문 보기"):
                 st.markdown(TERMS_MARKETING)
 
-        # ── 진행 조건 체크 (필수 3개만 확인) ────────────────────────────────
+        # [선택 2] 맞춤형 서비스를 위한 개인정보 추가 수집
+        _col_cb, _col_btn = st.columns([8, 2])
+        with _col_cb:
+            st.checkbox("**[선택]** 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
+        with _col_btn:
+            with st.popover("전문 보기"):
+                st.markdown(TERMS_CUSTOM_PRIV)
+
+        # ── 진행 조건 체크 (필수 3개만) ──────────────────────────────────────
         _can_proceed = all(st.session_state.get(k, False) for k in _req_keys)
 
         st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
@@ -3932,6 +3969,7 @@ if not st.session_state['logged_in']:
         ):
             st.session_state["terms_accepted_provider"] = prov
             st.session_state["terms_marketing_agreed"] = st.session_state.get("tc_mkt", False)
+            st.session_state["terms_custom_priv_agreed"] = st.session_state.get("tc_custom_priv", False)
             decision = handle_social_login(prov)
             st.session_state["auth_phase"] = "sheet"
             st.session_state["pending_social_provider"] = None
