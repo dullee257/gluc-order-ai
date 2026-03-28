@@ -3856,34 +3856,39 @@ if not st.session_state['logged_in']:
     body.auth-login-splash.auth-terms-page .block-container {
       height: 100dvh !important;
       overflow: hidden !important;
-      padding-bottom: 100px !important;
+      padding-bottom: 140px !important;
       display: flex !important;
       flex-direction: column !important;
       scrollbar-width: thin !important;
+      min-height: 0 !important;
     }
-    body.auth-login-splash.auth-terms-page [data-testid="stVerticalBlockBorderWrapper"] {
+    /* #59: 45vh 스크롤은 약관 6개 박스에만 (JS로 .tc-terms-scroll-only 부여) */
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only {
       max-height: 45vh !important;
       min-height: 0 !important;
-      overflow-y: scroll !important;
+      overflow-y: auto !important;
       overflow-x: hidden !important;
       flex: 0 1 auto !important;
       border-color: rgba(255,255,255,0.14) !important;
       margin: 0 0 10px 0 !important;
       -webkit-overflow-scrolling: touch !important;
     }
-    /* #58: 45vh 스크롤 박스 밖에 마스터 체크가 보이도록 압착 시에도 잘리지 않게 */
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only::-webkit-scrollbar {
+      width: 5px;
+    }
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only::-webkit-scrollbar-thumb {
+      background: rgba(16,185,129,0.35);
+      border-radius: 3px;
+    }
+    /* #59: 전체 동의 — 고정 CTA에 가리지 않도록 + flex에서 잘리지 않게 */
     body.auth-login-splash.auth-terms-page .block-container .tc-master-wrap {
       flex: 0 0 auto !important;
       min-height: 0 !important;
       max-height: none !important;
       overflow: visible !important;
-    }
-    body.auth-login-splash.auth-terms-page [data-testid="stVerticalBlockBorderWrapper"]::-webkit-scrollbar {
-      width: 5px;
-    }
-    body.auth-login-splash.auth-terms-page [data-testid="stVerticalBlockBorderWrapper"]::-webkit-scrollbar-thumb {
-      background: rgba(16,185,129,0.35);
-      border-radius: 3px;
+      position: relative !important;
+      z-index: 120 !important;
+      margin-bottom: 120px !important;
     }
     /* CTA 버튼 영역: 화면 최하단 고정 */
     body.auth-login-splash.auth-terms-page div:has(> [data-testid="stButton"] > button[kind="primary"]) {
@@ -4031,6 +4036,26 @@ try {
     _pw.history.replaceState({}, '', _u.pathname + _u.hash);
   }
 } catch(e) {}
+</script>""",
+            height=0,
+        )
+
+        # #59: 약관 6개만 45vh 스크롤 — 첫 border 래퍼에 클래스 부여 (전역 border 셀렉터 제거)
+        st.components.v1.html(
+            """<script>
+(function() {
+  function tagTermsScroll() {
+    try {
+      var m = window.parent.document.querySelector('section[data-testid="stMain"]');
+      if (!m) return;
+      var w = m.querySelector('[data-testid="stVerticalBlockBorderWrapper"]');
+      if (w) w.classList.add('tc-terms-scroll-only');
+    } catch(e) {}
+  }
+  tagTermsScroll();
+  setTimeout(tagTermsScroll, 50);
+  setTimeout(tagTermsScroll, 200);
+})();
 </script>""",
             height=0,
         )
@@ -4198,15 +4223,14 @@ try {
 
         _ov = " open" if st.session_state.get("splash_drawer_open") else ""
         _dr = " open" if st.session_state.get("splash_drawer_open") else ""
-        st.session_state["auth_intent"] = st.session_state.get(
-            "splash_auth_intent", "login"
-        )
-        _ai = st.session_state["auth_intent"]
-        _int_js = (
-            st.session_state.get("splash_auth_intent", "login")
-            .replace("\\", "\\\\")
-            .replace("'", "\\'")
-        )
+        # #59: 인텐트 단일 소스 — splash_auth_intent만 사용 (회원가입 드로어 문구 불일치 방지)
+        _splash_intent = str(st.session_state.get("splash_auth_intent", "login")).strip()
+        if _splash_intent not in ("login", "signup"):
+            _splash_intent = "login"
+        st.session_state["splash_auth_intent"] = _splash_intent
+        st.session_state["auth_intent"] = _splash_intent
+        _ai = _splash_intent
+        _int_js = _splash_intent.replace("\\", "\\\\").replace("'", "\\'")
         if _ai == "signup":
             _ph_d_title = "처음이신가요? Sign Up"
             _ph_d_sub = "3초 가입하기 → 7일 PRO 무료 체험 시작"
@@ -4671,16 +4695,23 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
             unsafe_allow_html=True,
         )
 
+        # #59: 동일 라벨 " "는 Streamlit 위젯 id/순서 꼬임 유발 → 투명 고유 라벨(유니코드)
+        _lb_m_login = "\u200b"
+        _lb_m_signup = "\u200b\u200b"
+        _lb_g = "\u2060"
+        _lb_n = "\u2060\u2060"
+        _lb_k = "\u2060\u2060\u2060"
+        _lb_e = "\u2060\u2060\u2060\u2060"
         if not st.session_state.get("splash_drawer_open"):
             st.button(
-                " ",
+                _lb_m_login,
                 key="gluc_touch_login",
                 on_click=_cb_drawer_login,
                 use_container_width=True,
                 help="gluc_touch_main_login",
             )
             st.button(
-                " ",
+                _lb_m_signup,
                 key="gluc_touch_signup",
                 on_click=_cb_drawer_signup,
                 use_container_width=True,
@@ -4688,7 +4719,7 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
             )
         else:
             st.button(
-                " ",
+                _lb_g,
                 key="gluc_touch_soc_google",
                 on_click=_cb_soc,
                 args=("google",),
@@ -4696,7 +4727,7 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
                 help="gluc_touch_soc_google",
             )
             st.button(
-                " ",
+                _lb_n,
                 key="gluc_touch_soc_naver",
                 on_click=_cb_soc,
                 args=("naver",),
@@ -4704,7 +4735,7 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
                 help="gluc_touch_soc_naver",
             )
             st.button(
-                " ",
+                _lb_k,
                 key="gluc_touch_soc_kakao",
                 on_click=_cb_soc,
                 args=("kakao",),
@@ -4712,7 +4743,7 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
                 help="gluc_touch_soc_kakao",
             )
             st.button(
-                " ",
+                _lb_e,
                 key="gluc_touch_soc_email",
                 on_click=_cb_soc,
                 args=("email",),
@@ -4744,29 +4775,46 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
       }}
       if (!ifr) return;
       var idoc = ifr.contentDocument;
-      var rects = [];
+      function place(btn, el) {{
+        if (!btn || !el) return;
+        var r = el.getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) return;
+        btn.style.position = 'fixed';
+        btn.style.left = r.left + 'px';
+        btn.style.top = r.top + 'px';
+        btn.style.width = r.width + 'px';
+        btn.style.height = r.height + 'px';
+        btn.style.zIndex = '2147483646';
+        btn.style.pointerEvents = 'auto';
+      }}
+      /* #59: Streamlit key DOM 순서 ≠ 시각 순서일 수 있음 → 뷰포트 Y로 정렬 후 짝맞춤 */
       if (drawerOpen) {{
-        ['bg','bn','bk','be'].forEach(function(sid) {{
-          var el = idoc.getElementById(sid);
-          if (el) rects.push(el.getBoundingClientRect());
-        }});
+        var ids = ['bg','bn','bk','be'];
+        var els = [];
+        for (var ii = 0; ii < ids.length; ii++) {{
+          var node = idoc.getElementById(ids[ii]);
+          if (node) els.push(node);
+        }}
+        els.sort(function(a,b) {{ return a.getBoundingClientRect().top - b.getBoundingClientRect().top; }});
+        var wraps = Array.prototype.slice.call(bc.querySelectorAll('[data-testid="stButton"]'));
+        wraps.sort(function(a,b) {{ return a.getBoundingClientRect().top - b.getBoundingClientRect().top; }});
+        var lim = Math.min(wraps.length, els.length);
+        for (var pi = 0; pi < lim; pi++) {{
+          var btn = wraps[pi].querySelector('button');
+          place(btn, els[pi]);
+        }}
       }} else {{
         var bm = idoc.querySelector('.btn-main');
         var bs = idoc.querySelector('.btn-sub');
-        if (bm) rects.push(bm.getBoundingClientRect());
-        if (bs) rects.push(bs.getBoundingClientRect());
-      }}
-      var btns = bc.querySelectorAll('[data-testid="stButton"] button');
-      var n = Math.min(rects.length, btns.length);
-      for (var k = 0; k < n; k++) {{
-        var r = rects[k];
-        var b = btns[k];
-        b.style.left = r.left + 'px';
-        b.style.top = r.top + 'px';
-        b.style.width = r.width + 'px';
-        b.style.height = r.height + 'px';
-        b.style.zIndex = '2147483000';
-        b.style.pointerEvents = 'auto';
+        var elsM = [bm, bs].filter(function(x) {{ return !!x; }});
+        elsM.sort(function(a,b) {{ return a.getBoundingClientRect().top - b.getBoundingClientRect().top; }});
+        var wrapsM = Array.prototype.slice.call(bc.querySelectorAll('[data-testid="stButton"]'));
+        wrapsM.sort(function(a,b) {{ return a.getBoundingClientRect().top - b.getBoundingClientRect().top; }});
+        var lim2 = Math.min(wrapsM.length, elsM.length);
+        for (var pj = 0; pj < lim2; pj++) {{
+          var btn2 = wrapsM[pj].querySelector('button');
+          place(btn2, elsM[pj]);
+        }}
       }}
     }} catch(e2) {{}}
   }}
@@ -4785,6 +4833,11 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
     dr.addEventListener('transitionend', function(ev) {{
       if (ev.propertyName === 'bottom') scheduleRects();
     }});
+    dr.addEventListener('scroll', function() {{ scheduleRects(); }}, {{ passive: true }});
+    try {{
+      var ro = new ResizeObserver(function() {{ scheduleRects(); }});
+      ro.observe(dr);
+    }} catch(eR) {{}}
   }}
   var list0 = window.parent.document.querySelectorAll('iframe');
   for (var j = 0; j < list0.length; j++) {{
@@ -4795,16 +4848,19 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
   }}
   applyRects();
   scheduleRects();
-  setTimeout(applyRects, 16);
+  setTimeout(applyRects, 0);
+  setTimeout(scheduleRects, 16);
   setTimeout(applyRects, 50);
-  setTimeout(applyRects, 120);
-  setTimeout(applyRects, 420);
+  setTimeout(applyRects, 100);
+  setTimeout(applyRects, 200);
+  setTimeout(applyRects, 450);
   setTimeout(applyRects, 500);
-  setTimeout(applyRects, 700);
+  setTimeout(applyRects, 550);
+  setTimeout(applyRects, 850);
   try {{ window.parent.addEventListener('resize', scheduleRects); }} catch(e3) {{}}
   try {{
     window.parent.addEventListener('orientationchange', function() {{
-      setTimeout(applyRects, 350);
+      setTimeout(applyRects, 400);
     }});
   }} catch(e5) {{}}
 }})();
