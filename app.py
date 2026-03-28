@@ -3844,24 +3844,31 @@ if not st.session_state['logged_in']:
       overflow: hidden !important;
       height: 100dvh !important;
     }
-    /* 약관 항목 영역 — 내부 스크롤 박스 */
+    /* 약관: 전체 페이지 스크롤 금지 — 체크+expander는 테두리 컨테이너 안만 스크롤 */
     body.auth-login-splash.auth-terms-page .block-container {
       height: 100dvh !important;
-      overflow-y: auto !important;
-      overflow-x: hidden !important;
-      padding-bottom: 120px !important;
+      overflow: hidden !important;
+      padding-bottom: 100px !important;
+      display: flex !important;
+      flex-direction: column !important;
       scrollbar-width: thin !important;
-      scrollbar-color: rgba(16,185,129,0.35) transparent !important;
     }
-    body.auth-login-splash.auth-terms-page .block-container::-webkit-scrollbar {
-      width: 4px;
+    body.auth-login-splash.auth-terms-page [data-testid="stVerticalBlockBorderWrapper"] {
+      max-height: 45vh !important;
+      min-height: 0 !important;
+      overflow-y: scroll !important;
+      overflow-x: hidden !important;
+      flex: 0 1 auto !important;
+      border-color: rgba(255,255,255,0.14) !important;
+      margin: 0 0 10px 0 !important;
+      -webkit-overflow-scrolling: touch !important;
     }
-    body.auth-login-splash.auth-terms-page .block-container::-webkit-scrollbar-track {
-      background: transparent;
+    body.auth-login-splash.auth-terms-page [data-testid="stVerticalBlockBorderWrapper"]::-webkit-scrollbar {
+      width: 5px;
     }
-    body.auth-login-splash.auth-terms-page .block-container::-webkit-scrollbar-thumb {
+    body.auth-login-splash.auth-terms-page [data-testid="stVerticalBlockBorderWrapper"]::-webkit-scrollbar-thumb {
       background: rgba(16,185,129,0.35);
-      border-radius: 2px;
+      border-radius: 3px;
     }
     /* CTA 버튼 영역: 화면 최하단 고정 */
     body.auth-login-splash.auth-terms-page div:has(> [data-testid="stButton"] > button[kind="primary"]) {
@@ -3875,16 +3882,16 @@ if not st.session_state['logged_in']:
     /* ── 스플래시 화면 스크롤 제로 + Streamlit 크롬 완전 숨김 ── */
     body.auth-login-splash.auth-splash-screen {
       overflow: hidden !important;
-      height: 100vh !important;
-      max-height: 100vh !important;
+      height: 100dvh !important;
+      max-height: 100dvh !important;
     }
     body.auth-login-splash.auth-splash-screen .stApp,
     body.auth-login-splash.auth-splash-screen [data-testid="stAppViewContainer"],
     body.auth-login-splash.auth-splash-screen section[tabindex="0"],
     body.auth-login-splash.auth-splash-screen .block-container {
       overflow: hidden !important;
-      height: 100vh !important;
-      max-height: 100vh !important;
+      height: 100dvh !important;
+      max-height: 100dvh !important;
       padding: 0 !important;
     }
     body.auth-login-splash.auth-splash-screen header[data-testid="stHeader"],
@@ -3996,12 +4003,18 @@ if not st.session_state['logged_in']:
     if st.session_state.get("auth_phase") == "terms" and st.session_state.get("pending_social_provider"):
         prov = st.session_state["pending_social_provider"]
 
-        # 약관 페이지 전용 body 클래스 주입 (스크롤 제어용)
+        # 약관 페이지 전용 body 클래스 + URL 정리(뒤로가기 시 ?__auth 잔상 방지)
         st.components.v1.html(
             """<script>
 try {
   window.parent.document.body.classList.add('auth-terms-page');
   window.parent.document.body.classList.remove('auth-splash-screen');
+  var _pw = window.parent;
+  var _u = new URL(_pw.location.href);
+  if (_u.searchParams.has('__auth') || _u.searchParams.has('intent')) {
+    _u.search = '';
+    _pw.history.replaceState({}, '', _u.pathname + _u.hash);
+  }
 } catch(e) {}
 </script>""",
             height=0,
@@ -4022,13 +4035,6 @@ try {
             unsafe_allow_html=True,
         )
 
-        if st.button("← 뒤로가기", key="terms_back"):
-            st.session_state["auth_phase"] = "sheet"
-            st.session_state["pending_social_provider"] = None
-            for x in ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "tc_custom_priv", "tc_bigdata", "_tc_all_prev"):
-                st.session_state.pop(x, None)
-            st.rerun()
-
         # ── 체크박스 상태 초기화 (필수 3 + 선택 3 = 총 6개) ──────────────────
         _sub_keys = ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "tc_custom_priv", "tc_bigdata")
         _req_keys = ("tc_tos", "tc_priv", "tc_health")
@@ -4045,41 +4051,42 @@ try {
         _all_currently = all(st.session_state.get(k, False) for k in _sub_keys)
         st.session_state["tc_all_master"] = _all_currently
 
-        # ── 약관 항목 6개 — 이모지 없이 순수 텍스트 + expander 아코디언 ─────
-        # [필수 1] 서비스 이용약관
-        st.checkbox("[필수] 서비스 이용약관 동의", key="tc_tos")
-        with st.expander("내용 보기", expanded=False):
-            st.markdown(TERMS_TOS)
+        # ── 약관 항목 6개 — 테두리 컨테이너 안에서만 스크롤(max-height:45vh, CSS) ─
+        with st.container(border=True):
+            # [필수 1] 서비스 이용약관
+            st.checkbox("[필수] 서비스 이용약관 동의", key="tc_tos")
+            with st.expander("내용 보기", expanded=False):
+                st.markdown(TERMS_TOS)
 
-        # [필수 2] 개인정보 수집·이용
-        st.checkbox("[필수] 개인정보 수집 및 이용 동의", key="tc_priv")
-        with st.expander("내용 보기", expanded=False):
-            st.markdown(TERMS_PRIVACY)
+            # [필수 2] 개인정보 수집·이용
+            st.checkbox("[필수] 개인정보 수집 및 이용 동의", key="tc_priv")
+            with st.expander("내용 보기", expanded=False):
+                st.markdown(TERMS_PRIVACY)
 
-        # [필수 3] 민감정보(건강정보) 처리
-        st.checkbox("[필수] 민감정보(건강정보) 처리 동의", key="tc_health")
-        with st.expander("내용 보기", expanded=False):
-            st.markdown(TERMS_HEALTH)
+            # [필수 3] 민감정보(건강정보) 처리
+            st.checkbox("[필수] 민감정보(건강정보) 처리 동의", key="tc_health")
+            with st.expander("내용 보기", expanded=False):
+                st.markdown(TERMS_HEALTH)
 
-        st.markdown(
-            "<div style='height:1px;background:rgba(255,255,255,0.06);margin:8px 0;'></div>",
-            unsafe_allow_html=True,
-        )
+            st.markdown(
+                "<div style='height:1px;background:rgba(255,255,255,0.06);margin:8px 0;'></div>",
+                unsafe_allow_html=True,
+            )
 
-        # [선택 1] 마케팅 정보 수신
-        st.checkbox("[선택] 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
-        with st.expander("내용 보기", expanded=False):
-            st.markdown(TERMS_MARKETING)
+            # [선택 1] 마케팅 정보 수신
+            st.checkbox("[선택] 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
+            with st.expander("내용 보기", expanded=False):
+                st.markdown(TERMS_MARKETING)
 
-        # [선택 2] 맞춤형 서비스 개인정보 추가 수집
-        st.checkbox("[선택] 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
-        with st.expander("내용 보기", expanded=False):
-            st.markdown(TERMS_CUSTOM_PRIV)
+            # [선택 2] 맞춤형 서비스 개인정보 추가 수집
+            st.checkbox("[선택] 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
+            with st.expander("내용 보기", expanded=False):
+                st.markdown(TERMS_CUSTOM_PRIV)
 
-        # [선택 3] 빅데이터 분석 및 신규 서비스 개발
-        st.checkbox("[선택] 빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", key="tc_bigdata")
-        with st.expander("내용 보기", expanded=False):
-            st.markdown(TERMS_BIGDATA)
+            # [선택 3] 빅데이터 분석 및 신규 서비스 개발
+            st.checkbox("[선택] 빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", key="tc_bigdata")
+            with st.expander("내용 보기", expanded=False):
+                st.markdown(TERMS_BIGDATA)
 
         # ── 구분선 ─────────────────────────────────────────────────────────
         st.markdown(
@@ -4141,15 +4148,28 @@ try {
 
     # ---------- 프리미엄 랜딩 화면 (풀스크린 Zero-Scroll + Bottom Drawer) ----------
     if not st.session_state.get("auth_splash_done"):
-        # ── 드로어 상태 초기화 ──────────────────────────────────────────────────
-        if "splash_drawer" not in st.session_state:
-            st.session_state["splash_drawer"] = None  # None | "login" | "signup"
+        # 부모 창에서만 동작: iframe 샌드박스 우회용 postMessage 수신 (소셜 클릭 → ?__auth 로드)
+        st.components.v1.html(
+            r"""<script>
+(function() {
+  try {
+    var tw = window.top;
+    if (tw.__glucAuthListener) return;
+    tw.__glucAuthListener = true;
+    tw.addEventListener("message", function(ev) {
+      if (!ev.data || ev.data.type !== "GLUC_AUTH_NAV" || !ev.data.url) return;
+      try { tw.location.replace(ev.data.url); } catch(e1) {
+        try { tw.location.href = ev.data.url; } catch(e2) {}
+      }
+    });
+  } catch(e) {}
+})();
+</script>""",
+            height=0,
+        )
 
-        # ── [로그인] / [회원가입] 버튼 → 드로어 열기 (네이티브 Streamlit) ──────
-        if st.session_state["splash_drawer"] is None:
-            # 비주얼 섹션 (iframe: 차트+로고, 탈옥 없음)
-            st.components.v1.html(
-                """
+        st.components.v1.html(
+            r"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -4162,18 +4182,26 @@ try {
     width: 100%; height: 100%;
     background: #0f172a;
     font-family: 'Noto Sans KR', -apple-system, sans-serif;
-    overflow-y: auto;
+    overflow: hidden;
   }
   .screen {
-    width: 100%;
+    position: relative;
+    width: 100%; height: 100%;
+    overflow: hidden;
     text-align: center;
   }
   .visual {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 160px;
+    height: calc(100% - 160px);
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 18px 20px 10px;
+    overflow: hidden;
+    padding: 12px 20px 0;
+    z-index: 1;
   }
   .glow-bg {
     position: fixed; top: 0; left: 50%;
@@ -4201,19 +4229,16 @@ try {
     letter-spacing: 0.12em; margin-bottom: 14px;
     animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.3s both;
   }
-  /* ── SVG 차트 ── */
   .chart-wrap {
     width: 100%; max-width: 280px;
-    max-height: 40%;           /* ★ 부모(.visual) 높이 40% 초과 불가 */
+    max-height: 40%;
     overflow: hidden;
     display: flex; align-items: center; justify-content: center;
     margin: 0 auto 10px;
-    flex-shrink: 1;            /* 공간 부족 시 차트가 먼저 줄어듦 */
+    flex-shrink: 1;
     animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.42s both;
   }
-  .chart-wrap svg {
-    width: 100%; height: auto; /* 비율 유지하며 max-height 에 순응 */
-  }
+  .chart-wrap svg { width: 100%; height: auto; }
   .path-safe {
     stroke-dasharray: 180; stroke-dashoffset: 180;
     animation: draw 1.0s ease-out 0.75s forwards;
@@ -4236,19 +4261,145 @@ try {
     animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;
   }
   .copy2 em { font-style: normal; color: #10b981; }
-  /* 버튼 섹션은 Streamlit 네이티브 버튼으로 대체됨 */
+  .btn-section {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 160px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 10px;
+    padding: 8px 20px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
+    z-index: 2;
+    animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;
+  }
+  .btn-main {
+    width: 100%; max-width: 420px; height: 54px;
+    background: rgba(255,255,255,0.11);
+    border: 1px solid rgba(255,255,255,0.24);
+    border-radius: 16px; color: #ffffff;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: clamp(0.9rem, 3.5vw, 1.0rem); font-weight: 800;
+    cursor: pointer;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    transition: background 0.15s, transform 0.09s;
+  }
+  .btn-main:active { transform: scale(0.97); background: rgba(255,255,255,0.17); }
+  .btn-sub {
+    width: 100%; max-width: 420px; height: 46px;
+    background: transparent;
+    border: 1.5px solid rgba(16,185,129,0.50);
+    border-radius: 14px; color: #34d399;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: clamp(0.80rem, 3.1vw, 0.88rem); font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.09s;
+  }
+  .btn-sub:active { transform: scale(0.97); background: rgba(16,185,129,0.09); }
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.58); z-index: 50;
+  }
+  .overlay.open { display: block; }
+  .drawer {
+    position: fixed; bottom: -100%; left: 0; right: 0;
+    background: linear-gradient(180deg, #1e293b 0%, #0f1f30 100%);
+    border-radius: 24px 24px 0 0;
+    border-top: 1px solid rgba(255,255,255,0.10);
+    padding: 14px 22px max(28px, env(safe-area-inset-bottom, 0px));
+    z-index: 100;
+    transition: bottom 0.40s cubic-bezier(0.22,1,0.36,1);
+    box-shadow: 0 -10px 48px rgba(0,0,0,0.58);
+    max-height: 72vh;
+    overflow-y: auto;
+  }
+  .drawer.open { bottom: 0; }
+  .handle {
+    width: 38px; height: 4px;
+    background: rgba(255,255,255,0.17); border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+  .drawer-title {
+    font-size: clamp(1.0rem, 4.2vw, 1.12rem);
+    font-weight: 900; color: #ffffff;
+    text-align: center; margin-bottom: 5px;
+    letter-spacing: -0.02em;
+  }
+  .drawer-sub {
+    font-size: 0.70rem; color: rgba(255,255,255,0.36);
+    text-align: center; margin-bottom: 16px;
+  }
+  .social-btn {
+    width: 100%; height: 52px; border-radius: 14px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: clamp(0.82rem, 3.2vw, 0.91rem); font-weight: 700;
+    cursor: pointer; display: flex; align-items: center;
+    gap: 10px;
+    padding: 0 18px;
+    margin-bottom: 9px;
+    border: none;
+    transition: transform 0.09s, filter 0.12s;
+    letter-spacing: -0.01em;
+    text-align: left;
+  }
+  .social-btn:active { transform: scale(0.97); filter: brightness(0.90); }
+  .social-btn:last-child { margin-bottom: 0; }
+  .social-btn .ico { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .social-btn .lbl { flex: 1; text-align: center; }
+  .btn-google { background: #ffffff; color: #3c4043; }
+  .btn-naver  { background: #03C75A; color: #ffffff; }
+  .btn-kakao  { background: #FEE500; color: #191919; }
+  .btn-email  { background: rgba(16,185,129,0.18); color: #34d399; border: 1px solid rgba(16,185,129,0.35); }
+  .loading-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,23,42,0.92);
+    z-index: 10000;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 18px;
+  }
+  .loading-overlay.active { display: flex; }
+  .spinner {
+    width: 34px; height: 34px;
+    border: 3px solid rgba(16,185,129,0.18);
+    border-top-color: #10b981;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+  }
+  .loading-text {
+    font-size: 0.85rem; color: rgba(255,255,255,0.52);
+    font-weight: 500; letter-spacing: -0.01em;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes rise {
     from { transform: translateY(22px); opacity: 0; }
     to   { transform: translateY(0);    opacity: 1; }
   }
   @keyframes draw   { to { stroke-dashoffset: 0; } }
   @keyframes fadein { to { opacity: 1; } }
+  @media screen and (max-height: 750px) {
+    .logo    { font-size: 2.0rem !important; margin-bottom: 5px; }
+    .title   { font-size: 1.05rem !important; margin-bottom: 2px; }
+    .tagline { font-size: 0.57rem !important; margin-bottom: 8px; }
+    .copy1   { font-size: 0.70rem !important; margin-bottom: 2px; line-height: 1.3; }
+    .copy2   { font-size: 0.72rem !important; line-height: 1.3; }
+    .btn-main { height: 48px !important; }
+    .btn-sub  { height: 40px !important; }
+    .chart-wrap { max-height: 120px; }
+  }
+  @media screen and (max-height: 600px) {
+    .logo    { font-size: 1.5rem !important; margin-bottom: 3px; }
+    .title   { font-size: 0.92rem !important; }
+    .tagline { display: none !important; }
+    .copy1, .copy2 { font-size: 0.66rem !important; margin-bottom: 1px; }
+    .btn-main { height: 44px !important; font-size: 0.88rem !important; }
+    .btn-sub  { height: 36px !important; font-size: 0.78rem !important; }
+  }
 </style>
 </head>
 <body>
 <div class="glow-bg"></div>
 <div class="screen">
-  <!-- 비주얼 섹션 -->
   <div class="visual">
     <div class="logo">🩸</div>
     <div class="title">나의 혈당 기록소</div>
@@ -4290,105 +4441,146 @@ try {
     <div class="copy1"><em>AI</em>가 당신의 식단을 감시합니다</div>
     <div class="copy2"><em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em></div>
   </div>
+  <div class="btn-section">
+    <button type="button" class="btn-main" onclick="openDrawer('login')">로그인</button>
+    <button type="button" class="btn-sub" onclick="openDrawer('signup')">회원가입</button>
+  </div>
+</div>
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">잠시만 기다려주세요...</div>
+</div>
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="handle"></div>
+  <div class="drawer-title" id="d-title">반가워요! 로그인</div>
+  <div class="drawer-sub" id="d-sub">3초 소셜 로그인으로 바로 시작하세요</div>
+  <button type="button" class="social-btn btn-google" id="bg" onclick="goAuth('google')">
+    <span class="ico">
+      <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+    </span>
+    <span class="lbl" id="bg-lbl">Google로 계속하기</span>
+  </button>
+  <button type="button" class="social-btn btn-naver" id="bn" onclick="goAuth('naver')">
+    <span class="ico">
+      <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#ffffff" d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
+      </svg>
+    </span>
+    <span class="lbl" id="bn-lbl">네이버로 계속하기</span>
+  </button>
+  <button type="button" class="social-btn btn-kakao" id="bk" onclick="goAuth('kakao')">
+    <span class="ico">
+      <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#191919" d="M12 3C6.477 3 2 6.477 2 10.8c0 2.7 1.617 5.077 4.077 6.523l-.985 3.677 4.246-2.8A11.8 11.8 0 0 0 12 18.6c5.523 0 10-3.477 10-7.8S17.523 3 12 3z"/>
+      </svg>
+    </span>
+    <span class="lbl" id="bk-lbl">카카오로 계속하기</span>
+  </button>
+  <button type="button" class="social-btn btn-email" id="be" onclick="goAuth('email')">
+    <span class="ico">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="4" width="20" height="16" rx="3" stroke="#34d399" stroke-width="1.8"/>
+        <path d="M2 8l10 7 10-7" stroke="#34d399" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </span>
+    <span class="lbl" id="be-lbl">이메일로 계속하기</span>
+  </button>
 </div>
 <script>
-try {
-  window.parent.document.body.classList.add('auth-login-splash');
-  window.parent.document.body.classList.add('auth-splash-screen');
-} catch(e) {}
+(function() {
+  try {
+    var fr = window.frameElement;
+    if (fr) {
+      fr.style.position = 'fixed';
+      fr.style.top = '0';
+      fr.style.left = '0';
+      fr.style.width = '100vw';
+      fr.style.height = '100dvh';
+      fr.style.zIndex = '999999';
+      fr.style.border = 'none';
+      fr.style.margin = '0';
+      fr.style.padding = '0';
+      fr.style.maxWidth = 'none';
+      fr.style.display = 'block';
+    }
+    window.parent.document.body.classList.add('auth-login-splash');
+    window.parent.document.body.classList.add('auth-splash-screen');
+  } catch(e) {}
+})();
+
+var _intent = 'login';
+
+function openDrawer(mode) {
+  _intent = mode;
+  var isLogin = (mode === 'login');
+  document.getElementById('d-title').textContent = isLogin ? '반가워요! 로그인' : '처음이신가요? 회원가입';
+  document.getElementById('d-sub').textContent = isLogin
+    ? '3초 소셜 로그인으로 바로 시작하세요'
+    : '3초 회원가입 → 7일 PRO 무료 체험 시작';
+  var sfx = isLogin ? '로그인' : '회원가입';
+  document.getElementById('bg-lbl').textContent = 'Google로 ' + sfx;
+  document.getElementById('bn-lbl').textContent = '네이버로 ' + sfx;
+  document.getElementById('bk-lbl').textContent = '카카오로 ' + sfx;
+  document.getElementById('be-lbl').textContent = '이메일로 ' + sfx;
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+}
+
+function goAuth(provider) {
+  var lo = document.getElementById('loading-overlay');
+  if (lo) lo.classList.add('active');
+  try {
+    var pb = window.parent.document.body;
+    pb.style.background = '#0f172a';
+    pb.style.backgroundColor = '#0f172a';
+  } catch(e2) {}
+  var finalUrl = window.parent.location.origin
+    + window.parent.location.pathname
+    + '?__auth=' + encodeURIComponent(provider)
+    + '&intent=' + encodeURIComponent(_intent);
+  /* 샌드박스 우회: 최상위 창 postMessage → 리스너가 location.replace (명령문 #50 __auth 핸들러와 동일 URL) */
+  try {
+    window.top.postMessage({ type: 'GLUC_AUTH_NAV', url: finalUrl }, '*');
+  } catch(e3) {
+    try {
+      var a = document.createElement('a');
+      a.href = finalUrl;
+      a.target = '_top';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch(e4) {}
+  }
+}
+
+(function() {
+  var dr = document.getElementById('drawer');
+  if (!dr) return;
+  var sy = 0;
+  dr.addEventListener('touchstart', function(e){ sy = e.touches[0].clientY; }, { passive: true });
+  dr.addEventListener('touchend', function(e){
+    if (e.changedTouches[0].clientY - sy > 60) closeDrawer();
+  }, { passive: true });
+})();
 </script>
 </body>
 </html>
 """,
-                height=400,
-                scrolling=False,
-            )
-
-            # ── 네이티브 Streamlit 버튼 — URL 전달 없이 직접 세션 변경 ──────────
-            _col1, _col2 = st.columns([1, 1], gap="small")
-            with _col1:
-                if st.button("로그인", use_container_width=True, key="splash_login_btn",
-                             type="primary"):
-                    st.session_state["splash_drawer"] = "login"
-                    st.rerun()
-            with _col2:
-                if st.button("회원가입", use_container_width=True, key="splash_signup_btn"):
-                    st.session_state["splash_drawer"] = "signup"
-                    st.rerun()
-
-        else:
-            # ── 드로어 열림 상태: 소셜 버튼 네이티브 렌더링 ────────────────────
-            # body 클래스 유지 (iframe 미사용 시에도 dark CSS 적용)
-            st.components.v1.html(
-                """<script>
-try {
-  window.parent.document.body.classList.add('auth-login-splash');
-  window.parent.document.body.classList.add('auth-splash-screen');
-} catch(e) {}
-</script>""",
-                height=0,
-            )
-            _drawer_mode = st.session_state["splash_drawer"]
-            _sfx = "로그인" if _drawer_mode == "login" else "회원가입"
-
-            st.markdown(
-                f"""
-                <div style="text-align:center;padding:18px 0 4px;">
-                  <div style="font-size:1.18rem;font-weight:900;color:#fff;
-                              letter-spacing:-0.02em;">
-                    {'반가워요! 로그인' if _drawer_mode == 'login' else '처음이신가요? 회원가입'}
-                  </div>
-                  <div style="font-size:0.72rem;color:rgba(255,255,255,0.42);
-                              margin-top:5px;">
-                    {'3초 소셜 로그인으로 바로 시작하세요' if _drawer_mode == 'login'
-                     else '3초 회원가입 → 7일 PRO 무료 체험 시작'}
-                  </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            # Google
-            if st.button(f"Google로 {_sfx}", use_container_width=True,
-                         key="soc_google"):
-                st.session_state["pending_social_provider"] = "google"
-                st.session_state["auth_phase"]              = "terms"
-                st.session_state["auth_splash_done"]        = True
-                st.session_state["auth_sheet_open"]         = True
-                st.session_state["auth_mode"]               = _drawer_mode
-                st.rerun()
-            # Naver
-            if st.button(f"네이버로 {_sfx}", use_container_width=True,
-                         key="soc_naver"):
-                st.session_state["pending_social_provider"] = "naver"
-                st.session_state["auth_phase"]              = "terms"
-                st.session_state["auth_splash_done"]        = True
-                st.session_state["auth_sheet_open"]         = True
-                st.session_state["auth_mode"]               = _drawer_mode
-                st.rerun()
-            # Kakao
-            if st.button(f"카카오로 {_sfx}", use_container_width=True,
-                         key="soc_kakao"):
-                st.session_state["pending_social_provider"] = "kakao"
-                st.session_state["auth_phase"]              = "terms"
-                st.session_state["auth_splash_done"]        = True
-                st.session_state["auth_sheet_open"]         = True
-                st.session_state["auth_mode"]               = _drawer_mode
-                st.rerun()
-            # Email
-            if st.button(f"이메일로 {_sfx}", use_container_width=True,
-                         key="soc_email"):
-                st.session_state["auth_mode"]        = _drawer_mode
-                st.session_state["auth_splash_done"] = True
-                st.session_state["auth_sheet_open"]  = True
-                st.session_state["auth_phase"]       = "sheet"
-                st.rerun()
-
-            st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
-            if st.button("← 뒤로가기", key="drawer_back"):
-                st.session_state["splash_drawer"] = None
-                st.rerun()
-
+            height=680,
+            scrolling=False,
+        )
         st.stop()
 
     # ---------- 슬라이드업 느낌의 로그인 시트 ----------
