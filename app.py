@@ -55,6 +55,27 @@ st.set_page_config(
     menu_items={"Get Help": None, "Report a bug": None, "About": None},
 )
 
+# ══════════════════════════════════════════════════════════════════════════════
+# ★ 최우선 처리 — Bottom Drawer 소셜 버튼 클릭 ?__auth=PROVIDER 감지
+#   st.set_page_config 바로 아래에서 실행하여 다른 어떤 코드보다 먼저 처리.
+#   이렇게 해야 localStorage 핸들러나 스플래시 렌더링이 먼저 실행되어
+#   __auth 감지 코드 자체에 도달하지 못하는 데드락을 방지한다.
+# ══════════════════════════════════════════════════════════════════════════════
+_TOP_AUTH = st.query_params.get("__auth", "")
+if _TOP_AUTH:
+    _TOP_INTENT = st.query_params.get("intent", "login")
+    st.query_params.clear()                        # 즉시 제거 — 무한 루프 방지
+    st.session_state["auth_splash_done"] = True
+    st.session_state["auth_sheet_open"]  = True
+    st.session_state["auth_mode"]        = _TOP_INTENT
+    if _TOP_AUTH in ("google", "naver", "kakao"):
+        st.session_state["pending_social_provider"] = _TOP_AUTH
+        st.session_state["auth_phase"]              = "terms"
+    else:  # email
+        st.session_state["auth_phase"] = "sheet"
+    st.rerun()                                     # 즉시 재렌더링 — 약관 or 이메일 폼
+# ══════════════════════════════════════════════════════════════════════════════
+
 
 def _reset_meal_feed_state():
     st.session_state["feed_items"] = []
@@ -3491,26 +3512,7 @@ if not st.session_state['logged_in']:
                 pass
     # ─────────────────────────────────────────────────────────────────────────
 
-    # ─── Bottom Drawer 소셜 버튼 클릭 → ?__auth=PROVIDER 수신 처리 (최우선) ──
-    _auth_qp = st.query_params.get("__auth", "")
-    if _auth_qp:
-        # 쿼리 파라미터를 먼저 읽고, 즉시 제거
-        _intent_qp = st.query_params.get("intent", "login")
-        try:
-            st.query_params.clear()
-        except Exception:
-            pass
-        # 다른 모든 렌더링을 차단하고 즉시 세션 전환
-        st.session_state["auth_splash_done"] = True
-        st.session_state["auth_sheet_open"]  = True
-        if _auth_qp in ("google", "naver", "kakao"):
-            st.session_state["pending_social_provider"] = _auth_qp
-            st.session_state["auth_phase"]              = "terms"
-        elif _auth_qp == "email":
-            st.session_state["auth_mode"]  = _intent_qp
-            st.session_state["auth_phase"] = "sheet"
-        st.rerun()  # 무조건 즉시 rerun — 예외 없음
-    # ─────────────────────────────────────────────────────────────────────────
+    # (__auth 처리는 파일 최상단에서 이미 완료 — 이 위치에서는 항상 미감지 상태)
 
     if "oauth_state" not in st.session_state:
         st.session_state["oauth_state"] = str(uuid.uuid4())
@@ -4528,31 +4530,20 @@ function goAuth(provider) {
   var lo = document.getElementById('loading-overlay');
   if (lo) lo.classList.add('active');
 
-  /* 2. 부모 배경을 다크로 고정 — 페이지 전환 중 흰/검은 화면 방지 */
+  /* 2. 부모 배경을 다크로 고정 — 전환 중 흰/검은 화면 방지 */
   try {
     var pb = window.parent.document.body;
     pb.style.background      = '#0f172a';
     pb.style.backgroundColor = '#0f172a';
   } catch(e2) {}
 
-  /* 3. 탈옥 iframe 투명화 (display:none 대신 — 스피너가 보이도록 유지) */
-  try {
-    var fr = window.frameElement;
-    if (fr) {
-      fr.style.backgroundColor = 'transparent';
-      fr.style.background      = 'transparent';
-    }
-  } catch(e2) {}
-
-  /* 4. location.replace() 로 즉시 강제 이동 (히스토리 오염 없이 가장 빠름) */
-  try {
-    var url = new URL(window.parent.location.href);
-    url.searchParams.set('__auth', provider);
-    url.searchParams.set('intent', _intent);
-    window.parent.location.replace(url.toString());
-  } catch(e) {
-    window.parent.location.search = '?__auth=' + provider + '&intent=' + _intent;
-  }
+  /* 3. 클린 URL 생성 — 기존 쿼리 파라미터 완전 제거 후 새로 구성
+        (replace 대신 href: 브라우저 호환성이 가장 넓고 확실하게 로드) */
+  var finalUrl = window.parent.location.origin
+               + window.parent.location.pathname
+               + '?__auth=' + encodeURIComponent(provider)
+               + '&intent=' + encodeURIComponent(_intent);
+  window.parent.location.href = finalUrl;
 }
 
 document.getElementById('bg').onclick = function() { goAuth('google'); };
