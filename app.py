@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from firebase_admin import storage as firebase_admin_storage
 
 from translation import LANG_DICT, get_text, GOAL_INTERNAL_KEYS
-from terms import TERMS_TOS, TERMS_PRIVACY, TERMS_HEALTH, TERMS_MARKETING, TERMS_CUSTOM_PRIV
+from terms import TERMS_TOS, TERMS_PRIVACY, TERMS_HEALTH, TERMS_MARKETING, TERMS_CUSTOM_PRIV, TERMS_BIGDATA
 from prompts import (
     get_analysis_prompt,
     PRE_MEAL_INSIGHTS_SYSTEM_PROMPT,
@@ -3797,25 +3797,44 @@ if not st.session_state['logged_in']:
     }
     /* KR 단일: Facebook 버튼 제거 */
     .auth-terms-panel { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem; background: rgba(255,255,255,0.05); max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
-    /* 약관 전문 보기 popover 버튼 — 다크 톤으로 튜닝 */
-    body.auth-login-splash .stApp [data-testid="stPopover"] > button,
-    body.auth-login-splash .stApp [data-testid="stPopover"] button {
-      background: rgba(52,211,153,0.08) !important;
-      border: 1px solid rgba(52,211,153,0.28) !important;
+    /* ── popover 전문 보기 버튼 — expand_more 아이콘 겹침 완전 방지 ── */
+    /* Material Icons 폰트 미로드 시 "expand_more" 텍스트가 노출되는 버그 차단 */
+    body.auth-login-splash .stApp [data-testid="stPopover"] [data-testid="stIconMaterial"],
+    body.auth-login-splash .stApp [data-testid="stPopover"] button span[class*="material"],
+    body.auth-login-splash .stApp [data-testid="stPopover"] button [aria-hidden="true"],
+    body.auth-login-splash .stApp [data-testid="stPopover"] button svg {
+      display: none !important;
+      visibility: hidden !important;
+      width: 0 !important;
+      height: 0 !important;
+      overflow: hidden !important;
+    }
+    /* popover 트리거 버튼 — 다크 에메랄드 스타일 */
+    body.auth-login-splash .stApp [data-testid="stPopover"] > button {
+      background: rgba(52,211,153,0.07) !important;
+      border: 1px solid rgba(52,211,153,0.26) !important;
       color: #34d399 !important;
       font-size: 0.68rem !important;
       font-weight: 600 !important;
-      padding: 2px 8px !important;
+      padding: 0 10px !important;
       min-height: 28px !important;
       height: 28px !important;
       border-radius: 6px !important;
       box-shadow: none !important;
       white-space: nowrap !important;
+      overflow: hidden !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
     }
-    body.auth-login-splash .stApp [data-testid="stPopover"] button p,
-    body.auth-login-splash .stApp [data-testid="stPopover"] button span {
+    body.auth-login-splash .stApp [data-testid="stPopover"] > button p,
+    body.auth-login-splash .stApp [data-testid="stPopover"] > button [data-testid="stMarkdownContainer"] p {
       color: #34d399 !important;
       font-size: 0.68rem !important;
+      font-weight: 600 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      line-height: 1 !important;
     }
     /* 약관 행 레이아웃 — 세로 중앙 정렬 */
     body.auth-login-splash .stApp .tc-row [data-testid="stVerticalBlock"] {
@@ -3826,11 +3845,20 @@ if not st.session_state['logged_in']:
         unsafe_allow_html=True,
     )
 
-    # 랜딩 페이지 + 로그인 폼 전체: 다크 네이비 배경 유지
+    # 랜딩 페이지 + 로그인 폼 전체: 다크 네이비 배경 유지 + Material Icons 폰트 강제 로딩
     st.components.v1.html(
         """
     <script>
     try { window.parent.document.body.classList.add("auth-login-splash"); } catch(e) {}
+    try {
+      var _pd = window.parent.document;
+      if (!_pd.querySelector('link[href*="Material+Icons"]')) {
+        var _lk = _pd.createElement('link');
+        _lk.rel = 'stylesheet';
+        _lk.href = 'https://fonts.googleapis.com/icon?family=Material+Icons+Outlined';
+        _pd.head.appendChild(_lk);
+      }
+    } catch(e) {}
     </script>
     """,
         height=0,
@@ -3858,18 +3886,18 @@ if not st.session_state['logged_in']:
         if st.button("← 뒤로가기", key="terms_back"):
             st.session_state["auth_phase"] = "sheet"
             st.session_state["pending_social_provider"] = None
-            for x in ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "tc_custom_priv", "_tc_all_prev"):
+            for x in ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "tc_custom_priv", "tc_bigdata", "_tc_all_prev"):
                 st.session_state.pop(x, None)
             st.rerun()
 
-        # ── 체크박스 상태 초기화 ─────────────────────────────────────────────
-        _sub_keys = ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "tc_custom_priv")
+        # ── 체크박스 상태 초기화 (필수 3 + 선택 3 = 총 6개) ──────────────────
+        _sub_keys = ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "tc_custom_priv", "tc_bigdata")
         _req_keys = ("tc_tos", "tc_priv", "tc_health")
 
         for _k in _sub_keys:
             st.session_state.setdefault(_k, False)
 
-        # ── [전체 동의] 마스터 체크박스 — on_change로 하위 5개 동기화 ──────────
+        # ── [전체 동의] 마스터 체크박스 — on_change로 하위 6개 동기화 ──────────
         def _on_all_change():
             _v = st.session_state.get("tc_all_master", False)
             for _k2 in _sub_keys:
@@ -3884,7 +3912,7 @@ if not st.session_state['logged_in']:
             unsafe_allow_html=True,
         )
         st.checkbox(
-            "**✅ 약관 전체 동의** (필수 3개 + 선택 2개)",
+            "**✅ 약관 전체 동의** (필수 3개 + 선택 3개)",
             key="tc_all_master",
             on_change=_on_all_change,
         )
@@ -3895,7 +3923,7 @@ if not st.session_state['logged_in']:
             unsafe_allow_html=True,
         )
 
-        # ── 약관 행 렌더링 헬퍼 ───────────────────────────────────────────────
+        # ── 약관 행 (체크박스 + 전문 보기 한 줄 정렬) ───────────────────────
         # [필수 1] 서비스 이용약관
         _col_cb, _col_btn = st.columns([8, 2])
         with _col_cb:
@@ -3933,13 +3961,21 @@ if not st.session_state['logged_in']:
             with st.popover("전문 보기"):
                 st.markdown(TERMS_MARKETING)
 
-        # [선택 2] 맞춤형 서비스를 위한 개인정보 추가 수집
+        # [선택 2] 맞춤형 서비스 개인정보 추가 수집
         _col_cb, _col_btn = st.columns([8, 2])
         with _col_cb:
             st.checkbox("**[선택]** 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
         with _col_btn:
             with st.popover("전문 보기"):
                 st.markdown(TERMS_CUSTOM_PRIV)
+
+        # [선택 3] 빅데이터 분석 및 신규 서비스 개발
+        _col_cb, _col_btn = st.columns([8, 2])
+        with _col_cb:
+            st.checkbox("**[선택]** 빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", key="tc_bigdata")
+        with _col_btn:
+            with st.popover("전문 보기"):
+                st.markdown(TERMS_BIGDATA)
 
         # ── 진행 조건 체크 (필수 3개만) ──────────────────────────────────────
         _can_proceed = all(st.session_state.get(k, False) for k in _req_keys)
@@ -3970,6 +4006,7 @@ if not st.session_state['logged_in']:
             st.session_state["terms_accepted_provider"] = prov
             st.session_state["terms_marketing_agreed"] = st.session_state.get("tc_mkt", False)
             st.session_state["terms_custom_priv_agreed"] = st.session_state.get("tc_custom_priv", False)
+            st.session_state["terms_bigdata_agreed"] = st.session_state.get("tc_bigdata", False)
             decision = handle_social_login(prov)
             st.session_state["auth_phase"] = "sheet"
             st.session_state["pending_social_provider"] = None
