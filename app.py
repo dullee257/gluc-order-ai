@@ -4195,34 +4195,36 @@ try {
         if "auth_intent" not in st.session_state:
             st.session_state["auth_intent"] = st.session_state.get("splash_auth_intent", "login")
 
-        def _cb_drawer_login():
-            st.session_state["splash_drawer_open"] = True
-            st.session_state["splash_auth_intent"] = "login"
-            st.session_state["auth_intent"] = "login"
-
-        def _cb_drawer_signup():
-            st.session_state["splash_drawer_open"] = True
-            st.session_state["splash_auth_intent"] = "signup"
-            st.session_state["auth_intent"] = "signup"
-
-        def _cb_close_drawer():
-            st.session_state["splash_drawer_open"] = False
-
-        def _cb_soc(provider: str):
-            if "splash_auth_intent" not in st.session_state:
+        # ── #63 Plan-C: Native Input Setter — on_change 콜백 ──
+        def _on_splash_trigger():
+            _val = str(st.session_state.get("gluc_splash_trigger", "") or "").strip()
+            if not _val:
+                return
+            # 즉시 초기화 (다음 rerun에서 재실행 방지)
+            st.session_state["gluc_splash_trigger"] = ""
+            action = _val.split(":")[0]
+            if action == "open_login":
+                st.session_state["splash_drawer_open"] = True
                 st.session_state["splash_auth_intent"] = "login"
-            st.session_state["auth_intent"] = st.session_state.get(
-                "splash_auth_intent", "login"
-            )
-            st.session_state["auth_mode"] = st.session_state.get("splash_auth_intent", "login")
-            st.session_state["auth_splash_done"] = True
-            st.session_state["auth_sheet_open"] = True
-            if provider in ("google", "naver", "kakao"):
-                st.session_state["pending_social_provider"] = provider
-                st.session_state["auth_phase"] = "terms"
-            else:
-                st.session_state["auth_phase"] = "sheet"
-            st.session_state["splash_drawer_open"] = False
+                st.session_state["auth_intent"] = "login"
+            elif action == "open_signup":
+                st.session_state["splash_drawer_open"] = True
+                st.session_state["splash_auth_intent"] = "signup"
+                st.session_state["auth_intent"] = "signup"
+            elif action == "close_drawer":
+                st.session_state["splash_drawer_open"] = False
+            elif action in ("google", "naver", "kakao", "email"):
+                _intent = st.session_state.get("splash_auth_intent", "login")
+                st.session_state["auth_intent"] = _intent
+                st.session_state["auth_mode"] = _intent
+                st.session_state["auth_splash_done"] = True
+                st.session_state["auth_sheet_open"] = True
+                if action in ("google", "naver", "kakao"):
+                    st.session_state["pending_social_provider"] = action
+                    st.session_state["auth_phase"] = "terms"
+                else:
+                    st.session_state["auth_phase"] = "sheet"
+                st.session_state["splash_drawer_open"] = False
 
         _ov = " open" if st.session_state.get("splash_drawer_open") else ""
         _dr = " open" if st.session_state.get("splash_drawer_open") else ""
@@ -4281,8 +4283,8 @@ try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e
 #gluc-splash-root .copy2{font-size:clamp(0.84rem,3.6vw,0.97rem);font-weight:800;color:#ffffff;line-height:1.45;animation:rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;}
 #gluc-splash-root .copy2 em{font-style:normal;color:#10b981;}
 #gluc-splash-root .btn-section{position:absolute;bottom:0;left:0;right:0;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:8px 20px;padding-bottom:max(20px,env(safe-area-inset-bottom,0px));z-index:2;animation:rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;}
-#gluc-splash-root .btn-main{width:100%;max-width:420px;height:54px;background:rgba(255,255,255,0.11);border:1px solid rgba(255,255,255,0.24);border-radius:16px;color:#ffffff;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.9rem,3.5vw,1.0rem);font-weight:800;cursor:pointer;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background 0.15s,transform 0.09s;pointer-events:none!important;}
-#gluc-splash-root .btn-sub{width:100%;max-width:420px;height:46px;background:transparent;border:1.5px solid rgba(16,185,129,0.50);border-radius:14px;color:#34d399;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.80rem,3.1vw,0.88rem);font-weight:700;cursor:pointer;transition:background 0.15s,transform 0.09s;pointer-events:none!important;}
+#gluc-splash-root .btn-main{width:100%;max-width:420px;height:54px;background:rgba(255,255,255,0.11);border:1px solid rgba(255,255,255,0.24);border-radius:16px;color:#ffffff;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.9rem,3.5vw,1.0rem);font-weight:800;cursor:pointer;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background 0.15s,transform 0.09s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+#gluc-splash-root .btn-sub{width:100%;max-width:420px;height:46px;background:transparent;border:1.5px solid rgba(16,185,129,0.50);border-radius:14px;color:#34d399;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.80rem,3.1vw,0.88rem);font-weight:700;cursor:pointer;transition:background 0.15s,transform 0.09s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
 #gluc-splash-root .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.58);z-index:50;}
 #gluc-splash-root .overlay.open{display:block;}
 #gluc-splash-root .drawer{position:fixed;bottom:-100%;left:0;right:0;background:linear-gradient(180deg,#1e293b 0%,#0f1f30 100%);border-radius:24px 24px 0 0;border-top:1px solid rgba(255,255,255,0.10);padding:14px 22px max(28px,env(safe-area-inset-bottom,0px));z-index:100;transition:bottom 0.40s cubic-bezier(0.22,1,0.36,1);box-shadow:0 -10px 48px rgba(0,0,0,0.58);max-height:72vh;overflow-y:auto;}
@@ -4290,7 +4292,7 @@ try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e
 #gluc-splash-root .handle{width:38px;height:4px;background:rgba(255,255,255,0.17);border-radius:2px;margin:0 auto 16px;}
 #gluc-splash-root .drawer-title{font-size:clamp(1.0rem,4.2vw,1.12rem);font-weight:900;color:#ffffff;text-align:center;margin-bottom:5px;letter-spacing:-0.02em;}
 #gluc-splash-root .drawer-sub{font-size:0.70rem;color:rgba(255,255,255,0.36);text-align:center;margin-bottom:16px;}
-#gluc-splash-root .social-btn{width:100%;height:52px;border-radius:14px;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.82rem,3.2vw,0.91rem);font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px;padding:0 18px;margin-bottom:9px;border:none;transition:transform 0.09s,filter 0.12s;letter-spacing:-0.01em;text-align:left;pointer-events:none!important;}
+#gluc-splash-root .social-btn{width:100%;height:52px;border-radius:14px;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.82rem,3.2vw,0.91rem);font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px;padding:0 18px;margin-bottom:9px;border:none;transition:transform 0.09s,filter 0.12s;letter-spacing:-0.01em;text-align:left;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
 #gluc-splash-root .social-btn:last-child{margin-bottom:0;}
 #gluc-splash-root .social-btn .ico{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
 #gluc-splash-root .social-btn .lbl{flex:1;text-align:center;}
@@ -4352,8 +4354,8 @@ try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e
     <div class="copy2"><em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em></div>
   </div>
   <div class="btn-section">
-    <button class="btn-main">로그인</button>
-    <button class="btn-sub">회원가입</button>
+    <button class="btn-main" id="gluc-main-login">로그인</button>
+    <button class="btn-sub" id="gluc-main-signup">회원가입</button>
   </div>
 </div>
 <div class="overlay__OVERLAY_OPEN__" id="gluc-overlay"></div>
@@ -4391,732 +4393,119 @@ try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e
             unsafe_allow_html=True,
         )
 
-        # ── 이하 구 iframe 코드 전체: 제거됨 (Plan B) ──
-        if False:
-            st.components.v1.html(
-            """
-__DELETED_OLD_IFRAME__
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body {
-    width: 100%; height: 100%;
-    background: #0f172a;
-    font-family: 'Noto Sans KR', -apple-system, sans-serif;
-    overflow: hidden;
-  }
-  .screen {
-    position: relative;
-    width: 100%; height: 100%;
-    overflow: hidden;
-    text-align: center;
-  }
-  .visual {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 160px;
-    height: calc(100% - 160px);
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    padding: 12px 20px 0;
-    z-index: 1;
-  }
-  .glow-bg {
-    position: fixed; top: 0; left: 50%;
-    transform: translateX(-50%);
-    width: 100%; max-width: 500px; height: 52%;
-    background: radial-gradient(ellipse at 50% 22%,
-      rgba(16,185,129,0.19) 0%, transparent 65%);
-    pointer-events: none; z-index: 0;
-  }
-  .logo {
-    font-size: clamp(2.6rem, 9vw, 3.6rem); line-height: 1;
-    margin-bottom: 9px;
-    filter: drop-shadow(0 0 18px rgba(239,68,68,0.52));
-    animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.05s both;
-  }
-  .title {
-    font-size: clamp(1.25rem, 5.2vw, 1.65rem);
-    font-weight: 900; color: #ffffff;
-    letter-spacing: -0.5px; margin-bottom: 3px;
-    animation: rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.18s both;
-  }
-  .tagline {
-    font-size: clamp(0.6rem, 2.3vw, 0.7rem);
-    font-weight: 500; color: rgba(255,255,255,0.34);
-    letter-spacing: 0.12em; margin-bottom: 14px;
-    animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.3s both;
-  }
-  .chart-wrap {
-    width: 100%; max-width: 280px;
-    max-height: 40%;
-    overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 10px;
-    flex-shrink: 1;
-    animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.42s both;
-  }
-  .chart-wrap svg { width: 100%; height: auto; }
-  .path-safe {
-    stroke-dasharray: 180; stroke-dashoffset: 180;
-    animation: draw 1.0s ease-out 0.75s forwards;
-  }
-  .path-spike {
-    stroke-dasharray: 140; stroke-dashoffset: 140;
-    animation: draw 0.75s ease-in 1.75s forwards;
-  }
-  .glow-line { opacity: 0; animation: fadein 0.5s ease-out 2.4s forwards; }
-  .copy1 {
-    font-size: clamp(0.79rem, 3.3vw, 0.90rem);
-    font-weight: 700; color: rgba(255,255,255,0.66);
-    line-height: 1.5; margin-bottom: 4px;
-    animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.54s both;
-  }
-  .copy1 em { font-style: normal; color: #fbbf24; font-weight: 800; }
-  .copy2 {
-    font-size: clamp(0.84rem, 3.6vw, 0.97rem);
-    font-weight: 800; color: #ffffff; line-height: 1.45;
-    animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;
-  }
-  .copy2 em { font-style: normal; color: #10b981; }
-  .btn-section {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 160px;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 10px;
-    padding: 8px 20px;
-    padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
-    z-index: 2;
-    animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;
-  }
-  .btn-main {
-    width: 100%; max-width: 420px; height: 54px;
-    background: rgba(255,255,255,0.11);
-    border: 1px solid rgba(255,255,255,0.24);
-    border-radius: 16px; color: #ffffff;
-    font-family: 'Noto Sans KR', sans-serif;
-    font-size: clamp(0.9rem, 3.5vw, 1.0rem); font-weight: 800;
-    cursor: pointer;
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    transition: background 0.15s, transform 0.09s;
-  }
-  .btn-main:active { transform: scale(0.97); background: rgba(255,255,255,0.17); }
-  .btn-sub {
-    width: 100%; max-width: 420px; height: 46px;
-    background: transparent;
-    border: 1.5px solid rgba(16,185,129,0.50);
-    border-radius: 14px; color: #34d399;
-    font-family: 'Noto Sans KR', sans-serif;
-    font-size: clamp(0.80rem, 3.1vw, 0.88rem); font-weight: 700;
-    cursor: pointer;
-    transition: background 0.15s, transform 0.09s;
-  }
-  .btn-sub:active { transform: scale(0.97); background: rgba(16,185,129,0.09); }
-  .overlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.58); z-index: 50;
-  }
-  .overlay.open { display: block; }
-  .drawer {
-    position: fixed; bottom: -100%; left: 0; right: 0;
-    background: linear-gradient(180deg, #1e293b 0%, #0f1f30 100%);
-    border-radius: 24px 24px 0 0;
-    border-top: 1px solid rgba(255,255,255,0.10);
-    padding: 14px 22px max(28px, env(safe-area-inset-bottom, 0px));
-    z-index: 100;
-    transition: bottom 0.40s cubic-bezier(0.22,1,0.36,1);
-    box-shadow: 0 -10px 48px rgba(0,0,0,0.58);
-    max-height: 72vh;
-    overflow-y: auto;
-  }
-  .drawer.open { bottom: 0; }
-  .handle {
-    width: 38px; height: 4px;
-    background: rgba(255,255,255,0.17); border-radius: 2px;
-    margin: 0 auto 16px;
-  }
-  .drawer-title {
-    font-size: clamp(1.0rem, 4.2vw, 1.12rem);
-    font-weight: 900; color: #ffffff;
-    text-align: center; margin-bottom: 5px;
-    letter-spacing: -0.02em;
-  }
-  .drawer-sub {
-    font-size: 0.70rem; color: rgba(255,255,255,0.36);
-    text-align: center; margin-bottom: 16px;
-  }
-  .social-btn {
-    width: 100%; height: 52px; border-radius: 14px;
-    font-family: 'Noto Sans KR', sans-serif;
-    font-size: clamp(0.82rem, 3.2vw, 0.91rem); font-weight: 700;
-    cursor: pointer; display: flex; align-items: center;
-    gap: 10px;
-    padding: 0 18px;
-    margin-bottom: 9px;
-    border: none;
-    transition: transform 0.09s, filter 0.12s;
-    letter-spacing: -0.01em;
-    text-align: left;
-  }
-  .social-btn:active { transform: scale(0.97); filter: brightness(0.90); }
-  .social-btn:last-child { margin-bottom: 0; }
-  .social-btn .ico { width: 22px; height: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-  .social-btn .lbl { flex: 1; text-align: center; }
-  /* #56: iframe 버튼은 시각만 — 실제 터치는 부모의 투명 st.button */
-  .btn-main, .btn-sub, .social-btn { pointer-events: none !important; }
-  .btn-google { background: #ffffff; color: #3c4043; }
-  .btn-naver  { background: #03C75A; color: #ffffff; }
-  .btn-kakao  { background: #FEE500; color: #191919; }
-  .btn-email  { background: rgba(16,185,129,0.18); color: #34d399; border: 1px solid rgba(16,185,129,0.35); }
-  .loading-overlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(15,23,42,0.92);
-    z-index: 10000;
-    flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 18px;
-  }
-  .loading-overlay.active { display: flex; }
-  .spinner {
-    width: 34px; height: 34px;
-    border: 3px solid rgba(16,185,129,0.18);
-    border-top-color: #10b981;
-    border-radius: 50%;
-    animation: spin 0.75s linear infinite;
-  }
-  .loading-text {
-    font-size: 0.85rem; color: rgba(255,255,255,0.52);
-    font-weight: 500; letter-spacing: -0.01em;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes rise {
-    from { transform: translateY(22px); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
-  }
-  @keyframes draw   { to { stroke-dashoffset: 0; } }
-  @keyframes fadein { to { opacity: 1; } }
-  @media screen and (max-height: 750px) {
-    .logo    { font-size: 2.0rem !important; margin-bottom: 5px; }
-    .title   { font-size: 1.05rem !important; margin-bottom: 2px; }
-    .tagline { font-size: 0.57rem !important; margin-bottom: 8px; }
-    .copy1   { font-size: 0.70rem !important; margin-bottom: 2px; line-height: 1.3; }
-    .copy2   { font-size: 0.72rem !important; line-height: 1.3; }
-    .btn-main { height: 48px !important; }
-    .btn-sub  { height: 40px !important; }
-    .chart-wrap { max-height: 120px; }
-  }
-  @media screen and (max-height: 600px) {
-    .logo    { font-size: 1.5rem !important; margin-bottom: 3px; }
-    .title   { font-size: 0.92rem !important; }
-    .tagline { display: none !important; }
-    .copy1, .copy2 { font-size: 0.66rem !important; margin-bottom: 1px; }
-    .btn-main { height: 44px !important; font-size: 0.88rem !important; }
-    .btn-sub  { height: 36px !important; font-size: 0.78rem !important; }
-  }
-</style>
-</head>
-<body>
-<div class="glow-bg"></div>
-<div class="screen">
-  <div class="visual">
-    <div class="logo">🩸</div>
-    <div class="title">나의 혈당 기록소</div>
-    <div class="tagline">BLOOD GLUCOSE SCANNER AI</div>
-    <div class="chart-wrap">
-      <svg viewBox="0 0 280 108" width="100%"
-           style="overflow:visible;height:auto;display:block;" aria-hidden="true">
-        <rect x="0" y="0" width="280" height="108" rx="14"
-              fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-        <line x1="12" y1="26" x2="268" y2="26" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-        <line x1="12" y1="52" x2="268" y2="52" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-        <line x1="12" y1="78" x2="268" y2="78" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-        <rect x="12" y="4" width="256" height="22" rx="4" fill="rgba(239,68,68,0.07)"/>
-        <text x="16" y="15" font-size="8" fill="rgba(239,68,68,0.55)" font-family="sans-serif">위험 &gt;140</text>
-        <rect x="12" y="46" width="256" height="32" rx="4" fill="rgba(16,185,129,0.07)"/>
-        <text x="16" y="58" font-size="8" fill="rgba(16,185,129,0.55)" font-family="sans-serif">정상 &lt;100</text>
-        <polyline class="glow-line"
-          points="20,64 60,62 100,60 140,57 180,59 220,58 260,60"
-          stroke="rgba(16,185,129,0.28)" stroke-width="9"
-          stroke-linecap="round" fill="none"/>
-        <polyline class="path-safe"
-          points="20,64 60,62 100,60 140,57 180,59 220,58 260,60"
-          stroke="#10b981" stroke-width="3"
-          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        <polyline class="glow-line"
-          points="20,64 55,60 90,50 120,18 145,6 168,22 200,46 235,57 260,60"
-          stroke="rgba(239,68,68,0.22)" stroke-width="9"
-          stroke-linecap="round" fill="none"/>
-        <polyline class="path-spike"
-          points="20,64 55,60 90,50 120,18 145,6 168,22 200,46 235,57 260,60"
-          stroke="#ef4444" stroke-width="3"
-          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        <circle cx="22" cy="101" r="4" fill="#10b981"/>
-        <text x="30" y="104" font-size="8.5" fill="rgba(255,255,255,0.52)" font-family="sans-serif">식이섬유 먼저</text>
-        <circle cx="122" cy="101" r="4" fill="#ef4444"/>
-        <text x="130" y="104" font-size="8.5" fill="rgba(255,255,255,0.52)" font-family="sans-serif">탄수화물 먼저</text>
-      </svg>
-    </div>
-    <div class="copy1"><em>AI</em>가 당신의 식단을 감시합니다</div>
-    <div class="copy2"><em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em></div>
-  </div>
-  <div class="btn-section">
-    <button type="button" class="btn-main">로그인</button>
-    <button type="button" class="btn-sub">회원가입</button>
-  </div>
-</div>
-<div class="loading-overlay" id="loading-overlay">
-  <div class="spinner"></div>
-  <div class="loading-text">잠시만 기다려주세요...</div>
-</div>
-<div class="overlay__OVERLAY_OPEN__" id="overlay" onclick="closeDrawer()"></div>
-<div class="drawer__DRAWER_OPEN__" id="drawer">
-  <div class="handle"></div>
-  <div class="drawer-title" id="d-title">__D_TITLE__</div>
-  <div class="drawer-sub" id="d-sub">__D_SUB__</div>
-  <button type="button" class="social-btn btn-google" id="bg">
-    <span class="ico">
-      <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
-        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-      </svg>
-    </span>
-    <span class="lbl" id="bg-lbl">__BG_LBL__</span>
-  </button>
-  <button type="button" class="social-btn btn-naver" id="bn">
-    <span class="ico">
-      <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-        <path fill="#ffffff" d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
-      </svg>
-    </span>
-    <span class="lbl" id="bn-lbl">__BN_LBL__</span>
-  </button>
-  <button type="button" class="social-btn btn-kakao" id="bk">
-    <span class="ico">
-      <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
-        <path fill="#191919" d="M12 3C6.477 3 2 6.477 2 10.8c0 2.7 1.617 5.077 4.077 6.523l-.985 3.677 4.246-2.8A11.8 11.8 0 0 0 12 18.6c5.523 0 10-3.477 10-7.8S17.523 3 12 3z"/>
-      </svg>
-    </span>
-    <span class="lbl" id="bk-lbl">__BK_LBL__</span>
-  </button>
-  <button type="button" class="social-btn btn-email" id="be">
-    <span class="ico">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="4" width="20" height="16" rx="3" stroke="#34d399" stroke-width="1.8"/>
-        <path d="M2 8l10 7 10-7" stroke="#34d399" stroke-width="1.8" stroke-linecap="round"/>
-      </svg>
-    </span>
-    <span class="lbl" id="be-lbl">__BE_LBL__</span>
-  </button>
-</div>
-<script>
-(function() {
-  try {
-    var fr = window.frameElement;
-    if (fr) {
-      fr.style.position = 'fixed';
-      fr.style.top = '0';
-      fr.style.left = '0';
-      fr.style.width = '100vw';
-      fr.style.height = '100dvh';
-      fr.style.zIndex = '999999';
-      fr.style.border = 'none';
-      fr.style.margin = '0';
-      fr.style.padding = '0';
-      fr.style.maxWidth = 'none';
-      fr.style.display = 'block';
-    }
-    window.parent.document.body.classList.add('auth-login-splash');
-    window.parent.document.body.classList.add('auth-splash-screen');
-  } catch(e) {}
-})();
 
-var _intent = '__INTENT_JS__';
-
-(function() {
-  try {
-    var dr = document.getElementById('drawer');
-    if (!dr || !dr.classList.contains('open')) return;
-    var mode = _intent;
-    var isLogin = (mode === 'login');
-    document.getElementById('d-title').textContent = isLogin ? '반가워요! 로그인' : '처음이신가요? Sign Up';
-    document.getElementById('d-sub').textContent = isLogin
-      ? '3초 소셜 로그인으로 바로 시작하세요'
-      : '3초 가입하기 → 7일 PRO 무료 체험 시작';
-    if (isLogin) {
-      document.getElementById('bg-lbl').textContent = 'Google로 계속하기';
-      document.getElementById('bn-lbl').textContent = '네이버로 계속하기';
-      document.getElementById('bk-lbl').textContent = '카카오로 계속하기';
-      document.getElementById('be-lbl').textContent = '이메일로 계속하기';
-    } else {
-      document.getElementById('bg-lbl').textContent = 'Google로 가입하기';
-      document.getElementById('bn-lbl').textContent = '네이버로 가입하기';
-      document.getElementById('bk-lbl').textContent = '카카오로 가입하기';
-      document.getElementById('be-lbl').textContent = '이메일로 가입하기';
-    }
-  } catch(e0) {}
-})();
-
-function openDrawer(mode) {
-  _intent = mode;
-  var isLogin = (mode === 'login');
-  document.getElementById('d-title').textContent = isLogin ? '반가워요! 로그인' : '처음이신가요? Sign Up';
-  document.getElementById('d-sub').textContent = isLogin
-    ? '3초 소셜 로그인으로 바로 시작하세요'
-    : '3초 가입하기 → 7일 PRO 무료 체험 시작';
-  if (isLogin) {
-    document.getElementById('bg-lbl').textContent = 'Google로 계속하기';
-    document.getElementById('bn-lbl').textContent = '네이버로 계속하기';
-    document.getElementById('bk-lbl').textContent = '카카오로 계속하기';
-    document.getElementById('be-lbl').textContent = '이메일로 계속하기';
-  } else {
-    document.getElementById('bg-lbl').textContent = 'Google로 가입하기';
-    document.getElementById('bn-lbl').textContent = '네이버로 가입하기';
-    document.getElementById('bk-lbl').textContent = '카카오로 가입하기';
-    document.getElementById('be-lbl').textContent = '이메일로 가입하기';
-  }
-  document.getElementById('overlay').classList.add('open');
-  document.getElementById('drawer').classList.add('open');
-}
-
-function closeDrawer() {
-  document.getElementById('overlay').classList.remove('open');
-  document.getElementById('drawer').classList.remove('open');
-}
-
-function goAuth(provider) {
-  /* #56: 인증은 부모 문서의 투명 st.button → Python on_click */
-}
-
-(function() {
-  var dr = document.getElementById('drawer');
-  if (!dr) return;
-  var sy = 0;
-  dr.addEventListener('touchstart', function(e){ sy = e.touches[0].clientY; }, { passive: true });
-  dr.addEventListener('touchend', function(e){
-    if (e.changedTouches[0].clientY - sy > 60) closeDrawer();
-  }, { passive: true });
-})();
-</script>
-</body>
-</html>
-"""  ,  # unused deleted block ends
-            height=0,
-        )
-
-        # ── #61 Plan-B: 투명 버튼 CSS (title 속성 기반) ──
+        # ── #63 Plan-C: Native Input Setter (Hidden Trigger) ──
+        # 숨김 트리거 input을 화면 밖으로 추방하는 CSS
         st.markdown(
             """
 <style>
-/* 래퍼: 레이아웃에서 0 높이로 격리 */
-body.auth-splash-screen [data-testid="stButton"] {
-  all: unset !important;
-  display: block !important;
-  height: 0 !important;
-  overflow: visible !important;
-}
-/* 공통 디버그 스타일 (좌표 확인용) */
-body.auth-splash-screen button[title^="gluc_touch_"] {
-  z-index: 2147483647 !important;
-  pointer-events: auto !important;
-  touch-action: manipulation !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  box-sizing: border-box !important;
-  border-radius: 4px !important;
-  opacity: 0.45 !important;
-  background-color: rgba(220,0,0,0.72) !important;
-  border: 2px solid yellow !important;
-  color: #fff !important;
-  font-size: 10px !important;
-  z-index: 2147483647 !important;
-}
-/* 메인 로그인 버튼: CSS-only 좌표 (iframe 탈출 불필요) */
-body.auth-splash-screen button[title="gluc_touch_main_login"] {
+body.auth-splash-screen [data-testid="stTextInput"] {
   position: fixed !important;
-  bottom: calc(max(20px, env(safe-area-inset-bottom, 0px)) + 56px) !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: min(420px, calc(100vw - 40px)) !important;
-  height: 54px !important;
-}
-/* 메인 회원가입 버튼: CSS-only 좌표 */
-body.auth-splash-screen button[title="gluc_touch_main_signup"] {
-  position: fixed !important;
-  bottom: max(20px, env(safe-area-inset-bottom, 0px)) !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: min(420px, calc(100vw - 40px)) !important;
-  height: 46px !important;
-}
-/* 드로어 소셜 버튼: JS same-doc setProperty로 좌표 주입 (아래 height=0 컴포넌트) */
-body.auth-splash-screen button[title^="gluc_touch_soc_"] {
-  position: fixed !important;
-  top: -9999px !important;
-  left: 0 !important;
-  width: 10px !important;
-  height: 10px !important;
-}
-/* 드로어 오버레이 닫기 버튼 */
-body.auth-splash-screen button[title="gluc_close_overlay"] {
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100vw !important;
-  height: 100dvh !important;
-  z-index: 999999 !important;
+  left: -9999px !important;
+  top: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
   opacity: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  pointer-events: auto !important;
-  touch-action: manipulation !important;
 }
 </style>
 """,
             unsafe_allow_html=True,
         )
 
-        # #59: 동일 라벨 " "는 Streamlit 위젯 id/순서 꼬임 유발 → 투명 고유 라벨(유니코드)
-        _lb_m_login = "\u200b"
-        _lb_m_signup = "\u200b\u200b"
-        _lb_g = "\u2060"
-        _lb_n = "\u2060\u2060"
-        _lb_k = "\u2060\u2060\u2060"
-        _lb_e = "\u2060\u2060\u2060\u2060"
-        if not st.session_state.get("splash_drawer_open"):
-            st.button(
-                _lb_m_login,
-                key="gluc_touch_login",
-                on_click=_cb_drawer_login,
-                use_container_width=True,
-                help="gluc_touch_main_login",
-            )
-            st.button(
-                _lb_m_signup,
-                key="gluc_touch_signup",
-                on_click=_cb_drawer_signup,
-                use_container_width=True,
-                help="gluc_touch_main_signup",
-            )
-        else:
-            st.button(
-                _lb_g,
-                key="gluc_touch_soc_google",
-                on_click=_cb_soc,
-                args=("google",),
-                use_container_width=True,
-                help="gluc_touch_soc_google",
-            )
-            st.button(
-                _lb_n,
-                key="gluc_touch_soc_naver",
-                on_click=_cb_soc,
-                args=("naver",),
-                use_container_width=True,
-                help="gluc_touch_soc_naver",
-            )
-            st.button(
-                _lb_k,
-                key="gluc_touch_soc_kakao",
-                on_click=_cb_soc,
-                args=("kakao",),
-                use_container_width=True,
-                help="gluc_touch_soc_kakao",
-            )
-            st.button(
-                _lb_e,
-                key="gluc_touch_soc_email",
-                on_click=_cb_soc,
-                args=("email",),
-                use_container_width=True,
-                help="gluc_touch_soc_email",
-            )
+        # 숨김 트리거 입력창 — JS Native Setter로 값을 주입해 on_change 실행
+        st.text_input(
+            "gluc_trigger",
+            key="gluc_splash_trigger",
+            label_visibility="collapsed",
+            on_change=_on_splash_trigger,
+        )
 
-        # ── #61 Plan-B: 드로어 열린 경우 same-doc JS로 소셜 버튼 좌표 주입 ──
-        if st.session_state.get("splash_drawer_open"):
-            def _cb_close_dr():
-                st.session_state["splash_drawer_open"] = False
-            st.button(
-                "\u00ad",
-                key="gluc_touch_close_overlay",
-                on_click=_cb_close_drawer,
-                use_container_width=True,
-                help="gluc_close_overlay",
-            )
-            st.components.v1.html(
-                """<script>
+        # ── #63 Plan-C JS Bridge: 시각 버튼 → Native Setter → Streamlit on_change ──
+        st.components.v1.html(
+            """<script>
 (function() {
   var pd = window.parent.document;
-  var pairs = [
-    ['gluc-bg', 'gluc_touch_soc_google'],
-    ['gluc-bn', 'gluc_touch_soc_naver'],
-    ['gluc-bk', 'gluc_touch_soc_kakao'],
-    ['gluc-be', 'gluc_touch_soc_email']
-  ];
-  function applyDrawer() {
+
+  function getTrigger() {
+    var wrap = pd.querySelector('[data-testid="stTextInput"]');
+    return wrap ? wrap.querySelector('input') : null;
+  }
+
+  function fireAction(action) {
+    var inp = getTrigger();
+    if (!inp) { return; }
     try {
-      var ok = true;
-      pairs.forEach(function(p) {
-        var el = pd.getElementById(p[0]);
-        var btn = pd.querySelector('button[title="' + p[1] + '"]');
-        if (!el || !btn) { ok = false; return; }
-        var r = el.getBoundingClientRect();
-        if (r.width < 2) { ok = false; return; }
-        btn.style.setProperty('position', 'fixed', 'important');
-        btn.style.setProperty('top', r.top + 'px', 'important');
-        btn.style.setProperty('left', r.left + 'px', 'important');
-        btn.style.setProperty('width', r.width + 'px', 'important');
-        btn.style.setProperty('height', r.height + 'px', 'important');
-        btn.style.setProperty('z-index', '2147483647', 'important');
-        btn.style.setProperty('pointer-events', 'auto', 'important');
-      });
-      return ok;
-    } catch(e) { return false; }
+      var setter = Object.getOwnPropertyDescriptor(
+        window.parent.HTMLInputElement.prototype, 'value'
+      ).set;
+      setter.call(inp, action + ':' + Date.now());
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+    } catch(e) { /* silent */ }
   }
-  if (!applyDrawer()) {
-    [50, 150, 300, 500, 700].forEach(function(t) { setTimeout(applyDrawer, t); });
-  }
-  try {
-    var dr = pd.getElementById('gluc-drawer');
-    if (dr) {
-      dr.addEventListener('transitionend', function(ev) {
-        if (ev.propertyName === 'bottom') applyDrawer();
+
+  function bindAll() {
+    var btnLogin  = pd.getElementById('gluc-main-login');
+    var btnSignup = pd.getElementById('gluc-main-signup');
+    if (btnLogin && !btnLogin.__gBound) {
+      btnLogin.__gBound = true;
+      btnLogin.addEventListener('click', function(e) {
+        e.stopPropagation(); fireAction('open_login');
       });
-      new ResizeObserver(applyDrawer).observe(dr);
+      btnLogin.addEventListener('touchend', function(e) {
+        e.preventDefault(); e.stopPropagation(); fireAction('open_login');
+      }, { passive: false });
     }
+    if (btnSignup && !btnSignup.__gBound) {
+      btnSignup.__gBound = true;
+      btnSignup.addEventListener('click', function(e) {
+        e.stopPropagation(); fireAction('open_signup');
+      });
+      btnSignup.addEventListener('touchend', function(e) {
+        e.preventDefault(); e.stopPropagation(); fireAction('open_signup');
+      }, { passive: false });
+    }
+    [['gluc-bg','google'],['gluc-bn','naver'],
+     ['gluc-bk','kakao'], ['gluc-be','email']].forEach(function(p) {
+      var btn = pd.getElementById(p[0]);
+      if (btn && !btn.__gBound) {
+        btn.__gBound = true;
+        (function(prov) {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation(); fireAction(prov);
+          });
+          btn.addEventListener('touchend', function(e) {
+            e.preventDefault(); e.stopPropagation(); fireAction(prov);
+          }, { passive: false });
+        })(p[1]);
+      }
+    });
+    var ov = pd.getElementById('gluc-overlay');
+    if (ov && !ov.__gBound) {
+      ov.__gBound = true;
+      ov.addEventListener('click', function(e) {
+        e.stopPropagation(); fireAction('close_drawer');
+      });
+      ov.addEventListener('touchend', function(e) {
+        e.preventDefault(); e.stopPropagation(); fireAction('close_drawer');
+      }, { passive: false });
+    }
+  }
+
+  bindAll();
+  [50, 150, 300, 500, 800, 1200].forEach(function(t) {
+    setTimeout(bindAll, t);
+  });
+  try {
+    new MutationObserver(function() { bindAll(); }).observe(
+      pd.body || pd.documentElement, { childList: true, subtree: false }
+    );
   } catch(e) {}
-  window.addEventListener('resize', applyDrawer);
 })();
 </script>""",
-                height=0,
-            )
-
-        _gluc_js_drawer = "true" if st.session_state.get("splash_drawer_open") else "false"
-        if False:
-          st.components.v1.html(
-            f"""<script>
-(function() {{
-  var drawerOpen = {_gluc_js_drawer};
-  var debounce = None;
-  function applyRects() {{
-    try {{
-      var d = window.parent.document;
-      var body = d.body;
-      if (!body || !body.classList.contains('auth-splash-screen')) return;
-      var main = d.querySelector('section[data-testid="stMain"]') || d.querySelector('main');
-      if (!main) return;
-      var bc = main.querySelector('.block-container') || main;
-      var ifr = null;
-      var list = d.querySelectorAll('iframe');
-      for (var i = 0; i < list.length; i++) {{
-        try {{
-          var idoc = list[i].contentDocument;
-          if (idoc && idoc.getElementById('drawer')) {{ ifr = list[i]; break; }}
-        }} catch(e1) {{}}
-      }}
-      if (!ifr) return;
-      var idoc = ifr.contentDocument;
-      /* #60: iframe.getBoundingClientRect()를 더해 splash iframe 내부 → 뷰포트 좌표 변환 */
-      var ifrRect = ifr.getBoundingClientRect();
-      function place(btn, el) {{
-        if (!btn || !el) return;
-        var r = el.getBoundingClientRect();
-        /* el의 rect는 splash iframe 내부 viewport 기준 → 부모 viewport로 보정 */
-        var absLeft = ifrRect.left + r.left;
-        var absTop  = ifrRect.top  + r.top;
-        if (r.width < 2 || r.height < 2) return;
-        /* 래퍼를 뷰포트 위치로 이동 */
-        var wrap = btn.parentElement;
-        if (wrap) {{
-          wrap.style.cssText = 'position:fixed!important;top:' + absTop + 'px!important;left:' + absLeft + 'px!important;width:' + r.width + 'px!important;height:' + r.height + 'px!important;z-index:2147483647!important;overflow:visible!important;padding:0!important;margin:0!important;';
-        }}
-        btn.style.cssText = 'position:fixed!important;top:' + absTop + 'px!important;left:' + absLeft + 'px!important;width:' + r.width + 'px!important;height:' + r.height + 'px!important;z-index:2147483647!important;pointer-events:auto!important;touch-action:manipulation!important;margin:0!important;padding:0!important;box-sizing:border-box!important;opacity:0.45!important;background-color:rgba(220,0,0,0.72)!important;border:2px solid yellow!important;border-radius:0!important;';
-      }}
-      /* #60: DOM 삽입 순서(=스크립트 순서) 고정 — Y-sort 제거
-         splash iframe 안: btn-main, btn-sub / #bg,#bn,#bk,#be 는 HTML 작성 순서와 동일
-         stButton 래퍼: Streamlit이 스크립트 순서대로 DOM에 추가 → querySelectorAll 순서 신뢰 */
-      if (drawerOpen) {{
-        var ids = ['bg','bn','bk','be'];
-        var els = [];
-        for (var ii = 0; ii < ids.length; ii++) {{
-          var node = idoc.getElementById(ids[ii]);
-          if (node) els.push(node);
-        }}
-        var wraps = Array.prototype.slice.call(bc.querySelectorAll('[data-testid="stButton"]'));
-        var lim = Math.min(wraps.length, els.length);
-        for (var pi = 0; pi < lim; pi++) {{
-          var btn = wraps[pi].querySelector('button');
-          place(btn, els[pi]);
-        }}
-      }} else {{
-        var bm = idoc.querySelector('.btn-main');
-        var bs = idoc.querySelector('.btn-sub');
-        var elsM = [bm, bs].filter(function(x) {{ return !!x; }});
-        var wrapsM = Array.prototype.slice.call(bc.querySelectorAll('[data-testid="stButton"]'));
-        var lim2 = Math.min(wrapsM.length, elsM.length);
-        for (var pj = 0; pj < lim2; pj++) {{
-          var btn2 = wrapsM[pj].querySelector('button');
-          place(btn2, elsM[pj]);
-        }}
-      }}
-    }} catch(e2) {{}}
-  }}
-  function scheduleRects() {{
-    if (debounce) clearTimeout(debounce);
-    debounce = setTimeout(function() {{
-      requestAnimationFrame(function() {{
-        requestAnimationFrame(applyRects);
-      }});
-    }}, 0);
-  }}
-  function bindDrawer(idoc) {{
-    var dr = idoc.getElementById('drawer');
-    if (!dr || dr.__glucBound) return;
-    dr.__glucBound = true;
-    dr.addEventListener('transitionend', function(ev) {{
-      if (ev.propertyName === 'bottom') scheduleRects();
-    }});
-    dr.addEventListener('scroll', function() {{ scheduleRects(); }}, {{ passive: true }});
-    try {{
-      var ro = new ResizeObserver(function() {{ scheduleRects(); }});
-      ro.observe(dr);
-    }} catch(eR) {{}}
-  }}
-  var list0 = window.parent.document.querySelectorAll('iframe');
-  for (var j = 0; j < list0.length; j++) {{
-    try {{
-      var id0 = list0[j].contentDocument;
-      if (id0 && id0.getElementById('drawer')) bindDrawer(id0);
-    }} catch(e4) {{}}
-  }}
-  applyRects();
-  scheduleRects();
-  setTimeout(applyRects, 0);
-  setTimeout(scheduleRects, 16);
-  setTimeout(applyRects, 50);
-  setTimeout(applyRects, 100);
-  setTimeout(applyRects, 200);
-  setTimeout(applyRects, 450);
-  setTimeout(applyRects, 500);
-  setTimeout(applyRects, 550);
-  setTimeout(applyRects, 850);
-  try {{ window.parent.addEventListener('resize', scheduleRects); }} catch(e3) {{}}
-  try {{
-    window.parent.addEventListener('orientationchange', function() {{
-      setTimeout(applyRects, 400);
-    }});
-  }} catch(e5) {{}}
-}})();
-</script>""",
             height=0,
-          )
+        )
 
         st.stop()
 
