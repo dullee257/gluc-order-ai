@@ -4205,6 +4205,9 @@ try {
             st.session_state["splash_auth_intent"] = "signup"
             st.session_state["auth_intent"] = "signup"
 
+        def _cb_close_drawer():
+            st.session_state["splash_drawer_open"] = False
+
         def _cb_soc(provider: str):
             if "splash_auth_intent" not in st.session_state:
                 st.session_state["splash_auth_intent"] = "login"
@@ -4246,11 +4249,153 @@ try {
             _ph_bk_lbl = "카카오로 계속하기"
             _ph_be_lbl = "이메일로 계속하기"
 
+        # ── #61 Plan-B: st.markdown → Parent DOM 직접 주입 (cross-iframe 제거) ──
         st.components.v1.html(
+            """<script>
+try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e) {}
+</script>""",
+            height=0,
+        )
+
+        # noinspection HtmlRequiredLangAttribute
+        st.markdown(
+            (
+                """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
+#gluc-splash-root*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+#gluc-splash-root{position:fixed;inset:0;z-index:999998;background:#0f172a;font-family:'Noto Sans KR',-apple-system,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent;}
+#gluc-splash-root .screen{position:relative;width:100%;height:100%;overflow:hidden;text-align:center;}
+#gluc-splash-root .visual{position:absolute;top:0;left:0;right:0;bottom:160px;height:calc(100% - 160px);min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding:12px 20px 0;z-index:1;}
+#gluc-splash-root .glow-bg{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:500px;height:52%;background:radial-gradient(ellipse at 50% 22%,rgba(16,185,129,0.19) 0%,transparent 65%);pointer-events:none;z-index:0;}
+#gluc-splash-root .logo{font-size:clamp(2.6rem,9vw,3.6rem);line-height:1;margin-bottom:9px;filter:drop-shadow(0 0 18px rgba(239,68,68,0.52));animation:rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.05s both;}
+#gluc-splash-root .title{font-size:clamp(1.25rem,5.2vw,1.65rem);font-weight:900;color:#ffffff;letter-spacing:-0.5px;margin-bottom:3px;animation:rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.18s both;}
+#gluc-splash-root .tagline{font-size:clamp(0.6rem,2.3vw,0.7rem);font-weight:500;color:rgba(255,255,255,0.34);letter-spacing:0.12em;margin-bottom:14px;animation:rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.3s both;}
+#gluc-splash-root .chart-wrap{width:100%;max-width:280px;max-height:40%;overflow:hidden;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;flex-shrink:1;animation:rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.42s both;}
+#gluc-splash-root .chart-wrap svg{width:100%;height:auto;}
+#gluc-splash-root .path-safe{stroke-dasharray:180;stroke-dashoffset:180;animation:draw 1.0s ease-out 0.75s forwards;}
+#gluc-splash-root .path-spike{stroke-dasharray:140;stroke-dashoffset:140;animation:draw 0.75s ease-in 1.75s forwards;}
+#gluc-splash-root .glow-line{opacity:0;animation:fadein 0.5s ease-out 2.4s forwards;}
+#gluc-splash-root .copy1{font-size:clamp(0.79rem,3.3vw,0.90rem);font-weight:700;color:rgba(255,255,255,0.66);line-height:1.5;margin-bottom:4px;animation:rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.54s both;}
+#gluc-splash-root .copy1 em{font-style:normal;color:#fbbf24;font-weight:800;}
+#gluc-splash-root .copy2{font-size:clamp(0.84rem,3.6vw,0.97rem);font-weight:800;color:#ffffff;line-height:1.45;animation:rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;}
+#gluc-splash-root .copy2 em{font-style:normal;color:#10b981;}
+#gluc-splash-root .btn-section{position:absolute;bottom:0;left:0;right:0;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:8px 20px;padding-bottom:max(20px,env(safe-area-inset-bottom,0px));z-index:2;animation:rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;}
+#gluc-splash-root .btn-main{width:100%;max-width:420px;height:54px;background:rgba(255,255,255,0.11);border:1px solid rgba(255,255,255,0.24);border-radius:16px;color:#ffffff;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.9rem,3.5vw,1.0rem);font-weight:800;cursor:pointer;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background 0.15s,transform 0.09s;pointer-events:none!important;}
+#gluc-splash-root .btn-sub{width:100%;max-width:420px;height:46px;background:transparent;border:1.5px solid rgba(16,185,129,0.50);border-radius:14px;color:#34d399;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.80rem,3.1vw,0.88rem);font-weight:700;cursor:pointer;transition:background 0.15s,transform 0.09s;pointer-events:none!important;}
+#gluc-splash-root .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.58);z-index:50;}
+#gluc-splash-root .overlay.open{display:block;}
+#gluc-splash-root .drawer{position:fixed;bottom:-100%;left:0;right:0;background:linear-gradient(180deg,#1e293b 0%,#0f1f30 100%);border-radius:24px 24px 0 0;border-top:1px solid rgba(255,255,255,0.10);padding:14px 22px max(28px,env(safe-area-inset-bottom,0px));z-index:100;transition:bottom 0.40s cubic-bezier(0.22,1,0.36,1);box-shadow:0 -10px 48px rgba(0,0,0,0.58);max-height:72vh;overflow-y:auto;}
+#gluc-splash-root .drawer.open{bottom:0;}
+#gluc-splash-root .handle{width:38px;height:4px;background:rgba(255,255,255,0.17);border-radius:2px;margin:0 auto 16px;}
+#gluc-splash-root .drawer-title{font-size:clamp(1.0rem,4.2vw,1.12rem);font-weight:900;color:#ffffff;text-align:center;margin-bottom:5px;letter-spacing:-0.02em;}
+#gluc-splash-root .drawer-sub{font-size:0.70rem;color:rgba(255,255,255,0.36);text-align:center;margin-bottom:16px;}
+#gluc-splash-root .social-btn{width:100%;height:52px;border-radius:14px;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.82rem,3.2vw,0.91rem);font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px;padding:0 18px;margin-bottom:9px;border:none;transition:transform 0.09s,filter 0.12s;letter-spacing:-0.01em;text-align:left;pointer-events:none!important;}
+#gluc-splash-root .social-btn:last-child{margin-bottom:0;}
+#gluc-splash-root .social-btn .ico{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+#gluc-splash-root .social-btn .lbl{flex:1;text-align:center;}
+#gluc-splash-root .btn-google{background:#ffffff;color:#3c4043;}
+#gluc-splash-root .btn-naver{background:#03C75A;color:#ffffff;}
+#gluc-splash-root .btn-kakao{background:#FEE500;color:#191919;}
+#gluc-splash-root .btn-email{background:rgba(16,185,129,0.18);color:#34d399;border:1px solid rgba(16,185,129,0.35);}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes rise{from{transform:translateY(22px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+@keyframes draw{to{stroke-dashoffset:0;}}
+@keyframes fadein{to{opacity:1;}}
+@media screen and (max-height:750px){
+  #gluc-splash-root .logo{font-size:2.0rem!important;margin-bottom:5px;}
+  #gluc-splash-root .title{font-size:1.05rem!important;margin-bottom:2px;}
+  #gluc-splash-root .tagline{font-size:0.57rem!important;margin-bottom:8px;}
+  #gluc-splash-root .copy1{font-size:0.70rem!important;margin-bottom:2px;line-height:1.3;}
+  #gluc-splash-root .copy2{font-size:0.72rem!important;line-height:1.3;}
+  #gluc-splash-root .btn-main{height:48px!important;}
+  #gluc-splash-root .btn-sub{height:40px!important;}
+  #gluc-splash-root .chart-wrap{max-height:120px;}
+}
+@media screen and (max-height:600px){
+  #gluc-splash-root .logo{font-size:1.5rem!important;margin-bottom:3px;}
+  #gluc-splash-root .title{font-size:0.92rem!important;}
+  #gluc-splash-root .tagline{display:none!important;}
+  #gluc-splash-root .copy1,#gluc-splash-root .copy2{font-size:0.66rem!important;margin-bottom:1px;}
+  #gluc-splash-root .btn-main{height:44px!important;font-size:0.88rem!important;}
+  #gluc-splash-root .btn-sub{height:36px!important;font-size:0.78rem!important;}
+}
+</style>
+<div id="gluc-splash-root">
+<div class="glow-bg"></div>
+<div class="screen">
+  <div class="visual">
+    <div class="logo">🩸</div>
+    <div class="title">나의 혈당 기록소</div>
+    <div class="tagline">BLOOD GLUCOSE SCANNER AI</div>
+    <div class="chart-wrap">
+      <svg viewBox="0 0 280 108" width="100%" style="overflow:visible;height:auto;display:block;" aria-hidden="true">
+        <rect x="0" y="0" width="280" height="108" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        <line x1="12" y1="26" x2="268" y2="26" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+        <line x1="12" y1="52" x2="268" y2="52" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+        <line x1="12" y1="78" x2="268" y2="78" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+        <rect x="12" y="4" width="256" height="22" rx="4" fill="rgba(239,68,68,0.07)"/>
+        <text x="16" y="15" font-size="8" fill="rgba(239,68,68,0.55)" font-family="sans-serif">위험 &gt;140</text>
+        <rect x="12" y="46" width="256" height="32" rx="4" fill="rgba(16,185,129,0.07)"/>
+        <text x="16" y="58" font-size="8" fill="rgba(16,185,129,0.55)" font-family="sans-serif">정상 &lt;100</text>
+        <polyline class="glow-line" points="20,64 60,62 100,60 140,57 180,59 220,58 260,60" stroke="rgba(16,185,129,0.28)" stroke-width="9" stroke-linecap="round" fill="none"/>
+        <polyline class="path-safe" points="20,64 60,62 100,60 140,57 180,59 220,58 260,60" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <polyline class="glow-line" points="20,64 55,60 90,50 120,18 145,6 168,22 200,46 235,57 260,60" stroke="rgba(239,68,68,0.22)" stroke-width="9" stroke-linecap="round" fill="none"/>
+        <polyline class="path-spike" points="20,64 55,60 90,50 120,18 145,6 168,22 200,46 235,57 260,60" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="22" cy="101" r="4" fill="#10b981"/>
+        <text x="30" y="104" font-size="8.5" fill="rgba(255,255,255,0.52)" font-family="sans-serif">식이섬유 먼저</text>
+        <circle cx="122" cy="101" r="4" fill="#ef4444"/>
+        <text x="130" y="104" font-size="8.5" fill="rgba(255,255,255,0.52)" font-family="sans-serif">탄수화물 먼저</text>
+      </svg>
+    </div>
+    <div class="copy1"><em>AI</em>가 당신의 식단을 감시합니다</div>
+    <div class="copy2"><em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em></div>
+  </div>
+  <div class="btn-section">
+    <button class="btn-main">로그인</button>
+    <button class="btn-sub">회원가입</button>
+  </div>
+</div>
+<div class="overlay__OVERLAY_OPEN__" id="gluc-overlay"></div>
+<div class="drawer__DRAWER_OPEN__" id="gluc-drawer">
+  <div class="handle"></div>
+  <div class="drawer-title" id="gluc-d-title">__D_TITLE__</div>
+  <div class="drawer-sub" id="gluc-d-sub">__D_SUB__</div>
+  <button class="social-btn btn-google" id="gluc-bg">
+    <span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg></span>
+    <span class="lbl" id="gluc-bg-lbl">__BG_LBL__</span>
+  </button>
+  <button class="social-btn btn-naver" id="gluc-bn">
+    <span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/></svg></span>
+    <span class="lbl" id="gluc-bn-lbl">__BN_LBL__</span>
+  </button>
+  <button class="social-btn btn-kakao" id="gluc-bk">
+    <span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg"><path fill="#191919" d="M12 3C6.477 3 2 6.477 2 10.8c0 2.7 1.617 5.077 4.077 6.523l-.985 3.677 4.246-2.8A11.8 11.8 0 0 0 12 18.6c5.523 0 10-3.477 10-7.8S17.523 3 12 3z"/></svg></span>
+    <span class="lbl" id="gluc-bk-lbl">__BK_LBL__</span>
+  </button>
+  <button class="social-btn btn-email" id="gluc-be">
+    <span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="4" width="20" height="16" rx="3" stroke="#34d399" stroke-width="1.8"/><path d="M2 8l10 7 10-7" stroke="#34d399" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+    <span class="lbl" id="gluc-be-lbl">__BE_LBL__</span>
+  </button>
+</div>
+</div>
+"""
+            ).replace("__OVERLAY_OPEN__", _ov)
+            .replace("__DRAWER_OPEN__", _dr)
+            .replace("__D_TITLE__", html_module.escape(_ph_d_title))
+            .replace("__D_SUB__", html_module.escape(_ph_d_sub))
+            .replace("__BG_LBL__", html_module.escape(_ph_bg_lbl))
+            .replace("__BN_LBL__", html_module.escape(_ph_bn_lbl))
+            .replace("__BK_LBL__", html_module.escape(_ph_bk_lbl))
+            .replace("__BE_LBL__", html_module.escape(_ph_be_lbl)),
+            unsafe_allow_html=True,
+        )
+
+        # ── 이하 구 iframe 코드 전체: 제거됨 (Plan B) ──
+        if False:
+            st.components.v1.html(
             """
-<!DOCTYPE html>
-<html>
-<head>
+__DELETED_OLD_IFRAME__
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
@@ -4663,55 +4808,75 @@ function goAuth(provider) {
 </script>
 </body>
 </html>
-""".replace("__OVERLAY_OPEN__", _ov)
-            .replace("__DRAWER_OPEN__", _dr)
-            .replace("__INTENT_JS__", _int_js)
-            .replace("__D_TITLE__", html_module.escape(_ph_d_title))
-            .replace("__D_SUB__", html_module.escape(_ph_d_sub))
-            .replace("__BG_LBL__", html_module.escape(_ph_bg_lbl))
-            .replace("__BN_LBL__", html_module.escape(_ph_bn_lbl))
-            .replace("__BK_LBL__", html_module.escape(_ph_bk_lbl))
-            .replace("__BE_LBL__", html_module.escape(_ph_be_lbl)),
-            height=680,
-            scrolling=False,
+"""  ,  # unused deleted block ends
+            height=0,
         )
 
+        # ── #61 Plan-B: 투명 버튼 CSS (title 속성 기반) ──
         st.markdown(
             """
 <style>
-/* ── #60 DEBUG: 투명 버튼 시각화 (좌표 확인용) ── */
-body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] button {
+/* 래퍼: 레이아웃에서 0 높이로 격리 */
+body.auth-splash-screen [data-testid="stButton"] {
+  all: unset !important;
+  display: block !important;
+  height: 0 !important;
+  overflow: visible !important;
+}
+/* 공통 디버그 스타일 (좌표 확인용) */
+body.auth-splash-screen button[title^="gluc_touch_"] {
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: 4px !important;
   opacity: 0.45 !important;
   background-color: rgba(220,0,0,0.72) !important;
   border: 2px solid yellow !important;
   color: #fff !important;
   font-size: 10px !important;
   z-index: 2147483647 !important;
+}
+/* 메인 로그인 버튼: CSS-only 좌표 (iframe 탈출 불필요) */
+body.auth-splash-screen button[title="gluc_touch_main_login"] {
   position: fixed !important;
-  top: 0 !important;
+  bottom: calc(max(20px, env(safe-area-inset-bottom, 0px)) + 56px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: min(420px, calc(100vw - 40px)) !important;
+  height: 54px !important;
+}
+/* 메인 회원가입 버튼: CSS-only 좌표 */
+body.auth-splash-screen button[title="gluc_touch_main_signup"] {
+  position: fixed !important;
+  bottom: max(20px, env(safe-area-inset-bottom, 0px)) !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: min(420px, calc(100vw - 40px)) !important;
+  height: 46px !important;
+}
+/* 드로어 소셜 버튼: JS same-doc setProperty로 좌표 주입 (아래 height=0 컴포넌트) */
+body.auth-splash-screen button[title^="gluc_touch_soc_"] {
+  position: fixed !important;
+  top: -9999px !important;
   left: 0 !important;
   width: 10px !important;
   height: 10px !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  min-height: 0 !important;
-  box-sizing: border-box !important;
+}
+/* 드로어 오버레이 닫기 버튼 */
+body.auth-splash-screen button[title="gluc_close_overlay"] {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  z-index: 999999 !important;
+  opacity: 0 !important;
+  background: transparent !important;
+  border: none !important;
   pointer-events: auto !important;
   touch-action: manipulation !important;
-  border-radius: 0 !important;
-}
-/* stButton 래퍼: 레이아웃에서 제거해 block-container 흐름·패딩 영향 없게 */
-body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"],
-body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButtonSt"] {
-  position: fixed !important;
-  top: -9999px !important;
-  left: -9999px !important;
-  width: 0 !important;
-  height: 0 !important;
-  overflow: visible !important;
-  display: block !important;
-  padding: 0 !important;
-  margin: 0 !important;
 }
 </style>
 """,
@@ -4774,12 +4939,72 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButtonSt"]
                 help="gluc_touch_soc_email",
             )
 
+        # ── #61 Plan-B: 드로어 열린 경우 same-doc JS로 소셜 버튼 좌표 주입 ──
+        if st.session_state.get("splash_drawer_open"):
+            def _cb_close_dr():
+                st.session_state["splash_drawer_open"] = False
+            st.button(
+                "\u00ad",
+                key="gluc_touch_close_overlay",
+                on_click=_cb_close_drawer,
+                use_container_width=True,
+                help="gluc_close_overlay",
+            )
+            st.components.v1.html(
+                """<script>
+(function() {
+  var pd = window.parent.document;
+  var pairs = [
+    ['gluc-bg', 'gluc_touch_soc_google'],
+    ['gluc-bn', 'gluc_touch_soc_naver'],
+    ['gluc-bk', 'gluc_touch_soc_kakao'],
+    ['gluc-be', 'gluc_touch_soc_email']
+  ];
+  function applyDrawer() {
+    try {
+      var ok = true;
+      pairs.forEach(function(p) {
+        var el = pd.getElementById(p[0]);
+        var btn = pd.querySelector('button[title="' + p[1] + '"]');
+        if (!el || !btn) { ok = false; return; }
+        var r = el.getBoundingClientRect();
+        if (r.width < 2) { ok = false; return; }
+        btn.style.setProperty('position', 'fixed', 'important');
+        btn.style.setProperty('top', r.top + 'px', 'important');
+        btn.style.setProperty('left', r.left + 'px', 'important');
+        btn.style.setProperty('width', r.width + 'px', 'important');
+        btn.style.setProperty('height', r.height + 'px', 'important');
+        btn.style.setProperty('z-index', '2147483647', 'important');
+        btn.style.setProperty('pointer-events', 'auto', 'important');
+      });
+      return ok;
+    } catch(e) { return false; }
+  }
+  if (!applyDrawer()) {
+    [50, 150, 300, 500, 700].forEach(function(t) { setTimeout(applyDrawer, t); });
+  }
+  try {
+    var dr = pd.getElementById('gluc-drawer');
+    if (dr) {
+      dr.addEventListener('transitionend', function(ev) {
+        if (ev.propertyName === 'bottom') applyDrawer();
+      });
+      new ResizeObserver(applyDrawer).observe(dr);
+    }
+  } catch(e) {}
+  window.addEventListener('resize', applyDrawer);
+})();
+</script>""",
+                height=0,
+            )
+
         _gluc_js_drawer = "true" if st.session_state.get("splash_drawer_open") else "false"
-        st.components.v1.html(
+        if False:
+          st.components.v1.html(
             f"""<script>
 (function() {{
   var drawerOpen = {_gluc_js_drawer};
-  var debounce = null;
+  var debounce = None;
   function applyRects() {{
     try {{
       var d = window.parent.document;
@@ -4891,7 +5116,7 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButtonSt"]
 }})();
 </script>""",
             height=0,
-        )
+          )
 
         st.stop()
 
