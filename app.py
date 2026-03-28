@@ -3687,39 +3687,61 @@ if not st.session_state['logged_in']:
     @keyframes flash-slash, break-and-fall, tracking-in {}
     .auth-sheet-enter main .block-container { animation: authSlideUp 0.42s ease-out; }
     @keyframes authSlideUp { from { transform: translateY(72%); opacity: 0.65; } to { transform: translateY(0); opacity: 1; } }
-    .auth-soc-row button { height: 48px !important; font-weight: 700 !important; border-radius: 12px !important; }
+    /* ── 소셜 로그인 버튼: 다크 글래스모피즘 ── */
+    .auth-soc-row button {
+      height: 52px !important;
+      font-weight: 700 !important;
+      border-radius: 14px !important;
+      font-size: 0.97rem !important;
+      letter-spacing: -0.2px !important;
+      transition: background 0.2s ease, box-shadow 0.2s ease !important;
+    }
     .auth-mark-google + div button {
-      background: #ffffff !important; color: #3c4043 !important; border: 1px solid #dadce0 !important; }
+      background: rgba(255,255,255,0.10) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(255,255,255,0.22) !important;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
+    }
+    .auth-mark-google + div button:hover {
+      background: rgba(255,255,255,0.18) !important;
+      box-shadow: 0 4px 20px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.12) !important;
+    }
     .auth-mark-naver + div button {
-      background: #03C75A !important; color: #fff !important; border: none !important; }
+      background: rgba(3,199,90,0.13) !important;
+      color: #2ecc71 !important;
+      border: 1px solid rgba(3,199,90,0.40) !important;
+    }
+    .auth-mark-naver + div button:hover {
+      background: rgba(3,199,90,0.24) !important;
+    }
     .auth-mark-kakao + div button {
-      background: #FEE500 !important; color: #191919 !important; border: none !important; }
+      background: rgba(254,229,0,0.11) !important;
+      color: #FFE600 !important;
+      border: 1px solid rgba(254,229,0,0.35) !important;
+    }
+    .auth-mark-kakao + div button:hover {
+      background: rgba(254,229,0,0.21) !important;
+    }
+    /* 캡션 다크 오버라이드 */
+    body.auth-login-splash [data-testid="stCaptionContainer"] p {
+      color: rgba(255,255,255,0.38) !important;
+    }
     /* KR 단일: Facebook 버튼 제거 */
-    .auth-terms-panel { border: 1px solid #e0e0e0; border-radius: 12px; padding: 0.75rem; background: #fafafa; max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
+    .auth-terms-panel { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem; background: rgba(255,255,255,0.05); max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
     </style>
     """,
         unsafe_allow_html=True,
     )
 
-    # 스플래시 시 헤더/푸터 숨김
-    if not st.session_state.get("auth_splash_done"):
-        st.components.v1.html(
-            """
-        <script>
-        try { window.parent.document.body.classList.add("auth-login-splash"); } catch(e) {}
-        </script>
-        """,
-            height=0,
-        )
-    else:
-        st.components.v1.html(
-            """
-        <script>
-        try { window.parent.document.body.classList.remove("auth-login-splash"); } catch(e) {}
-        </script>
-        """,
-            height=0,
-        )
+    # 랜딩 페이지 + 로그인 폼 전체: 다크 네이비 배경 유지
+    st.components.v1.html(
+        """
+    <script>
+    try { window.parent.document.body.classList.add("auth-login-splash"); } catch(e) {}
+    </script>
+    """,
+        height=0,
+    )
 
     # ---------- 약관 동의 화면 (소셜 클릭 후) ----------
     if st.session_state.get("auth_phase") == "terms" and st.session_state.get("pending_social_provider"):
@@ -4002,8 +4024,8 @@ if not st.session_state['logged_in']:
               </style>
             </svg>
           </div>
-          <div style="font-weight:900;font-size:1.25rem;letter-spacing:-0.02em;">{LOGIN_TITLE}</div>
-          <div style="font-size:0.95rem;color:#86cc85;font-weight:700;margin-top:6px;">혈당 관리 시작</div>
+          <div style="font-weight:900;font-size:1.25rem;letter-spacing:-0.02em;color:#ffffff;">{LOGIN_TITLE}</div>
+          <div style="font-size:0.95rem;color:#34d399;font-weight:700;margin-top:6px;">혈당 관리 시작</div>
         </div>
         """.replace("{LOGIN_TITLE}", html_module.escape(_t.get("login_sheet_title", ""))),
         unsafe_allow_html=True,
@@ -5218,7 +5240,7 @@ if menu_key == "scanner":
                 st.info(t.get("login_heading", "로그인 후 리포트를 볼 수 있습니다."))
 
         elif st.session_state.get("current_page") == "settings":
-            # 설정 페이지: 알림·계정 설정
+            # 설정 페이지: 계정 → 구독 → 앱 환경 3단 구조
             st.markdown(
                 """
                 <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);
@@ -5227,14 +5249,75 @@ if menu_key == "scanner":
                     ⚙️ 설정
                   </div>
                   <div style="font-size:0.82rem;color:rgba(255,255,255,0.45);margin-top:4px;">
-                    알림·계정·앱 환경을 관리합니다
+                    계정·구독·앱 환경을 관리합니다
                   </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-            # ── 👑 PRO 구독 카드 (설정 탭 최상단) ─────────────────────────
+            # ━━ [1단] 계정 섹션 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            _login_type_s = st.session_state.get("login_type")
+            _user_email_s = st.session_state.get("user_email") or ""
+            if _login_type_s == "google":
+                _s_icon, _s_label = "🌐", "Google 로그인"
+                _s_display = _user_email_s or "구글 계정"
+            elif _login_type_s == "email":
+                _s_icon, _s_label = "✉️", "이메일 로그인"
+                _s_display = _user_email_s or "이메일 계정"
+            else:
+                _s_icon, _s_label = "👤", "게스트 체험 중"
+                _s_display = "로그인 없이 이용 중"
+            st.markdown(
+                f"""
+                <div style="background:#fff;border-radius:16px;padding:16px 18px 14px;
+                            box-shadow:0 4px 18px rgba(0,0,0,0.07);margin-bottom:12px;">
+                  <div style="font-size:0.95rem;font-weight:800;color:#1e293b;margin-bottom:12px;">
+                    👤 계정
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;
+                              background:#f8fafc;border-radius:12px;">
+                    <div style="width:42px;height:42px;border-radius:50%;
+                                background:linear-gradient(135deg,#0ea5e9 0%,#6366f1 100%);
+                                display:flex;align-items:center;justify-content:center;
+                                font-size:1.15rem;flex-shrink:0;">{_s_icon}</div>
+                    <div style="min-width:0;flex:1;">
+                      <div style="font-size:0.9rem;font-weight:700;color:#1e293b;
+                                  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        {html_module.escape(_s_display)}
+                      </div>
+                      <div style="font-size:0.75rem;color:#64748b;margin-top:2px;">{_s_label}</div>
+                    </div>
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            if _login_type_s in ("google", "email"):
+                if st.button(f"🚪 {t['sidebar_logout']}", key="settings_logout", use_container_width=True):
+                    st.session_state["logged_in"] = False
+                    st.session_state["login_type"] = None
+                    st.session_state["user_id"] = None
+                    st.session_state["user_email"] = None
+                    _reset_meal_feed_state()
+                    st.session_state["auth_mode"] = "login"
+                    st.session_state["current_page"] = "main"
+                    st.rerun()
+            elif _login_type_s == "guest":
+                if st.button(f"🔐 {t['sidebar_go_login']}", key="settings_go_login", use_container_width=True):
+                    st.session_state["logged_in"] = False
+                    st.session_state["login_type"] = None
+                    st.session_state["user_id"] = None
+                    st.session_state["user_email"] = None
+                    _reset_meal_feed_state()
+                    st.session_state["auth_mode"] = "login"
+                    st.session_state["current_page"] = "main"
+                    st.rerun()
+
+            st.divider()
+
+            # ━━ [2단] 구독 섹션 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # ── 👑 PRO 구독 카드 ─────────────────────────────────────────
             _is_premium = st.session_state.get("is_premium", False)
 
             if _is_premium:
@@ -5350,15 +5433,15 @@ if menu_key == "scanner":
                         st.balloons()
                         st.rerun()
 
-            st.markdown("<div style='margin-bottom:8px;'></div>", unsafe_allow_html=True)
+            st.divider()
 
-            # ── 🔔 알림 설정 카드 ────────────────────────────────────────
+            # ━━ [3단] 앱 환경 설정 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             st.markdown(
                 """
                 <div style="background:#fff;border-radius:16px;padding:16px 18px 6px;
                             box-shadow:0 4px 18px rgba(0,0,0,0.07);margin-bottom:14px;">
                   <div style="font-size:0.95rem;font-weight:800;color:#1e293b;margin-bottom:2px;">
-                    🔔 알림 설정
+                    🔔 앱 환경 설정
                   </div>
                 </div>
                 """,
@@ -5445,40 +5528,6 @@ if menu_key == "scanner":
                 st.info("🔕 알림이 꺼졌습니다. 브라우저 설정에서도 알림을 차단할 수 있습니다.")
 
             st.markdown("<div style='margin-bottom:10px;'></div>", unsafe_allow_html=True)
-
-            # ── 🔐 계정 카드 ──────────────────────────────────────────────
-            st.markdown(
-                """
-                <div style="background:#fff;border-radius:16px;padding:16px 18px 6px;
-                            box-shadow:0 4px 18px rgba(0,0,0,0.07);margin-bottom:14px;">
-                  <div style="font-size:0.95rem;font-weight:800;color:#1e293b;margin-bottom:8px;">
-                    👤 계정
-                  </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            # KR 단일 타겟팅: 언어 설정 제거
-            if st.session_state.get("login_type") == "google":
-                if st.button(f"🚪 {t['sidebar_logout']}", key="settings_logout", use_container_width=True):
-                    st.session_state["logged_in"] = False
-                    st.session_state["login_type"] = None
-                    st.session_state["user_id"] = None
-                    st.session_state["user_email"] = None
-                    _reset_meal_feed_state()
-                    st.session_state["auth_mode"] = "login"
-                    st.session_state["current_page"] = "main"
-                    st.rerun()
-            elif st.session_state.get("login_type") == "guest":
-                if st.button(f"🔐 {t['sidebar_go_login']}", key="settings_go_login", use_container_width=True):
-                    st.session_state["logged_in"] = False
-                    st.session_state["login_type"] = None
-                    st.session_state["user_id"] = None
-                    st.session_state["user_email"] = None
-                    _reset_meal_feed_state()
-                    st.session_state["auth_mode"] = "login"
-                    st.session_state["current_page"] = "main"
-                    st.rerun()
 
     elif st.session_state['app_stage'] == 'analyze':
         # main 단계와 분리되어 있어 게스트 여부를 여기서도 정의 (분석 실패 시 복구 로직용)
