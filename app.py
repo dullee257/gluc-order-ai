@@ -3491,28 +3491,25 @@ if not st.session_state['logged_in']:
                 pass
     # ─────────────────────────────────────────────────────────────────────────
 
-    # ─── Bottom Drawer 소셜 버튼 클릭 → ?__auth=PROVIDER 수신 처리 ──────────
+    # ─── Bottom Drawer 소셜 버튼 클릭 → ?__auth=PROVIDER 수신 처리 (최우선) ──
     _auth_qp = st.query_params.get("__auth", "")
     if _auth_qp:
+        # 쿼리 파라미터를 먼저 읽고, 즉시 제거
+        _intent_qp = st.query_params.get("intent", "login")
         try:
-            _intent_qp = st.query_params.get("intent", "login")
             st.query_params.clear()
-            if _auth_qp in ("google", "naver", "kakao"):
-                st.session_state["pending_social_provider"] = _auth_qp
-                st.session_state["auth_phase"] = "terms"
-                st.session_state["auth_splash_done"] = True
-                st.session_state["auth_sheet_open"] = True
-                st.rerun()
-            elif _auth_qp == "email":
-                st.session_state["auth_mode"] = _intent_qp  # "login" or "signup"
-                st.session_state["auth_splash_done"] = True
-                st.session_state["auth_sheet_open"] = True
-                st.rerun()
         except Exception:
-            try:
-                st.query_params.clear()
-            except Exception:
-                pass
+            pass
+        # 다른 모든 렌더링을 차단하고 즉시 세션 전환
+        st.session_state["auth_splash_done"] = True
+        st.session_state["auth_sheet_open"]  = True
+        if _auth_qp in ("google", "naver", "kakao"):
+            st.session_state["pending_social_provider"] = _auth_qp
+            st.session_state["auth_phase"]              = "terms"
+        elif _auth_qp == "email":
+            st.session_state["auth_mode"]  = _intent_qp
+            st.session_state["auth_phase"] = "sheet"
+        st.rerun()  # 무조건 즉시 rerun — 예외 없음
     # ─────────────────────────────────────────────────────────────────────────
 
     if "oauth_state" not in st.session_state:
@@ -4322,6 +4319,28 @@ try {
   .btn-kakao  { background: #FEE500; color: #191919; }
   /* Email — 에메랄드 */
   .btn-email  { background: rgba(16,185,129,0.18); color: #34d399; border: 1px solid rgba(16,185,129,0.35); }
+  /* ── 로딩 오버레이 + 스피너 ── */
+  .loading-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15,23,42,0.96);
+    z-index: 10000;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 18px;
+  }
+  .loading-overlay.active { display: flex; }
+  .spinner {
+    width: 34px; height: 34px;
+    border: 3px solid rgba(16,185,129,0.18);
+    border-top-color: #10b981;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+  }
+  .loading-text {
+    font-size: 0.85rem; color: rgba(255,255,255,0.52);
+    font-weight: 500; letter-spacing: -0.01em;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes rise {
     from { transform: translateY(22px); opacity: 0; }
     to   { transform: translateY(0);    opacity: 1; }
@@ -4400,6 +4419,12 @@ try {
     <button class="btn-main" onclick="openDrawer('login')">로그인</button>
     <button class="btn-sub"  onclick="openDrawer('signup')">회원가입</button>
   </div>
+</div>
+
+<!-- 로딩 오버레이 (버튼 클릭 후 Streamlit 재로딩 중 표시) -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">잠시만 기다려주세요...</div>
 </div>
 
 <!-- Overlay -->
@@ -4499,29 +4524,32 @@ function closeDrawer() {
 }
 
 function goAuth(provider) {
+  /* 1. 즉시 로딩 스피너 표시 */
+  var lo = document.getElementById('loading-overlay');
+  if (lo) lo.classList.add('active');
+
+  /* 2. 부모 배경을 다크로 고정 — 페이지 전환 중 흰/검은 화면 방지 */
   try {
-    /* 1. 부모 URL 변경 → Streamlit 백엔드 트리거 */
+    var pb = window.parent.document.body;
+    pb.style.background      = '#0f172a';
+    pb.style.backgroundColor = '#0f172a';
+  } catch(e2) {}
+
+  /* 3. 탈옥 iframe 투명화 (display:none 대신 — 스피너가 보이도록 유지) */
+  try {
+    var fr = window.frameElement;
+    if (fr) {
+      fr.style.backgroundColor = 'transparent';
+      fr.style.background      = 'transparent';
+    }
+  } catch(e2) {}
+
+  /* 4. location.replace() 로 즉시 강제 이동 (히스토리 오염 없이 가장 빠름) */
+  try {
     var url = new URL(window.parent.location.href);
     url.searchParams.set('__auth', provider);
     url.searchParams.set('intent', _intent);
-
-    /* 2. Iframe 즉시 자폭 — 탈옥된 iframe이 새 화면을 가리지 않도록 */
-    try {
-      var fr = window.frameElement;
-      if (fr) {
-        fr.style.opacity  = '0';
-        fr.style.pointerEvents = 'none';
-        fr.style.transition    = 'opacity 0.18s';
-        /* 짧은 딜레이 후 display:none — 전환 애니메이션 여유 */
-        setTimeout(function() {
-          try { fr.style.display = 'none'; } catch(e2) {}
-        }, 200);
-      }
-    } catch(e2) {}
-
-    /* 3. 실제 네비게이션 */
-    window.parent.location.href = url.toString();
-
+    window.parent.location.replace(url.toString());
   } catch(e) {
     window.parent.location.search = '?__auth=' + provider + '&intent=' + _intent;
   }
