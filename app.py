@@ -4679,16 +4679,39 @@ function goAuth(provider) {
         st.markdown(
             """
 <style>
+/* ── #60 DEBUG: 투명 버튼 시각화 (좌표 확인용) ── */
 body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] button {
-  opacity: 0 !important;
-  z-index: 2147483000 !important;
+  opacity: 0.45 !important;
+  background-color: rgba(220,0,0,0.72) !important;
+  border: 2px solid yellow !important;
+  color: #fff !important;
+  font-size: 10px !important;
+  z-index: 2147483647 !important;
   position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 10px !important;
+  height: 10px !important;
   margin: 0 !important;
   padding: 0 !important;
   min-height: 0 !important;
   box-sizing: border-box !important;
   pointer-events: auto !important;
   touch-action: manipulation !important;
+  border-radius: 0 !important;
+}
+/* stButton 래퍼: 레이아웃에서 제거해 block-container 흐름·패딩 영향 없게 */
+body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"],
+body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButtonSt"] {
+  position: fixed !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: visible !important;
+  display: block !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 </style>
 """,
@@ -4775,19 +4798,25 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
       }}
       if (!ifr) return;
       var idoc = ifr.contentDocument;
+      /* #60: iframe.getBoundingClientRect()를 더해 splash iframe 내부 → 뷰포트 좌표 변환 */
+      var ifrRect = ifr.getBoundingClientRect();
       function place(btn, el) {{
         if (!btn || !el) return;
         var r = el.getBoundingClientRect();
+        /* el의 rect는 splash iframe 내부 viewport 기준 → 부모 viewport로 보정 */
+        var absLeft = ifrRect.left + r.left;
+        var absTop  = ifrRect.top  + r.top;
         if (r.width < 2 || r.height < 2) return;
-        btn.style.position = 'fixed';
-        btn.style.left = r.left + 'px';
-        btn.style.top = r.top + 'px';
-        btn.style.width = r.width + 'px';
-        btn.style.height = r.height + 'px';
-        btn.style.zIndex = '2147483646';
-        btn.style.pointerEvents = 'auto';
+        /* 래퍼를 뷰포트 위치로 이동 */
+        var wrap = btn.parentElement;
+        if (wrap) {{
+          wrap.style.cssText = 'position:fixed!important;top:' + absTop + 'px!important;left:' + absLeft + 'px!important;width:' + r.width + 'px!important;height:' + r.height + 'px!important;z-index:2147483647!important;overflow:visible!important;padding:0!important;margin:0!important;';
+        }}
+        btn.style.cssText = 'position:fixed!important;top:' + absTop + 'px!important;left:' + absLeft + 'px!important;width:' + r.width + 'px!important;height:' + r.height + 'px!important;z-index:2147483647!important;pointer-events:auto!important;touch-action:manipulation!important;margin:0!important;padding:0!important;box-sizing:border-box!important;opacity:0.45!important;background-color:rgba(220,0,0,0.72)!important;border:2px solid yellow!important;border-radius:0!important;';
       }}
-      /* #59: Streamlit key DOM 순서 ≠ 시각 순서일 수 있음 → 뷰포트 Y로 정렬 후 짝맞춤 */
+      /* #60: DOM 삽입 순서(=스크립트 순서) 고정 — Y-sort 제거
+         splash iframe 안: btn-main, btn-sub / #bg,#bn,#bk,#be 는 HTML 작성 순서와 동일
+         stButton 래퍼: Streamlit이 스크립트 순서대로 DOM에 추가 → querySelectorAll 순서 신뢰 */
       if (drawerOpen) {{
         var ids = ['bg','bn','bk','be'];
         var els = [];
@@ -4795,9 +4824,7 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
           var node = idoc.getElementById(ids[ii]);
           if (node) els.push(node);
         }}
-        els.sort(function(a,b) {{ return a.getBoundingClientRect().top - b.getBoundingClientRect().top; }});
         var wraps = Array.prototype.slice.call(bc.querySelectorAll('[data-testid="stButton"]'));
-        wraps.sort(function(a,b) {{ return a.getBoundingClientRect().top - b.getBoundingClientRect().top; }});
         var lim = Math.min(wraps.length, els.length);
         for (var pi = 0; pi < lim; pi++) {{
           var btn = wraps[pi].querySelector('button');
@@ -4807,9 +4834,7 @@ body.auth-splash-screen section[data-testid="stMain"] [data-testid="stButton"] b
         var bm = idoc.querySelector('.btn-main');
         var bs = idoc.querySelector('.btn-sub');
         var elsM = [bm, bs].filter(function(x) {{ return !!x; }});
-        elsM.sort(function(a,b) {{ return a.getBoundingClientRect().top - b.getBoundingClientRect().top; }});
         var wrapsM = Array.prototype.slice.call(bc.querySelectorAll('[data-testid="stButton"]'));
-        wrapsM.sort(function(a,b) {{ return a.getBoundingClientRect().top - b.getBoundingClientRect().top; }});
         var lim2 = Math.min(wrapsM.length, elsM.length);
         for (var pj = 0; pj < lim2; pj++) {{
           var btn2 = wrapsM[pj].querySelector('button');
