@@ -4381,6 +4381,84 @@ try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e
   </button>
 </div>
 </div>
+<script>
+/* #63 Plan-C JS Bridge — 같은 document 컨텍스트, 크로스프레임 불필요 */
+(function() {
+  function getTrigger() {
+    var wrap = document.querySelector('[data-testid="stTextInput"]');
+    return wrap ? wrap.querySelector('input') : null;
+  }
+  function fireAction(action) {
+    var inp = getTrigger();
+    if (!inp) return;
+    try {
+      var setter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype, 'value'
+      ).set;
+      setter.call(inp, action + ':' + Date.now());
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+      inp.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch(e) {}
+  }
+  function bindAll() {
+    var btnLogin  = document.getElementById('gluc-main-login');
+    var btnSignup = document.getElementById('gluc-main-signup');
+    if (btnLogin && !btnLogin.__gBound) {
+      btnLogin.__gBound = true;
+      btnLogin.addEventListener('click', function(e) {
+        e.stopPropagation(); fireAction('open_login');
+      });
+      btnLogin.addEventListener('touchend', function(e) {
+        e.preventDefault(); e.stopPropagation(); fireAction('open_login');
+      }, { passive: false });
+    }
+    if (btnSignup && !btnSignup.__gBound) {
+      btnSignup.__gBound = true;
+      btnSignup.addEventListener('click', function(e) {
+        e.stopPropagation(); fireAction('open_signup');
+      });
+      btnSignup.addEventListener('touchend', function(e) {
+        e.preventDefault(); e.stopPropagation(); fireAction('open_signup');
+      }, { passive: false });
+    }
+    [['gluc-bg','google'],['gluc-bn','naver'],
+     ['gluc-bk','kakao'],['gluc-be','email']].forEach(function(p) {
+      var btn = document.getElementById(p[0]);
+      if (btn && !btn.__gBound) {
+        btn.__gBound = true;
+        (function(prov) {
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation(); fireAction(prov);
+          });
+          btn.addEventListener('touchend', function(e) {
+            e.preventDefault(); e.stopPropagation(); fireAction(prov);
+          }, { passive: false });
+        })(p[1]);
+      }
+    });
+    var ov = document.getElementById('gluc-overlay');
+    if (ov && !ov.__gBound) {
+      ov.__gBound = true;
+      ov.addEventListener('click', function(e) {
+        e.stopPropagation(); fireAction('close_drawer');
+      });
+      ov.addEventListener('touchend', function(e) {
+        e.preventDefault(); e.stopPropagation(); fireAction('close_drawer');
+      }, { passive: false });
+    }
+  }
+  bindAll();
+  [50, 150, 300, 500, 800, 1200].forEach(function(t) {
+    setTimeout(bindAll, t);
+  });
+  try {
+    new MutationObserver(function() { bindAll(); }).observe(
+      document.body || document.documentElement,
+      { childList: true, subtree: true }
+    );
+  } catch(e) {}
+})();
+</script>
 """
             ).replace("__OVERLAY_OPEN__", _ov)
             .replace("__DRAWER_OPEN__", _dr)
@@ -4422,29 +4500,31 @@ body.auth-splash-screen [data-testid="stTextInput"] {
             on_change=_on_splash_trigger,
         )
 
-        # ── #63 Plan-C JS Bridge: 시각 버튼 → Native Setter → Streamlit on_change ──
+        # ── #63 Plan-C 안전망: st.markdown <script> 미실행 시 iframe fallback ──
+        # (크로스프레임 Event 생성 시 window.parent.Event 사용 → React 인식 보장)
         st.components.v1.html(
             """<script>
 (function() {
   var pd = window.parent.document;
+  var pw = window.parent;
 
   function getTrigger() {
     var wrap = pd.querySelector('[data-testid="stTextInput"]');
     return wrap ? wrap.querySelector('input') : null;
   }
-
   function fireAction(action) {
     var inp = getTrigger();
-    if (!inp) { return; }
+    if (!inp) return;
     try {
       var setter = Object.getOwnPropertyDescriptor(
-        window.parent.HTMLInputElement.prototype, 'value'
+        pw.HTMLInputElement.prototype, 'value'
       ).set;
       setter.call(inp, action + ':' + Date.now());
-      inp.dispatchEvent(new Event('input', { bubbles: true }));
-    } catch(e) { /* silent */ }
+      /* pw.Event: 부모 window 컨텍스트로 생성 → React 이벤트 시스템이 확실히 인식 */
+      inp.dispatchEvent(new pw.Event('input',  { bubbles: true }));
+      inp.dispatchEvent(new pw.Event('change', { bubbles: true }));
+    } catch(e) {}
   }
-
   function bindAll() {
     var btnLogin  = pd.getElementById('gluc-main-login');
     var btnSignup = pd.getElementById('gluc-main-signup');
@@ -4467,7 +4547,7 @@ body.auth-splash-screen [data-testid="stTextInput"] {
       }, { passive: false });
     }
     [['gluc-bg','google'],['gluc-bn','naver'],
-     ['gluc-bk','kakao'], ['gluc-be','email']].forEach(function(p) {
+     ['gluc-bk','kakao'],['gluc-be','email']].forEach(function(p) {
       var btn = pd.getElementById(p[0]);
       if (btn && !btn.__gBound) {
         btn.__gBound = true;
@@ -4492,14 +4572,13 @@ body.auth-splash-screen [data-testid="stTextInput"] {
       }, { passive: false });
     }
   }
-
   bindAll();
   [50, 150, 300, 500, 800, 1200].forEach(function(t) {
     setTimeout(bindAll, t);
   });
   try {
-    new MutationObserver(function() { bindAll(); }).observe(
-      pd.body || pd.documentElement, { childList: true, subtree: false }
+    new pw.MutationObserver(function() { bindAll(); }).observe(
+      pd.body || pd.documentElement, { childList: true, subtree: true }
     );
   } catch(e) {}
 })();
