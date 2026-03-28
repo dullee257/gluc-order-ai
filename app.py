@@ -3491,6 +3491,30 @@ if not st.session_state['logged_in']:
                 pass
     # ─────────────────────────────────────────────────────────────────────────
 
+    # ─── Bottom Drawer 소셜 버튼 클릭 → ?__auth=PROVIDER 수신 처리 ──────────
+    _auth_qp = st.query_params.get("__auth", "")
+    if _auth_qp:
+        try:
+            _intent_qp = st.query_params.get("intent", "login")
+            st.query_params.clear()
+            if _auth_qp in ("google", "naver", "kakao"):
+                st.session_state["pending_social_provider"] = _auth_qp
+                st.session_state["auth_phase"] = "terms"
+                st.session_state["auth_splash_done"] = True
+                st.session_state["auth_sheet_open"] = True
+                st.rerun()
+            elif _auth_qp == "email":
+                st.session_state["auth_mode"] = _intent_qp  # "login" or "signup"
+                st.session_state["auth_splash_done"] = True
+                st.session_state["auth_sheet_open"] = True
+                st.rerun()
+        except Exception:
+            try:
+                st.query_params.clear()
+            except Exception:
+                pass
+    # ─────────────────────────────────────────────────────────────────────────
+
     if "oauth_state" not in st.session_state:
         st.session_state["oauth_state"] = str(uuid.uuid4())
         
@@ -3797,6 +3821,34 @@ if not st.session_state['logged_in']:
     }
     /* KR 단일: Facebook 버튼 제거 */
     .auth-terms-panel { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem; background: rgba(255,255,255,0.05); max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
+    /* ── 스플래시 화면 스크롤 제로 + Streamlit 크롬 완전 숨김 ── */
+    body.auth-login-splash.auth-splash-screen {
+      overflow: hidden !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+    }
+    body.auth-login-splash.auth-splash-screen .stApp,
+    body.auth-login-splash.auth-splash-screen [data-testid="stAppViewContainer"],
+    body.auth-login-splash.auth-splash-screen section[tabindex="0"],
+    body.auth-login-splash.auth-splash-screen .block-container {
+      overflow: hidden !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      padding: 0 !important;
+    }
+    body.auth-login-splash.auth-splash-screen header[data-testid="stHeader"],
+    body.auth-login-splash.auth-splash-screen #MainMenu,
+    body.auth-login-splash.auth-splash-screen footer,
+    body.auth-login-splash.auth-splash-screen [data-testid="stToolbar"],
+    body.auth-login-splash.auth-splash-screen [data-testid="stDecoration"],
+    body.auth-login-splash.auth-splash-screen [data-testid="stStatusWidget"] {
+      display: none !important;
+    }
+    body.auth-login-splash.auth-splash-screen .block-container {
+      max-width: 100% !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
+    }
     /* ── 약관 expander 다크 스타일 (모바일 100% 안정) ── */
     body.auth-login-splash .stApp [data-testid="stExpander"] > details {
       background: rgba(255,255,255,0.04) !important;
@@ -4014,102 +4066,186 @@ if not st.session_state['logged_in']:
 
         st.stop()
 
-    # ---------- 프리미엄 랜딩 화면 (첫 진입 — 다크 네이비 스킨) ----------
+    # ---------- 프리미엄 랜딩 화면 (풀스크린 Zero-Scroll + Bottom Drawer) ----------
     if not st.session_state.get("auth_splash_done"):
-        # st.markdown 은 SVG 태그를 sanitize 해서 텍스트로 이스케이프하므로,
-        # components.v1.html 로 완전한 raw HTML/SVG를 렌더링한다.
         st.components.v1.html(
             """
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
+    width: 100%; height: 100%;
     background: #0f172a;
-    font-family: 'Noto Sans KR', sans-serif;
+    font-family: 'Noto Sans KR', -apple-system, sans-serif;
     overflow: hidden;
+    touch-action: pan-y;
   }
-  .wrap {
+  /* ── 메인 화면 레이아웃 ── */
+  .screen {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 2.2rem 1.4rem 0.8rem;
+    justify-content: space-between;
+    height: 100%;
+    width: 100%;
+    padding: 0 20px 28px;
+    overflow: hidden;
     text-align: center;
-    position: relative;
   }
-  .glow {
-    position: absolute;
-    top: -60px; left: 50%;
+  /* ── 상단 비주얼 ── */
+  .visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    width: 100%;
+    padding-top: 20px;
+    position: relative;
+    z-index: 1;
+  }
+  .glow-bg {
+    position: fixed; top: 0; left: 50%;
     transform: translateX(-50%);
-    width: 340px; height: 300px;
-    background: radial-gradient(ellipse at 50% 30%,
-      rgba(16,185,129,0.20) 0%, transparent 70%);
-    pointer-events: none;
+    width: 100%; max-width: 500px; height: 52%;
+    background: radial-gradient(ellipse at 50% 22%,
+      rgba(16,185,129,0.19) 0%, transparent 65%);
+    pointer-events: none; z-index: 0;
   }
   .logo {
-    font-size: 3.6rem; line-height: 1;
-    margin-bottom: 12px;
-    animation: rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.05s both;
-    filter: drop-shadow(0 0 20px rgba(239,68,68,0.50));
+    font-size: clamp(2.6rem, 9vw, 3.6rem); line-height: 1;
+    margin-bottom: 9px;
+    filter: drop-shadow(0 0 18px rgba(239,68,68,0.52));
+    animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.05s both;
   }
   .title {
-    font-size: clamp(1.45rem, 6vw, 1.8rem);
-    font-weight: 900;
-    color: #ffffff;
-    letter-spacing: -0.5px;
-    margin-bottom: 4px;
+    font-size: clamp(1.25rem, 5.2vw, 1.65rem);
+    font-weight: 900; color: #ffffff;
+    letter-spacing: -0.5px; margin-bottom: 3px;
     animation: rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.18s both;
   }
   .tagline {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: rgba(255,255,255,0.38);
-    letter-spacing: 0.1em;
-    margin-bottom: 22px;
-    animation: rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.3s both;
+    font-size: clamp(0.6rem, 2.3vw, 0.7rem);
+    font-weight: 500; color: rgba(255,255,255,0.34);
+    letter-spacing: 0.12em; margin-bottom: 14px;
+    animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.3s both;
   }
+  /* ── SVG 차트 ── */
   .chart-wrap {
-    width: 100%; max-width: 310px;
-    margin: 0 auto 20px;
+    width: 100%; max-width: 280px;
+    margin: 0 auto 12px;
     animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.42s both;
   }
-  /* SVG 드로잉 애니메이션 */
   .path-safe {
-    stroke-dasharray: 180;
-    stroke-dashoffset: 180;
+    stroke-dasharray: 180; stroke-dashoffset: 180;
     animation: draw 1.0s ease-out 0.75s forwards;
   }
   .path-spike {
-    stroke-dasharray: 140;
-    stroke-dashoffset: 140;
+    stroke-dasharray: 140; stroke-dashoffset: 140;
     animation: draw 0.75s ease-in 1.75s forwards;
   }
-  .glow-line {
-    opacity: 0;
-    animation: fadein 0.5s ease-out 2.4s forwards;
-  }
+  .glow-line { opacity: 0; animation: fadein 0.5s ease-out 2.4s forwards; }
   .copy1 {
-    font-size: clamp(0.95rem, 4vw, 1.05rem);
-    font-weight: 700;
-    color: rgba(255,255,255,0.72);
-    line-height: 1.55;
-    margin-bottom: 8px;
+    font-size: clamp(0.79rem, 3.3vw, 0.90rem);
+    font-weight: 700; color: rgba(255,255,255,0.66);
+    line-height: 1.5; margin-bottom: 4px;
     animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.54s both;
   }
   .copy1 em { font-style: normal; color: #fbbf24; font-weight: 800; }
   .copy2 {
-    font-size: clamp(1.0rem, 4.2vw, 1.15rem);
-    font-weight: 800;
-    color: #ffffff;
-    line-height: 1.5;
+    font-size: clamp(0.84rem, 3.6vw, 0.97rem);
+    font-weight: 800; color: #ffffff; line-height: 1.45;
     animation: rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;
   }
   .copy2 em { font-style: normal; color: #10b981; }
+  /* ── 하단 버튼 섹션 ── */
+  .btn-section {
+    width: 100%; max-width: 420px;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 10px;
+    animation: rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;
+    position: relative; z-index: 1;
+  }
+  .btn-main {
+    width: 100%; height: 54px;
+    background: rgba(255,255,255,0.11);
+    border: 1px solid rgba(255,255,255,0.24);
+    border-radius: 16px; color: #ffffff;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: clamp(0.9rem, 3.5vw, 1.0rem); font-weight: 800;
+    cursor: pointer;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    transition: background 0.15s, transform 0.09s;
+    letter-spacing: -0.01em;
+  }
+  .btn-main:active { transform: scale(0.97); background: rgba(255,255,255,0.17); }
+  .btn-sub {
+    width: 100%; height: 46px;
+    background: transparent;
+    border: 1.5px solid rgba(16,185,129,0.50);
+    border-radius: 14px; color: #34d399;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: clamp(0.80rem, 3.1vw, 0.88rem); font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.09s;
+    letter-spacing: -0.01em;
+  }
+  .btn-sub:active { transform: scale(0.97); background: rgba(16,185,129,0.09); }
+  /* ── Overlay ── */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.58); z-index: 50;
+  }
+  .overlay.open { display: block; }
+  /* ── Bottom Drawer ── */
+  .drawer {
+    position: fixed; bottom: -100%; left: 0; right: 0;
+    background: linear-gradient(180deg, #1e293b 0%, #0f1f30 100%);
+    border-radius: 24px 24px 0 0;
+    border-top: 1px solid rgba(255,255,255,0.10);
+    padding: 14px 22px 40px; z-index: 100;
+    transition: bottom 0.40s cubic-bezier(0.22,1,0.36,1);
+    box-shadow: 0 -10px 48px rgba(0,0,0,0.58);
+  }
+  .drawer.open { bottom: 0; }
+  .handle {
+    width: 38px; height: 4px;
+    background: rgba(255,255,255,0.17); border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+  .drawer-title {
+    font-size: clamp(1.0rem, 4.2vw, 1.12rem);
+    font-weight: 900; color: #ffffff;
+    text-align: center; margin-bottom: 5px;
+    letter-spacing: -0.02em;
+  }
+  .drawer-sub {
+    font-size: 0.70rem; color: rgba(255,255,255,0.36);
+    text-align: center; margin-bottom: 16px;
+  }
+  .social-btn {
+    width: 100%; height: 50px; border-radius: 14px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: clamp(0.81rem, 3.2vw, 0.90rem); font-weight: 700;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; margin-bottom: 9px;
+    border: 1px solid transparent;
+    transition: transform 0.09s, opacity 0.13s;
+    letter-spacing: -0.01em;
+  }
+  .social-btn:active { transform: scale(0.97); opacity: 0.85; }
+  .social-btn:last-child { margin-bottom: 0; }
+  .btn-google { background: rgba(255,255,255,0.09); color: #ffffff; border-color: rgba(255,255,255,0.18); }
+  .btn-naver  { background: rgba(3,199,90,0.13);   color: #2ecc71; border-color: rgba(3,199,90,0.32); }
+  .btn-kakao  { background: rgba(254,229,0,0.10);  color: #FFE600; border-color: rgba(254,229,0,0.28); }
+  .btn-email  { background: rgba(52,211,153,0.09); color: #34d399; border-color: rgba(52,211,153,0.26); }
   @keyframes rise {
-    from { transform: translateY(20px); opacity: 0; }
+    from { transform: translateY(22px); opacity: 0; }
     to   { transform: translateY(0);    opacity: 1; }
   }
   @keyframes draw   { to { stroke-dashoffset: 0; } }
@@ -4117,81 +4253,152 @@ if not st.session_state['logged_in']:
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="glow"></div>
-  <div class="logo">🩸</div>
-  <div class="title">나의 혈당 기록소</div>
-  <div class="tagline">BLOOD GLUCOSE SCANNER AI</div>
-
-  <!-- 프리미엄 SVG 차트 -->
-  <div class="chart-wrap">
-    <svg viewBox="0 0 280 115" width="100%" height="115"
-         style="overflow:visible" aria-hidden="true">
-      <!-- 카드 배경 -->
-      <rect x="0" y="0" width="280" height="115" rx="14"
-            fill="rgba(255,255,255,0.04)"
-            stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-      <!-- 격자 -->
-      <line x1="12" y1="28"  x2="268" y2="28"  stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-      <line x1="12" y1="56"  x2="268" y2="56"  stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-      <line x1="12" y1="84"  x2="268" y2="84"  stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-      <!-- 위험 영역 -->
-      <rect x="12" y="4" width="256" height="24" rx="4" fill="rgba(239,68,68,0.07)"/>
-      <text x="16" y="17" font-size="8" fill="rgba(239,68,68,0.55)"
-            font-family="sans-serif">위험 &gt;140</text>
-      <!-- 정상 영역 -->
-      <rect x="12" y="50" width="256" height="34" rx="4" fill="rgba(16,185,129,0.07)"/>
-      <text x="16" y="63" font-size="8" fill="rgba(16,185,129,0.55)"
-            font-family="sans-serif">정상 &lt;100</text>
-      <!-- 그린 안정선 글로우 -->
-      <polyline class="glow-line"
-        points="20,70 60,68 100,65 140,62 180,64 220,63 260,65"
-        stroke="rgba(16,185,129,0.28)" stroke-width="9"
-        stroke-linecap="round" fill="none"/>
-      <!-- 그린 안정선 -->
-      <polyline class="path-safe"
-        points="20,70 60,68 100,65 140,62 180,64 220,63 260,65"
-        stroke="#10b981" stroke-width="3"
-        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <!-- 레드 스파이크 글로우 -->
-      <polyline class="glow-line"
-        points="20,70 55,66 90,54 120,20 145,8 168,24 200,50 235,62 260,65"
-        stroke="rgba(239,68,68,0.22)" stroke-width="9"
-        stroke-linecap="round" fill="none"/>
-      <!-- 레드 스파이크선 -->
-      <polyline class="path-spike"
-        points="20,70 55,66 90,54 120,20 145,8 168,24 200,50 235,62 260,65"
-        stroke="#ef4444" stroke-width="3"
-        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-      <!-- 범례 -->
-      <circle cx="22" cy="107" r="4" fill="#10b981"/>
-      <text x="30" y="110" font-size="8.5" fill="rgba(255,255,255,0.52)"
-            font-family="sans-serif">식이섬유 먼저</text>
-      <circle cx="122" cy="107" r="4" fill="#ef4444"/>
-      <text x="130" y="110" font-size="8.5" fill="rgba(255,255,255,0.52)"
-            font-family="sans-serif">탄수화물 먼저</text>
-    </svg>
+<div class="glow-bg"></div>
+<div class="screen">
+  <!-- 비주얼 섹션 -->
+  <div class="visual">
+    <div class="logo">🩸</div>
+    <div class="title">나의 혈당 기록소</div>
+    <div class="tagline">BLOOD GLUCOSE SCANNER AI</div>
+    <div class="chart-wrap">
+      <svg viewBox="0 0 280 108" width="100%" height="108"
+           style="overflow:visible" aria-hidden="true">
+        <rect x="0" y="0" width="280" height="108" rx="14"
+              fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        <line x1="12" y1="26" x2="268" y2="26" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+        <line x1="12" y1="52" x2="268" y2="52" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+        <line x1="12" y1="78" x2="268" y2="78" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+        <rect x="12" y="4" width="256" height="22" rx="4" fill="rgba(239,68,68,0.07)"/>
+        <text x="16" y="15" font-size="8" fill="rgba(239,68,68,0.55)" font-family="sans-serif">위험 &gt;140</text>
+        <rect x="12" y="46" width="256" height="32" rx="4" fill="rgba(16,185,129,0.07)"/>
+        <text x="16" y="58" font-size="8" fill="rgba(16,185,129,0.55)" font-family="sans-serif">정상 &lt;100</text>
+        <polyline class="glow-line"
+          points="20,64 60,62 100,60 140,57 180,59 220,58 260,60"
+          stroke="rgba(16,185,129,0.28)" stroke-width="9"
+          stroke-linecap="round" fill="none"/>
+        <polyline class="path-safe"
+          points="20,64 60,62 100,60 140,57 180,59 220,58 260,60"
+          stroke="#10b981" stroke-width="3"
+          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <polyline class="glow-line"
+          points="20,64 55,60 90,50 120,18 145,6 168,22 200,46 235,57 260,60"
+          stroke="rgba(239,68,68,0.22)" stroke-width="9"
+          stroke-linecap="round" fill="none"/>
+        <polyline class="path-spike"
+          points="20,64 55,60 90,50 120,18 145,6 168,22 200,46 235,57 260,60"
+          stroke="#ef4444" stroke-width="3"
+          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="22" cy="101" r="4" fill="#10b981"/>
+        <text x="30" y="104" font-size="8.5" fill="rgba(255,255,255,0.52)" font-family="sans-serif">식이섬유 먼저</text>
+        <circle cx="122" cy="101" r="4" fill="#ef4444"/>
+        <text x="130" y="104" font-size="8.5" fill="rgba(255,255,255,0.52)" font-family="sans-serif">탄수화물 먼저</text>
+      </svg>
+    </div>
+    <div class="copy1"><em>AI</em>가 당신의 식단을 감시합니다</div>
+    <div class="copy2"><em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em></div>
   </div>
 
-  <div class="copy1"><em>AI</em>가 당신의 식단을 감시합니다</div>
-  <div class="copy2"><em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em></div>
+  <!-- 버튼 섹션 -->
+  <div class="btn-section">
+    <button class="btn-main" onclick="openDrawer('login')">로그인</button>
+    <button class="btn-sub"  onclick="openDrawer('signup')">회원가입</button>
+  </div>
 </div>
+
+<!-- Overlay -->
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+
+<!-- Bottom Drawer -->
+<div class="drawer" id="drawer">
+  <div class="handle"></div>
+  <div class="drawer-title" id="d-title">반가워요! 로그인</div>
+  <div class="drawer-sub"   id="d-sub">3초 소셜 로그인으로 바로 시작하세요</div>
+  <button class="social-btn btn-google" id="bg">🔵 Google로 계속하기</button>
+  <button class="social-btn btn-naver"  id="bn">N&nbsp;&nbsp;네이버로 계속하기</button>
+  <button class="social-btn btn-kakao"  id="bk">💬 카카오로 계속하기</button>
+  <button class="social-btn btn-email"  id="be">✉&nbsp;&nbsp;이메일로 계속하기</button>
+</div>
+
+<script>
+(function() {
+  try {
+    var fr = window.frameElement;
+    if (fr) {
+      var h = window.parent.innerHeight
+           || window.parent.document.documentElement.clientHeight
+           || 700;
+      fr.style.height = h + 'px';
+      fr.style.width = '100%';
+      fr.style.border = 'none';
+      fr.style.display = 'block';
+      fr.style.maxWidth = '100%';
+      fr.style.margin = '0';
+    }
+    window.parent.document.body.classList.add('auth-login-splash');
+    window.parent.document.body.classList.add('auth-splash-screen');
+  } catch(e) {}
+})();
+
+var _intent = 'login';
+
+function openDrawer(mode) {
+  _intent = mode;
+  if (mode === 'login') {
+    document.getElementById('d-title').textContent = '반가워요! 로그인';
+    document.getElementById('d-sub').textContent = '3초 소셜 로그인으로 바로 시작하세요';
+    document.getElementById('bg').textContent = '🔵 Google로 로그인';
+    document.getElementById('bn').textContent = 'N\u00a0\u00a0네이버로 로그인';
+    document.getElementById('bk').textContent = '💬 카카오로 로그인';
+    document.getElementById('be').textContent = '✉\u00a0\u00a0이메일로 로그인';
+  } else {
+    document.getElementById('d-title').textContent = '처음이신가요? 회원가입';
+    document.getElementById('d-sub').textContent = '3초 회원가입 → 7일 PRO 무료 체험 시작';
+    document.getElementById('bg').textContent = '🔵 Google로 회원가입';
+    document.getElementById('bn').textContent = 'N\u00a0\u00a0네이버로 회원가입';
+    document.getElementById('bk').textContent = '💬 카카오로 회원가입';
+    document.getElementById('be').textContent = '✉\u00a0\u00a0이메일로 회원가입';
+  }
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+}
+
+function goAuth(provider) {
+  try {
+    var url = new URL(window.parent.location.href);
+    url.searchParams.set('__auth', provider);
+    url.searchParams.set('intent', _intent);
+    window.parent.location.href = url.toString();
+  } catch(e) {
+    window.parent.location.search = '?__auth=' + provider + '&intent=' + _intent;
+  }
+}
+
+document.getElementById('bg').onclick = function() { goAuth('google'); };
+document.getElementById('bn').onclick = function() { goAuth('naver');  };
+document.getElementById('bk').onclick = function() { goAuth('kakao');  };
+document.getElementById('be').onclick = function() { goAuth('email');  };
+
+/* 모바일 스와이프 닫기 */
+(function() {
+  var dr = document.getElementById('drawer');
+  var sy = 0;
+  dr.addEventListener('touchstart', function(e){ sy = e.touches[0].clientY; }, { passive: true });
+  dr.addEventListener('touchend',   function(e){
+    if (e.changedTouches[0].clientY - sy > 60) closeDrawer();
+  }, { passive: true });
+})();
+</script>
 </body>
 </html>
 """,
-            height=420,
+            height=680,
             scrolling=False,
         )
-        if st.button(
-            _t.get("splash_start_btn", "🚀 시작하기"),
-            type="primary",
-            use_container_width=True,
-            key="splash_start",
-        ):
-            st.session_state["auth_splash_done"] = True
-            st.session_state["auth_sheet_open"] = True
-            st.session_state["auth_phase"] = "sheet"
-            st.rerun()
         st.stop()
 
     # ---------- 슬라이드업 느낌의 로그인 시트 ----------
