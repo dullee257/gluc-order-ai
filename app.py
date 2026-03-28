@@ -4167,20 +4167,23 @@ try {
             ("signup", "kakao"),
             ("signup", "email"),
         )
-        for _pi, (_pmode, _pprov) in enumerate(_PWA_CH):
+        for _pi in range(len(_PWA_CH)):
+            _pmode, _pprov = _PWA_CH[_pi]
             if st.button(
                 f"__PWA_{_pi}__",
-                key=f"pwa_ch_{_pi}",
-                label_visibility="collapsed",
+                key=f"pwa_btn_{_pi}_{_pprov}",
             ):
-                st.session_state["auth_mode"] = _pmode
-                st.session_state["auth_splash_done"] = True
-                st.session_state["auth_sheet_open"] = True
-                if _pprov in ("google", "naver", "kakao"):
-                    st.session_state["pending_social_provider"] = _pprov
-                    st.session_state["auth_phase"] = "terms"
-                else:
-                    st.session_state["auth_phase"] = "sheet"
+                try:
+                    st.session_state["auth_mode"] = _pmode
+                    st.session_state["auth_splash_done"] = True
+                    st.session_state["auth_sheet_open"] = True
+                    if _pprov in ("google", "naver", "kakao"):
+                        st.session_state["pending_social_provider"] = _pprov
+                        st.session_state["auth_phase"] = "terms"
+                    else:
+                        st.session_state["auth_phase"] = "sheet"
+                except Exception:
+                    pass
                 st.rerun()
 
         # 부모 창: postMessage → 숨김 버튼 programmatic click (PWA) / URL 폴백 (일반 브라우저)
