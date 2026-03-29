@@ -3491,6 +3491,69 @@ def handle_social_login(provider: str) -> dict:
     return {"action": "error", "provider": p}
 
 
+# 명령문 #78: 약관 상세 slug → (표시 제목, 마크다운 본문)
+_TERMS_DETAIL_PAGES = {
+    "tos": ("서비스 이용약관", TERMS_TOS),
+    "priv": ("개인정보 수집 및 이용", TERMS_PRIVACY),
+    "health": ("민감정보(건강정보) 처리", TERMS_HEALTH),
+    "mkt": ("마케팅 정보 수신", TERMS_MARKETING),
+    "custom_priv": ("맞춤형 서비스 개인정보 추가 수집·이용", TERMS_CUSTOM_PRIV),
+    "bigdata": ("빅데이터 분석 및 신규 서비스 개발", TERMS_BIGDATA),
+}
+
+
+def _sync_terms_navigation() -> None:
+    """?tc= 쿼리와 session auth_phase / 약관 상세·목록·드로어 복귀 동기화 (#78)."""
+    if st.session_state.get("logged_in"):
+        return
+    prov = st.session_state.get("pending_social_provider")
+    if not prov:
+        return
+    tc = (st.query_params.get("tc") or "").strip()
+    detail_slugs = tuple(_TERMS_DETAIL_PAGES.keys())
+
+    if tc in detail_slugs:
+        st.session_state["auth_phase"] = "terms_detail"
+        st.session_state["target_term"] = tc
+        return
+
+    if tc == "list":
+        st.session_state["auth_phase"] = "terms"
+        st.session_state.pop("target_term", None)
+        st.session_state["_tc_list_once"] = True
+        return
+
+    if tc == "drawer":
+        st.session_state["auth_splash_done"] = False
+        st.session_state["splash_drawer_open"] = True
+        st.session_state["auth_phase"] = "splash"
+        st.session_state.pop("_tc_list_once", None)
+        try:
+            if "tc" in st.query_params:
+                del st.query_params["tc"]
+        except Exception:
+            pass
+        st.rerun()
+        return
+
+    if (
+        not tc
+        and st.session_state.get("auth_phase") == "terms"
+        and st.session_state.get("_tc_list_once")
+    ):
+        st.session_state["auth_splash_done"] = False
+        st.session_state["splash_drawer_open"] = True
+        st.session_state["auth_phase"] = "splash"
+        st.session_state.pop("_tc_list_once", None)
+        st.rerun()
+        return
+
+    if st.session_state.get("auth_phase") == "terms" and not tc:
+        st.query_params["tc"] = "list"
+        st.session_state["_tc_list_once"] = True
+        st.rerun()
+
+
 if not st.session_state['logged_in']:
     import urllib.parse
     import uuid
@@ -3587,6 +3650,24 @@ if not st.session_state['logged_in']:
             st.session_state[_k] = _v
     if "auth_mode" not in st.session_state:
         st.session_state["auth_mode"] = "login"
+
+    _sync_terms_navigation()
+    if st.session_state.get("pending_social_provider"):
+        st.components.v1.html(
+            """
+<script>
+(function(){
+  var w = window.parent || window;
+  if (w.__glucTermsPopstate) return;
+  w.__glucTermsPopstate = true;
+  w.addEventListener("popstate", function() {
+    try { w.location.reload(); } catch(e) {}
+  });
+})();
+</script>
+""",
+            height=0,
+        )
 
     # --- 약관 통과 후 Google OAuth 1회 자동 제출 (Firebase UID 통합 전 단계: Google 계정 식별) ---
     if st.session_state.pop("proceed_google_oauth", False):
@@ -4073,6 +4154,36 @@ if not st.session_state['logged_in']:
         height=0,
     )
 
+    # ---------- 약관 상세 화면 (#78) — chevron 진입, ← 로 목록 복귀 ----------
+    if st.session_state.get("auth_phase") == "terms_detail" and st.session_state.get("pending_social_provider"):
+        _tgt = (st.session_state.get("target_term") or (st.query_params.get("tc") or "").strip()).strip()
+        if _tgt not in _TERMS_DETAIL_PAGES:
+            st.session_state["auth_phase"] = "terms"
+            st.query_params["tc"] = "list"
+            st.rerun()
+        _td_title, _td_body = _TERMS_DETAIL_PAGES[_tgt]
+        st.components.v1.html(
+            """<script>
+try {
+  window.parent.document.body.classList.add('auth-terms-page');
+  window.parent.document.body.classList.remove('auth-splash-screen');
+} catch(e) {}
+</script>""",
+            height=0,
+        )
+        if st.button(
+            f"← {_td_title}",
+            key="tc_detail_back_btn",
+            use_container_width=True,
+            type="secondary",
+        ):
+            st.session_state["auth_phase"] = "terms"
+            st.query_params["tc"] = "list"
+            st.rerun()
+        with st.container(border=True):
+            st.markdown(_td_body)
+        st.stop()
+
     # ---------- 약관 동의 화면 (소셜 클릭 후) — 토스/카카오 수준 상용 폼팩터 ----------
     if st.session_state.get("auth_phase") == "terms" and st.session_state.get("pending_social_provider"):
         prov = st.session_state["pending_social_provider"]
@@ -4146,42 +4257,60 @@ try {
         _all_currently = all(st.session_state.get(k, False) for k in _sub_keys)
         st.session_state["tc_all_master"] = _all_currently
 
-        # ── 약관 항목 6개 — 테두리 컨테이너 안에서만 스크롤(max-height:45vh, CSS) ─
+        # ── 약관 항목 6개 — 제목 + 우측 › 로 상세 페이지 이동 (#78) ─
+        def _tc_nav_detail(slug: str) -> None:
+            st.session_state["auth_phase"] = "terms_detail"
+            st.session_state["target_term"] = slug
+            st.query_params["tc"] = slug
+            st.rerun()
+
         with st.container(border=True):
-            # [필수 1] 서비스 이용약관
-            st.checkbox("[필수] 서비스 이용약관 동의", key="tc_tos")
-            with st.expander("내용 보기", expanded=False):
-                st.markdown(TERMS_TOS)
+            _r1a, _r1b = st.columns([11, 1])
+            with _r1a:
+                st.checkbox("[필수] 서비스 이용약관 동의", key="tc_tos")
+            with _r1b:
+                if st.button("›", key="tc_chevron_tos", help="약관 전문"):
+                    _tc_nav_detail("tos")
 
-            # [필수 2] 개인정보 수집·이용
-            st.checkbox("[필수] 개인정보 수집 및 이용 동의", key="tc_priv")
-            with st.expander("내용 보기", expanded=False):
-                st.markdown(TERMS_PRIVACY)
+            _r2a, _r2b = st.columns([11, 1])
+            with _r2a:
+                st.checkbox("[필수] 개인정보 수집 및 이용 동의", key="tc_priv")
+            with _r2b:
+                if st.button("›", key="tc_chevron_priv", help="약관 전문"):
+                    _tc_nav_detail("priv")
 
-            # [필수 3] 민감정보(건강정보) 처리
-            st.checkbox("[필수] 민감정보(건강정보) 처리 동의", key="tc_health")
-            with st.expander("내용 보기", expanded=False):
-                st.markdown(TERMS_HEALTH)
+            _r3a, _r3b = st.columns([11, 1])
+            with _r3a:
+                st.checkbox("[필수] 민감정보(건강정보) 처리 동의", key="tc_health")
+            with _r3b:
+                if st.button("›", key="tc_chevron_health", help="약관 전문"):
+                    _tc_nav_detail("health")
 
             st.markdown(
                 "<div style='height:1px;background:rgba(255,255,255,0.06);margin:8px 0;'></div>",
                 unsafe_allow_html=True,
             )
 
-            # [선택 1] 마케팅 정보 수신
-            st.checkbox("[선택] 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
-            with st.expander("내용 보기", expanded=False):
-                st.markdown(TERMS_MARKETING)
+            _r4a, _r4b = st.columns([11, 1])
+            with _r4a:
+                st.checkbox("[선택] 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
+            with _r4b:
+                if st.button("›", key="tc_chevron_mkt", help="약관 전문"):
+                    _tc_nav_detail("mkt")
 
-            # [선택 2] 맞춤형 서비스 개인정보 추가 수집
-            st.checkbox("[선택] 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
-            with st.expander("내용 보기", expanded=False):
-                st.markdown(TERMS_CUSTOM_PRIV)
+            _r5a, _r5b = st.columns([11, 1])
+            with _r5a:
+                st.checkbox("[선택] 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
+            with _r5b:
+                if st.button("›", key="tc_chevron_custom_priv", help="약관 전문"):
+                    _tc_nav_detail("custom_priv")
 
-            # [선택 3] 빅데이터 분석 및 신규 서비스 개발
-            st.checkbox("[선택] 빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", key="tc_bigdata")
-            with st.expander("내용 보기", expanded=False):
-                st.markdown(TERMS_BIGDATA)
+            _r6a, _r6b = st.columns([11, 1])
+            with _r6a:
+                st.checkbox("[선택] 빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", key="tc_bigdata")
+            with _r6b:
+                if st.button("›", key="tc_chevron_bigdata", help="약관 전문"):
+                    _tc_nav_detail("bigdata")
 
         # ── 구분선 ─────────────────────────────────────────────────────────
         st.markdown(
