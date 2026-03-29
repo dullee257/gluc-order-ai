@@ -56,6 +56,8 @@ st.set_page_config(
     menu_items={"Get Help": None, "Report a bug": None, "About": None},
 )
 
+st.warning("⚠️ 긴급 복구 모드 가동 중… (렌더링·가시성 우선 복원)")
+
 
 def _deploy_probe_text():
     """배포 버전 확인용(가설 E). 화면 우하단 고정 표시."""
@@ -1285,9 +1287,15 @@ BASE_URL = (_base or "https://nutrisort.streamlit.app").rstrip("/")
 _base_host = BASE_URL.replace("https://", "").replace("http://", "").split("/")[0]
 _embed_script = """
     <script>
-    // 1. 명령문 #81: 메인 문서 직접 참조 (st.html 주입 — iframe 아님)
+    // 1. 문서 객체 (iframe 컴포넌트 실행 시 부모 프레임 우선)
     let doc = window.document;
     let win = window;
+    try {
+        if (window.parent && window.parent.document) {
+            doc = window.parent.document;
+            win = window.parent;
+        }
+    } catch (e) {}
 
     var agent = navigator.userAgent.toLowerCase();
     var targetUrl = '__BASE_URL__';
@@ -1443,9 +1451,9 @@ _embed_script = """
 
     </script>
     """
-st.html(
+st.components.v1.html(
     _embed_script.replace("__BASE_URL__", BASE_URL).replace("__BASE_HOST__", _base_host),
-    unsafe_allow_javascript=True,
+    height=0,
 )
 from google import genai  # 패키지: google-genai (구 google-generativeai 아님)
 from google.genai import types as gtypes
@@ -3238,26 +3246,7 @@ st.markdown(f"""
     }}
 
     /* stUploadedFile 숨김 — 위 블록과 중복 강화 */
-    /* 가로모드(Landscape) 방지 오버레이: 억지로 회전시 화면 덮어버림 */
-    @media screen and (orientation: landscape) and (max-height: 600px) {{
-        #root, .stApp {{ display: none !important; }}
-        body::before {{
-            content: "📱 측면(가로) 모드는 지원하지 않습니다.\\A스마트폰을 다시 세로로 돌려주세요.";
-            white-space: pre-wrap;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #333333;
-            color: #ffffff;
-            font-size: 20px;
-            font-weight: 800;
-            z-index: 999999;
-            line-height: 1.5;
-        }}
-    }}
+    /* hotfix #82: 가로모드에서 #root/.stApp display:none 제거 — 전체 흰/빈 화면 방지 */
 
     /* --- EXPANDER: 아이콘 래퍼 최종 Nuke(하단 규칙이 상단을 덮어씀) + 요약 줄 우측 여백 --- */
     [data-testid="stExpander"] details summary,
@@ -3295,13 +3284,13 @@ st.markdown(f"""
 # ──────────────────────────────────────────────────────────────────────────────
 # PWA 메타 태그 + 스플래시 스크린 (Phase 7)
 # ──────────────────────────────────────────────────────────────────────────────
-# ① PWA 메타 태그: document.head 직접 주입 (명령문 #81: st.html, iframe 아님)
-st.html(
+# ① PWA 메타 태그: 부모 document.head 주입 (components iframe)
+st.components.v1.html(
     """
 <script>
 (function() {
     try {
-        var doc = document;
+        var doc = window.parent.document;
         var head = doc.head;
         var _metas = [
             { name: "apple-mobile-web-app-capable",          content: "yes" },
@@ -3343,7 +3332,8 @@ st.html(
 })();
 </script>
 """,
-    unsafe_allow_javascript=True,
+    height=0,
+    scrolling=False,
 )
 
 # ② 스플래시 스크린 HTML (첫 세션 로드 시 1회만 표시)
@@ -3575,9 +3565,9 @@ if not st.session_state['logged_in']:
     # 로그아웃 시 localStorage 클리어 JS 주입
     if st.session_state.pop("_logout_pending_ls_clear", False):
         st.session_state["_ls_auth_revoked"] = True
-        st.html(
-            "<script>try{localStorage.removeItem('bgs_auth');}catch(e){}</script>",
-            unsafe_allow_javascript=True,
+        st.components.v1.html(
+            "<script>try{(window.parent||window).localStorage.removeItem('bgs_auth');}catch(e){}</script>",
+            height=0,
         )
     # localStorage → query param 방식으로 세션 복원
     if "__al" in st.query_params and not st.session_state.get("_ls_auth_revoked"):
@@ -3666,11 +3656,11 @@ if not st.session_state['logged_in']:
 
     _sync_terms_navigation()
     if st.session_state.get("pending_social_provider"):
-        st.html(
+        st.components.v1.html(
             """
 <script>
 (function(){
-  var w = window;
+  var w = window.parent || window;
   if (w.__glucTermsPopstate) return;
   w.__glucTermsPopstate = true;
   w.addEventListener("popstate", function() {
@@ -3679,7 +3669,7 @@ if not st.session_state['logged_in']:
 })();
 </script>
 """,
-            unsafe_allow_javascript=True,
+            height=0,
         )
 
     # --- 약관 통과 후 Google OAuth 1회 자동 제출 (Firebase UID 통합 전 단계: Google 계정 식별) ---
@@ -3701,7 +3691,7 @@ if not st.session_state['logged_in']:
             <script>document.getElementById("gOAuthForm").submit();</script>
             <p style="font-size:14px;color:#666;">Redirecting to Google…</p>
             """
-            st.html(_oauth_html, unsafe_allow_javascript=True)
+            st.components.v1.html(_oauth_html, height=120)
             st.caption(_t.get("oauth_open_in_browser", ""))
         else:
             st.error(_t.get("google_login_disabled_help", "Configure OAuth client ID."))
@@ -4268,21 +4258,22 @@ if not st.session_state['logged_in']:
     )
 
     # 랜딩 페이지 + 로그인 폼 전체: 다크 네이비 배경 유지 + Material Icons 폰트 강제 로딩
-    st.html(
+    st.components.v1.html(
         """
     <script>
-    try { document.body.classList.add("auth-login-splash"); } catch(e) {}
+    try { window.parent.document.body.classList.add("auth-login-splash"); } catch(e) {}
     try {
-      if (!document.querySelector('link[href*="Material+Icons"]')) {
-        var _lk = document.createElement('link');
+      var _pd = window.parent.document;
+      if (!_pd.querySelector('link[href*="Material+Icons"]')) {
+        var _lk = _pd.createElement('link');
         _lk.rel = 'stylesheet';
         _lk.href = 'https://fonts.googleapis.com/icon?family=Material+Icons+Outlined';
-        document.head.appendChild(_lk);
+        _pd.head.appendChild(_lk);
       }
     } catch(e) {}
     </script>
     """,
-        unsafe_allow_javascript=True,
+        height=0,
     )
 
     # ---------- 약관 상세 화면 (#78) — chevron 진입, ← 로 목록 복귀 ----------
@@ -4293,15 +4284,15 @@ if not st.session_state['logged_in']:
             st.query_params["tc"] = "list"
             st.rerun()
         _td_title, _td_body = _TERMS_DETAIL_PAGES[_tgt]
-        st.html(
+        st.components.v1.html(
             """<script>
 try {
-  document.body.classList.add('auth-terms-page');
-  document.body.classList.add('auth-terms-detail-page');
-  document.body.classList.remove('auth-splash-screen');
+  window.parent.document.body.classList.add('auth-terms-page');
+  window.parent.document.body.classList.add('auth-terms-detail-page');
+  window.parent.document.body.classList.remove('auth-splash-screen');
 } catch(e) {}
 (function(){
-  var doc = document;
+  var doc = window.parent.document;
   function markStickyHeader() {
     try {
       var m = doc.querySelector('section[data-testid="stMain"]');
@@ -4354,7 +4345,7 @@ try {
   } catch(e) {}
 })();
 </script>""",
-            unsafe_allow_javascript=True,
+            height=0,
         )
         if st.button(
             f"← {_td_title}",
@@ -4374,27 +4365,28 @@ try {
         prov = st.session_state["pending_social_provider"]
 
         # 약관 페이지 전용 body 클래스 + URL 정리(뒤로가기 시 ?__auth 잔상 방지)
-        st.html(
+        st.components.v1.html(
             """<script>
 try {
-  document.body.classList.add('auth-terms-page');
-  document.body.classList.remove('auth-terms-detail-page');
-  document.body.classList.remove('auth-splash-screen');
-  var _u = new URL(window.location.href);
+  window.parent.document.body.classList.add('auth-terms-page');
+  window.parent.document.body.classList.remove('auth-terms-detail-page');
+  window.parent.document.body.classList.remove('auth-splash-screen');
+  var _pw = window.parent;
+  var _u = new URL(_pw.location.href);
   if (_u.searchParams.has('__auth') || _u.searchParams.has('intent')) {
     _u.search = '';
-    window.history.replaceState({}, '', _u.pathname + _u.hash);
+    _pw.history.replaceState({}, '', _u.pathname + _u.hash);
   }
 } catch(e) {}
 </script>""",
-            unsafe_allow_javascript=True,
+            height=0,
         )
 
         # #59: 약관 6개만 45vh 스크롤 — 첫 border 래퍼에 클래스 부여 (전역 border 셀렉터 제거)
-        st.html(
+        st.components.v1.html(
             """<script>
 (function() {
-  var doc = document;
+  var doc = window.parent.document;
   function tagTermsScroll() {
     try {
       var m = doc.querySelector('section[data-testid="stMain"]');
@@ -4457,7 +4449,7 @@ try {
   } catch(e) {}
 })();
 </script>""",
-            unsafe_allow_javascript=True,
+            height=0,
         )
 
         # ── 헤더 ─────────────────────────────────────────────────────────────
@@ -4956,11 +4948,11 @@ try {
 
     # ---------- 슬라이드업 느낌의 로그인 시트 ----------
     if st.session_state.get("auth_sheet_open") and not st.session_state.get("auth_guest_step"):
-        st.html(
+        st.components.v1.html(
             """
         <script>
         try {
-          var m = document.querySelector("main");
+          var m = window.parent.document.querySelector("main");
           if (m && !m.classList.contains("auth-sheet-enter")) {
             m.classList.add("auth-sheet-enter");
             setTimeout(function(){ try { m.classList.remove("auth-sheet-enter"); } catch(e) {} }, 600);
@@ -4968,7 +4960,7 @@ try {
         } catch(e) {}
         </script>
         """,
-            unsafe_allow_javascript=True,
+            height=0,
         )
 
     _flash = st.session_state.pop("auth_flash_msg", None)
@@ -5011,8 +5003,8 @@ try {
         unsafe_allow_html=True,
     )
 
-    # ── 프리미엄 AI 방어 쉴드 비주얼 (로고 ↔ 소셜 버튼 사이) ──
-    st.html(
+    # ── 프리미엄 AI 방어 쉴드 비주얼 (로고 ↔ 소셜 버튼 사이) — hotfix #82: st.markdown로 정적 주입
+    st.markdown(
         """
 <div class="gluc-ai-shield-wrap" style="margin:0 auto;text-align:center;background:#0f172a;height:158px;overflow:hidden;display:flex;justify-content:center;align-items:center;">
 <style>
@@ -5101,6 +5093,7 @@ try {
 </svg>
 </div>
 """,
+        unsafe_allow_html=True,
     )
 
     # ── [로그인 섹션] 기존 회원 ───────────────────────────────────────
@@ -5238,27 +5231,27 @@ try {
     st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
     # ─── localStorage 자동 로그인 체크 JS (로그인 화면 진입 시 실행) ──────────
-    st.html(
+    st.components.v1.html(
         """
 <script>
 (function(){
   try{
-    var s=localStorage;
+    var s=(window.parent||window).localStorage;
     var a=s.getItem('bgs_auth');
     if(!a)return;
     var d=JSON.parse(a);
     if(!d||!d.u||!d.t)return;
-    var url=new URL(window.location.href);
+    var url=new URL(window.parent.location.href);
     if(url.searchParams.has('__al'))return;
     var raw=JSON.stringify(d);
     var enc=btoa(unescape(encodeURIComponent(raw)));
     url.searchParams.set('__al',enc);
-    window.location.replace(url.toString());
+    window.parent.location.replace(url.toString());
   }catch(e){}
 })();
 </script>
 """,
-        unsafe_allow_javascript=True,
+        height=0,
     )
     st.stop()
 
@@ -5694,10 +5687,10 @@ if not st.session_state.get("_ls_auth_saved") and st.session_state.get("login_ty
     _ls_u = json.dumps(st.session_state.get("user_id") or "")
     _ls_e = json.dumps(st.session_state.get("user_email") or "")
     _ls_t = json.dumps(st.session_state.get("login_type") or "")
-    st.html(
-        f"<script>try{{localStorage.setItem('bgs_auth',"
+    st.components.v1.html(
+        f"<script>try{{(window.parent||window).localStorage.setItem('bgs_auth',"
         f"JSON.stringify({{u:{_ls_u},e:{_ls_e},t:{_ls_t}}}));}}catch(e){{}}</script>",
-        unsafe_allow_javascript=True,
+        height=0,
     )
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -6626,13 +6619,12 @@ if menu_key == "scanner":
             # 토글이 OFF → ON 으로 바뀐 순간에만 권한 요청 + 테스트 알림 발송
             if push_enabled and not _push_prev:
                 st.session_state["push_notif_enabled"] = True
-                st.html(
+                st.components.v1.html(
                     """
 <script>
 (function () {
   try {
-    // 명령문 #81: 메인 window에서 Notification / ServiceWorker 접근
-    var win   = window;
+    var win   = window.parent || window;
     var nav   = win.navigator;
     var Notif = win.Notification;
 
@@ -6685,7 +6677,8 @@ if menu_key == "scanner":
 })();
 </script>
 """,
-                    unsafe_allow_javascript=True,
+                    height=0,
+                    scrolling=False,
                 )
                 st.success("✅ 알림 권한이 요청되었습니다. 브라우저 팝업에서 '허용'을 눌러주세요.")
 

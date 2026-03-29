@@ -1,5 +1,5 @@
 # 상용화: 버전 고정으로 배포 재현성 확보 (pip install -r requirements.txt)
-streamlit>=1.36.0,<2.0.0
+streamlit>=1.29.0,<2.0.0
 google-genai>=1.0.0
 Pillow>=10.0.0
 pandas>=2.0.0
