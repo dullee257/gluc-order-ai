@@ -3995,6 +3995,45 @@ if not st.session_state['logged_in']:
       color: inherit !important;
       font-weight: 800 !important;
     }
+    /* ── 약관 페이지 상단 여백 최소화 ── */
+    body.auth-login-splash.auth-terms-page .block-container {
+      padding-top: 0.25rem !important;
+    }
+    /* ── 약관 expander 내부 테이블/텍스트 흰색 (검은 글씨 겹침 방지) ── */
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] table,
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] table th,
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] table td,
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] td,
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] th,
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] p,
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] li,
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] span {
+      color: rgba(255,255,255,0.88) !important;
+    }
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] table {
+      border-collapse: collapse !important;
+      width: 100% !important;
+    }
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] table th,
+    body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] table td {
+      border: 1px solid rgba(255,255,255,0.20) !important;
+      padding: 4px 8px !important;
+      background: rgba(255,255,255,0.04) !important;
+    }
+    /* ── 전체동의 체크박스: CTA 위에서 크고 굵게 강조 ── */
+    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] > label {
+      gap: 12px !important;
+      align-items: center !important;
+    }
+    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] input[type="checkbox"],
+    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] > label > span:first-child {
+      width: 24px !important;
+      height: 24px !important;
+      min-width: 24px !important;
+      min-height: 24px !important;
+      transform: scale(1.25) !important;
+      transform-origin: left center !important;
+    }
     </style>
     """,
         unsafe_allow_html=True,
@@ -4063,17 +4102,18 @@ try {
         # ── 헤더 ─────────────────────────────────────────────────────────────
         st.markdown(
             """
-            <div style="text-align:center;margin:0 0 20px;">
-              <div style="font-size:1.35rem;font-weight:900;color:#fff;letter-spacing:-0.02em;">
+            <div style="text-align:center;margin:0 0 8px;">
+              <div style="font-size:1.2rem;font-weight:900;color:#fff;letter-spacing:-0.02em;">
                 📋 서비스 약관 동의
               </div>
-              <div style="font-size:0.78rem;color:rgba(255,255,255,0.46);margin-top:6px;">
+              <div style="font-size:0.75rem;color:rgba(255,255,255,0.46);margin-top:4px;">
                 필수 항목에 모두 동의해야 서비스를 이용하실 수 있습니다.
               </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
+
 
         # ── 체크박스 상태 초기화 (필수 3 + 선택 3 = 총 6개) ──────────────────
         _sub_keys = ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "tc_custom_priv", "tc_bigdata")
@@ -4329,10 +4369,23 @@ body.auth-login-splash.auth-splash-screen [data-testid="stStatusWidget"] {
 }
 .ns-sp-copy2 em { font-style: normal; color: #10b981; }
 
-/* ── 하단 버튼 영역 (메인 로그인/회원가입) ── */
+/* ── 하단 버튼 영역: 화면 최하단 Fixed 고정 ── */
 .ns-sp-btn-section {
+  position: fixed !important;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 10px 20px max(24px, env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, #0f172a 55%, rgba(15,23,42,0.95) 78%, transparent 100%);
   animation: ns-sp-rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;
-  padding: 0.5rem 0 0.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* 버튼 섹션 높이만큼 비주얼 하단 여백 확보 */
+.ns-sp-visual {
+  padding-bottom: 150px !important;
 }
 
 /* ── 메인 버튼: 글래스모피즘 ── */
@@ -4471,24 +4524,32 @@ body.auth-login-splash .ns-sp-close-btn [data-testid="stButton"] [data-testid="s
   font-size: 0.76rem !important;
 }
 
-/* ── 게스트 버튼 (비로그인 체험) ── */
-body.auth-login-splash .ns-sp-guest-btn [data-testid="stButton"] > button {
-  background: transparent !important;
-  border: none !important;
-  color: rgba(255,255,255,0.30) !important;
-  font-size: 0.73rem !important;
-  font-weight: 500 !important;
-  height: auto !important;
-  min-height: 30px !important;
-  text-decoration: underline !important;
-  text-underline-offset: 3px !important;
+/* ── 드로어 섹션: 하단에서 슬라이드업 ── */
+.ns-sp-drawer-section {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: linear-gradient(180deg, #1e2e42 0%, #0f1f30 100%);
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  padding: 16px 4px max(28px, env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -12px 60px rgba(0,0,0,0.65);
+  animation: ns-sp-slide-up 0.40s cubic-bezier(0.22,1,0.36,1) both;
 }
-body.auth-login-splash .ns-sp-guest-btn [data-testid="stButton"] [data-testid="stMarkdownContainer"] p {
-  color: rgba(255,255,255,0.30) !important;
-  font-size: 0.73rem !important;
-  text-decoration: underline !important;
+/* 드로어 오버레이: 배경 다크닝 (오버레이 div로 처리) */
+.ns-sp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.52);
+  z-index: 150;
+  animation: ns-sp-fadein 0.28s ease both;
 }
-
+@keyframes ns-sp-slide-up {
+  from { transform: translateY(100%); opacity: 0.6; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
 @keyframes ns-sp-rise {
   from { transform: translateY(22px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
@@ -4542,7 +4603,7 @@ body.auth-login-splash .ns-sp-guest-btn [data-testid="stButton"] [data-testid="s
         # ═══════════════════════════════════════════════════════════════
 
         if not st.session_state.get("splash_drawer_open"):
-            # ── 메인 버튼 섹션: 로그인 / 회원가입 ──
+            # ── 메인 버튼 섹션: 로그인 / 회원가입 (화면 최하단 fixed) ──
             st.markdown('<div class="ns-sp-btn-section">', unsafe_allow_html=True)
             if st.button("로그인", key="sp_btn_login", use_container_width=True, type="primary"):
                 st.session_state["splash_drawer_open"] = True
@@ -4556,19 +4617,12 @@ body.auth-login-splash .ns-sp-guest-btn [data-testid="stButton"] [data-testid="s
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
-            # 게스트 체험 링크
-            st.markdown('<div class="ns-sp-guest-btn">', unsafe_allow_html=True)
-            if st.button("로그인 없이 둘러보기", key="sp_btn_guest", use_container_width=True):
-                st.session_state["auth_splash_done"] = True
-                st.session_state["auth_mode"] = "login"
-                st.session_state["auth_phase"] = "sheet"
-                st.session_state["auth_sheet_open"] = False
-                st.session_state["auth_guest_step"] = True
-                st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
-
         else:
-            # ── 드로어 열림: 소셜 버튼 4개 ──
+            # ── 드로어 열림: 오버레이 + 슬라이드업 래퍼 + 소셜 버튼 4개 ──
+            # 배경 오버레이 (fadein CSS)
+            st.markdown('<div class="ns-sp-overlay"></div>', unsafe_allow_html=True)
+            # 드로어 래퍼 시작 (slide-up CSS)
+            st.markdown('<div class="ns-sp-drawer-section">', unsafe_allow_html=True)
             # 드로어 헤더
             st.markdown(
                 f"""
@@ -4643,8 +4697,11 @@ body.auth-login-splash .ns-sp-guest-btn [data-testid="stButton"] [data-testid="s
                 st.session_state["splash_drawer_open"] = False
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
+            # 드로어 래퍼 닫기
+            st.markdown("</div>", unsafe_allow_html=True)  # ns-sp-drawer-section
 
         st.stop()
+
     # ---------- 슬라이드업 느낌의 로그인 시트 ----------
     if st.session_state.get("auth_sheet_open") and not st.session_state.get("auth_guest_step"):
         st.components.v1.html(
