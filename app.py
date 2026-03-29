@@ -4251,14 +4251,6 @@ try {
             _ph_bk_lbl = "카카오로 계속하기"
             _ph_be_lbl = "이메일로 계속하기"
 
-        # ── #61 Plan-B: st.markdown → Parent DOM 직접 주입 (cross-iframe 제거) ──
-        st.components.v1.html(
-            """<script>
-try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e) {}
-</script>""",
-            height=0,
-        )
-
         # noinspection HtmlRequiredLangAttribute
         st.markdown(
             (
@@ -4449,117 +4441,63 @@ body.auth-splash-screen .stMainBlockContainer {
             on_change=_on_splash_trigger,
         )
 
-        # ── #65 Plan-C JS Bridge (st.components.v1.html 전용 — 반드시 실행됨) ──
-        st.components.v1.html(
-            """<script>
-(function() {
-  var pw = window.parent;          /* 부모 window */
-  var pd = pw.document;            /* 부모 document */
-  var pc = pw.console;             /* 부모 console → F12에서 직접 보임 */
-
-  /* ✅ 생존 신고: 이 줄이 F12 콘솔에 찍혀야 JS가 정상 로드된 것 */
-  pc.log('\uD83D\uDE80 [System] Hidden Trigger JS Loaded Successfully!');
-
-  /* ✅ 전역 클릭 추적기: 캡처링 단계에서 모든 클릭 감지 */
-  pd.addEventListener('click', function(e) {
-    pc.log('\uD83D\uDD34 \ud130\uce58\ub41c \uc694\uc18c:', e.target.tagName,
-           '| id:', e.target.id,
-           '| class:', e.target.className.toString().substring(0, 60));
-  }, true);
-
-  function getTrigger() {
-    var wrap = pd.querySelector('[data-testid="stTextInput"]');
-    return wrap ? wrap.querySelector('input') : null;
-  }
-
-  function fireAction(action) {
-    pc.log('\uD83D\uDFE2 [fireAction] \ud638\ucd9c:', action);
-    var inp = getTrigger();
-    if (!inp) { pc.warn('\u26A0\uFE0F [fireAction] stTextInput\uc744 \ucc3e\uc9c0 \ubabb\ud568!'); return; }
-    try {
-      var setter = Object.getOwnPropertyDescriptor(
-        pw.HTMLInputElement.prototype, 'value'
-      ).set;
-      setter.call(inp, action + ':' + Date.now());
-      /* pw.Event: 부모 window 컨텍스트로 생성 → React가 반드시 인식 */
-      inp.dispatchEvent(new pw.Event('input',  { bubbles: true }));
-      inp.dispatchEvent(new pw.Event('change', { bubbles: true }));
-      pc.log('\u2705 [fireAction] \uc774\ubca4\ud2b8 \ubc1c\uc0ac \uc644\ub8cc:', action);
-    } catch(e) { pc.error('\uD83D\uDEA8 [fireAction] \uc2e4\ud328:', e); }
-  }
-
-  function bindAll() {
-    var btnLogin  = pd.getElementById('gluc-main-login');
-    var btnSignup = pd.getElementById('gluc-main-signup');
-    if (btnLogin && !btnLogin.__gBound) {
-      btnLogin.__gBound = true;
-      pc.log('\uD83D\uDD17 [bind] gluc-main-login \ubc14\uc778\ub529 \uc644\ub8cc');
-      btnLogin.addEventListener('click', function(e) {
-        pc.log('\uD83D\uDC49 [click] gluc-main-login');
-        e.stopPropagation(); fireAction('open_login');
-      });
-      btnLogin.addEventListener('touchend', function(e) {
-        pc.log('\uD83D\uDC49 [touch] gluc-main-login');
-        e.preventDefault(); e.stopPropagation(); fireAction('open_login');
-      }, { passive: false });
-    }
-    if (btnSignup && !btnSignup.__gBound) {
-      btnSignup.__gBound = true;
-      pc.log('\uD83D\uDD17 [bind] gluc-main-signup \ubc14\uc778\ub529 \uc644\ub8cc');
-      btnSignup.addEventListener('click', function(e) {
-        pc.log('\uD83D\uDC49 [click] gluc-main-signup');
-        e.stopPropagation(); fireAction('open_signup');
-      });
-      btnSignup.addEventListener('touchend', function(e) {
-        pc.log('\uD83D\uDC49 [touch] gluc-main-signup');
-        e.preventDefault(); e.stopPropagation(); fireAction('open_signup');
-      }, { passive: false });
-    }
-    [['gluc-bg','google'],['gluc-bn','naver'],
-     ['gluc-bk','kakao'],['gluc-be','email']].forEach(function(p) {
-      var btn = pd.getElementById(p[0]);
-      if (btn && !btn.__gBound) {
-        btn.__gBound = true;
-        pc.log('\uD83D\uDD17 [bind]', p[0], '\ubc14\uc778\ub529 \uc644\ub8cc');
-        (function(prov) {
-          btn.addEventListener('click', function(e) {
-            pc.log('\uD83D\uDC49 [click]', prov);
-            e.stopPropagation(); fireAction(prov);
-          });
-          btn.addEventListener('touchend', function(e) {
-            pc.log('\uD83D\uDC49 [touch]', prov);
-            e.preventDefault(); e.stopPropagation(); fireAction(prov);
-          }, { passive: false });
-        })(p[1]);
-      }
-    });
-    var ov = pd.getElementById('gluc-overlay');
-    if (ov && !ov.__gBound) {
-      ov.__gBound = true;
-      pc.log('\uD83D\uDD17 [bind] gluc-overlay \ubc14\uc778\ub529 \uc644\ub8cc');
-      ov.addEventListener('click', function(e) {
-        e.stopPropagation(); fireAction('close_drawer');
-      });
-      ov.addEventListener('touchend', function(e) {
-        e.preventDefault(); e.stopPropagation(); fireAction('close_drawer');
-      }, { passive: false });
-    }
-  }
-
-  bindAll();
-  [50, 150, 300, 500, 800, 1500].forEach(function(t) {
-    setTimeout(bindAll, t);
-  });
-  try {
-    new pw.MutationObserver(function() { bindAll(); }).observe(
-      pd.body || pd.documentElement, { childList: true, subtree: true }
-    );
-  } catch(e) {}
-})();
-</script>""",
-            height=0,
+        # ── #66 Plan-D: SVG onload 트로이 목마 (Iframe 없이 Parent DOM 직접 실행) ──
+        # html.escape(quote=True)로 " → &quot; 변환 → onload 속성 안 안전하게 삽입
+        _svg_js = (
+            "(function(){"
+            "try{document.body.classList.add('auth-splash-screen');}catch(z){}"
+            "if(document.body.__glucInit)return;"
+            "document.body.__glucInit=true;"
+            "var _c=window.console;"
+            "_c.log('\uD83D\uDE80 [Trojan] JS Executed directly in Parent DOM!');"
+            "var idMap={"
+            "'gluc-main-login':'open_login',"
+            "'gluc-main-signup':'open_signup',"
+            "'gluc-overlay':'close_drawer',"
+            "'gluc-bg':'google',"
+            "'gluc-bn':'naver',"
+            "'gluc-bk':'kakao',"
+            "'gluc-be':'email'"
+            "};"
+            "function fire(a){"
+            "_c.log('\uD83D\uDFE2 fire:',a);"
+            "var w=document.querySelector('[data-testid=\"stTextInput\"]'),"
+            "inp=w?w.querySelector('input'):null;"
+            "if(!inp){_c.warn('\u26A0\uFE0F no input');return;}"
+            "try{"
+            "Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value')"
+            ".set.call(inp,a+':'+Date.now());"
+            "inp.dispatchEvent(new Event('input',{bubbles:true}));"
+            "inp.dispatchEvent(new Event('change',{bubbles:true}));"
+            "_c.log('\u2705 React Trigger \ubc1c\uc0ac \uc644\ub8cc:',a);"
+            "}catch(ex){_c.error('\uD83D\uDEA8',ex);}"
+            "}"
+            "function find(el){"
+            "if(!el||!el.closest)return null;"
+            "var ids=Object.keys(idMap),i;"
+            "for(i=0;i<ids.length;i++){if(el.closest('#'+ids[i]))return ids[i];}"
+            "return null;"
+            "}"
+            "document.body.addEventListener('click',function(e){"
+            "var id=find(e.target);if(!id)return;"
+            "_c.log('\uD83D\uDD34 click:',id);"
+            "e.stopPropagation();fire(idMap[id]);"
+            "},true);"
+            "document.body.addEventListener('touchend',function(e){"
+            "var id=find(e.target);if(!id)return;"
+            "_c.log('\uD83D\uDD34 touch:',id);"
+            "e.preventDefault();e.stopPropagation();fire(idMap[id]);"
+            "},{passive:false,capture:true});"
+            "_c.log('\u2705 [Trojan] \ub9ac\uc2a4\ub108 \ub4f1\ub85d \uc644\ub8cc');"
+            "})()"
+        )
+        _svg_attr = html_module.escape(_svg_js, quote=True)
+        st.markdown(
+            f'<svg onload="{_svg_attr}" style="display:none;"></svg>',
+            unsafe_allow_html=True,
         )
 
+        # --- 하단에 남은 구 components.v1.html 잔재 삭제 표시 ---
         st.stop()
 
     # ---------- 슬라이드업 느낌의 로그인 시트 ----------
