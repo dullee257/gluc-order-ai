@@ -4122,7 +4122,7 @@ if not st.session_state['logged_in']:
       flex: 0 0 auto !important;
       max-width: 52px !important;
     }
-    /* Heroicons Chevron Right 스타일 SVG — 글자 숨김 */
+    /* #80: Chevron — SVG만 background-image(붉은 베이스로 위치 확인) + 흰색 삼각 */
     body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"] {
       font-size: 0 !important;
       line-height: 0 !important;
@@ -4132,7 +4132,11 @@ if not st.session_state['logged_in']:
       height: 44px !important;
       padding: 0 !important;
       border: none !important;
-      background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23e2e8f0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 4.5l7.5 7.5-7.5 7.5'/%3E%3C/svg%3E") center / 22px 22px no-repeat !important;
+      background-color: #b91c1c !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z'/%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      background-size: 22px 22px !important;
       box-shadow: none !important;
     }
     body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"] p,
@@ -4140,12 +4144,28 @@ if not st.session_state['logged_in']:
       opacity: 0 !important;
       font-size: 0 !important;
     }
+    /* #80: 약관 상세 — 목록용 overflow:hidden 상쇄 + 천장 밀착 */
+    body.auth-login-splash.auth-terms-page.auth-terms-detail-page,
+    body.auth-login-splash.auth-terms-page.auth-terms-detail-page .stApp,
+    body.auth-login-splash.auth-terms-page.auth-terms-detail-page [data-testid="stAppViewContainer"],
+    body.auth-login-splash.auth-terms-page.auth-terms-detail-page section[tabindex="0"] {
+      overflow: visible !important;
+      height: auto !important;
+      min-height: 100dvh !important;
+      max-height: none !important;
+    }
+    body.auth-login-splash.auth-terms-page.auth-terms-detail-page .block-container {
+      overflow: visible !important;
+      height: auto !important;
+      min-height: 100dvh !important;
+      padding-top: 0 !important;
+      margin-top: -100px !important;
+    }
     /* #79: 약관 상세 — 상단 여백 제거 + 스크롤 영역 + sticky 헤더 */
     body.auth-login-splash.auth-terms-detail-page .block-container,
     body.auth-login-splash.auth-terms-detail-page [data-testid="stAppViewContainer"],
     body.auth-login-splash.auth-terms-detail-page section[tabindex="0"] {
       padding-top: 0 !important;
-      margin-top: 0 !important;
     }
     body.auth-login-splash.auth-terms-detail-page [data-testid="stMain"] > div {
       padding-top: 0 !important;
@@ -4160,10 +4180,11 @@ if not st.session_state['logged_in']:
       padding: 0 0 8px 0 !important;
       border-bottom: 1px solid rgba(255,255,255,0.12);
     }
+    body.auth-login-splash.auth-terms-page.auth-terms-detail-page section[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"].tc-detail-scroll-root,
     body.auth-login-splash.auth-terms-detail-page section[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"] {
-      max-height: calc(100vh - 80px) !important;
-      max-height: calc(100dvh - 80px) !important;
-      overflow-y: auto !important;
+      max-height: calc(100vh - 100px) !important;
+      max-height: calc(100dvh - 100px) !important;
+      overflow-y: scroll !important;
       overflow-x: hidden !important;
       -webkit-overflow-scrolling: touch !important;
       margin-top: 0 !important;
@@ -4254,9 +4275,10 @@ try {
   window.parent.document.body.classList.remove('auth-splash-screen');
 } catch(e) {}
 (function(){
+  var doc = window.parent.document;
   function markStickyHeader() {
     try {
-      var m = window.parent.document.querySelector('section[data-testid="stMain"]');
+      var m = doc.querySelector('section[data-testid="stMain"]');
       if (!m) return;
       var btn = m.querySelector('button[kind="secondary"]');
       if (!btn) return;
@@ -4264,9 +4286,46 @@ try {
       if (ec) ec.classList.add('tc-detail-header-sticky');
     } catch(e) {}
   }
-  setTimeout(markStickyHeader, 0);
-  setTimeout(markStickyHeader, 80);
-  setTimeout(markStickyHeader, 250);
+  function stripOverflowHiddenAncestors() {
+    try {
+      ['body','.stApp','[data-testid="stAppViewContainer"]','section[tabindex="0"]','.block-container','[data-testid="stMain"]'].forEach(function(sel) {
+        var el = doc.querySelector(sel);
+        if (!el) return;
+        el.style.setProperty('overflow','visible','important');
+        el.style.setProperty('overflow-x','visible','important');
+        el.style.setProperty('overflow-y','visible','important');
+      });
+    } catch(e) {}
+  }
+  function markDetailScrollRoot() {
+    try {
+      var main = doc.querySelector('section[data-testid="stMain"]');
+      if (!main) return;
+      var borders = main.querySelectorAll('[data-testid="stVerticalBlockBorderWrapper"]');
+      if (!borders.length) return;
+      var last = borders[borders.length - 1];
+      last.classList.add('tc-detail-scroll-root');
+      last.style.setProperty('overflow-y','scroll','important');
+      last.style.setProperty('overflow-x','hidden','important');
+      last.style.setProperty('max-height','calc(100dvh - 100px)','important');
+      last.style.setProperty('-webkit-overflow-scrolling','touch');
+    } catch(e) {}
+  }
+  function detailRun() {
+    stripOverflowHiddenAncestors();
+    markDetailScrollRoot();
+    markStickyHeader();
+  }
+  detailRun();
+  [0,80,200,450].forEach(function(ms){ setTimeout(detailRun, ms); });
+  try {
+    var main = doc.querySelector('section[data-testid="stMain"]');
+    if (main && !window.__glucTermsDetailMO) {
+      window.__glucTermsDetailMO = true;
+      var mo = new MutationObserver(function(){ detailRun(); });
+      mo.observe(main, { childList: true, subtree: true, attributes: true });
+    }
+  } catch(e) {}
 })();
 </script>""",
             height=0,
@@ -4310,9 +4369,10 @@ try {
         st.components.v1.html(
             """<script>
 (function() {
+  var doc = window.parent.document;
   function tagTermsScroll() {
     try {
-      var m = window.parent.document.querySelector('section[data-testid="stMain"]');
+      var m = doc.querySelector('section[data-testid="stMain"]');
       if (!m) return;
       var w = m.querySelector('[data-testid="stVerticalBlockBorderWrapper"]');
       if (w) w.classList.add('tc-terms-scroll-only');
@@ -4320,23 +4380,75 @@ try {
   }
   function tagTermItemRows() {
     try {
-      var m = window.parent.document.querySelector('section[data-testid="stMain"]');
+      var m = doc.querySelector('section[data-testid="stMain"]');
       if (!m) return;
       var w = m.querySelector('.tc-terms-scroll-only');
       if (!w) return;
       w.querySelectorAll('[data-testid="stHorizontalBlock"]').forEach(function(el) {
         if (el.parentElement && el.parentElement.classList.contains('tc-item-row')) return;
-        var wrap = document.createElement('div');
+        var wrap = doc.createElement('div');
         wrap.className = 'tc-item-row';
         el.parentNode.insertBefore(wrap, el);
         wrap.appendChild(el);
       });
     } catch(e) {}
   }
-  tagTermsScroll();
-  tagTermItemRows();
-  setTimeout(function(){ tagTermsScroll(); tagTermItemRows(); }, 50);
-  setTimeout(function(){ tagTermsScroll(); tagTermItemRows(); }, 200);
+  var svgChevron = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z'/%3E%3C/svg%3E";
+  function applyFlexRows() {
+    try {
+      var w = doc.querySelector('.tc-terms-scroll-only');
+      if (!w) return;
+      w.querySelectorAll('[data-testid="stHorizontalBlock"]').forEach(function(hb) {
+        hb.style.setProperty('display','flex','important');
+        hb.style.setProperty('flex-direction','row','important');
+        hb.style.setProperty('align-items','center','important');
+        hb.style.setProperty('justify-content','space-between','important');
+        hb.style.setProperty('flex-wrap','nowrap','important');
+        hb.style.setProperty('width','100%','important');
+        var pr = hb.parentElement;
+        if (pr && pr.classList && pr.classList.contains('tc-item-row')) {
+          pr.style.setProperty('display','flex','important');
+          pr.style.setProperty('flex-direction','row','important');
+          pr.style.setProperty('align-items','center','important');
+          pr.style.setProperty('justify-content','space-between','important');
+          pr.style.setProperty('width','100%','important');
+        }
+      });
+    } catch(e) {}
+  }
+  function paintChevronButtons() {
+    try {
+      var w = doc.querySelector('.tc-terms-scroll-only');
+      if (!w) return;
+      w.querySelectorAll('[data-testid="stHorizontalBlock"] [data-testid="column"]:last-child [data-testid="stButton"] > button').forEach(function(btn) {
+        btn.style.setProperty('background-color','#b91c1c','important');
+        btn.style.setProperty('background-image','url('+svgChevron+')','important');
+        btn.style.setProperty('background-repeat','no-repeat','important');
+        btn.style.setProperty('background-position','center','important');
+        btn.style.setProperty('background-size','22px 22px','important');
+        btn.style.setProperty('min-width','44px','important');
+        btn.style.setProperty('min-height','44px','important');
+        btn.style.setProperty('color','transparent','important');
+        btn.style.setProperty('font-size','0','important');
+      });
+    } catch(e) {}
+  }
+  function runAll() {
+    tagTermsScroll();
+    tagTermItemRows();
+    applyFlexRows();
+    paintChevronButtons();
+  }
+  runAll();
+  [50,120,300,600].forEach(function(ms){ setTimeout(runAll, ms); });
+  try {
+    var main = doc.querySelector('section[data-testid="stMain"]');
+    if (main && !window.__glucTermsListMO) {
+      window.__glucTermsListMO = true;
+      var mo = new MutationObserver(function(){ runAll(); });
+      mo.observe(main, { childList: true, subtree: true, attributes: true });
+    }
+  } catch(e) {}
 })();
 </script>""",
             height=0,
