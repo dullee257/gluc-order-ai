@@ -3618,7 +3618,12 @@ if not st.session_state['logged_in']:
     body.auth-login-splash footer { visibility: hidden !important; height: 0 !important; min-height: 0 !important;
       overflow: hidden !important; margin: 0 !important; padding: 0 !important; border: none !important; }
     body.auth-login-splash [data-testid="stDecoration"] { display: none !important; }
-    body.auth-login-splash .block-container { padding-top: 0.75rem !important; max-width: 100% !important; }
+    /* #76: 상단 죽은 공간 제거 — 스플래시/약관 공통 */
+    body.auth-login-splash [data-testid="stHeader"],
+    body.auth-login-splash [data-testid="stAppViewContainer"],
+    body.auth-login-splash section[tabindex="0"],
+    body.auth-login-splash .main { padding-top: 0 !important; margin-top: 0 !important; }
+    body.auth-login-splash .block-container { padding-top: 0 !important; margin-top: 0 !important; max-width: 100% !important; }
     /* ── 프리미엄 랜딩 페이지: 다크 네이비 스킨 ── */
     body.auth-login-splash .stApp {
       background: #0f172a !important;
@@ -3874,21 +3879,22 @@ if not st.session_state['logged_in']:
     body.auth-login-splash.auth-terms-page .block-container {
       height: 100dvh !important;
       overflow: hidden !important;
-      padding-bottom: 140px !important;
+      padding-top: 0 !important;
+      padding-bottom: 120px !important;
       display: flex !important;
       flex-direction: column !important;
       scrollbar-width: thin !important;
       min-height: 0 !important;
     }
-    /* #59: 45vh 스크롤은 약관 6개 박스에만 (JS로 .tc-terms-scroll-only 부여) */
+    /*     #76: 약관 본문 max-height 제한 + 스크롤 — 전체동의·CTA 확보 */
     body.auth-login-splash.auth-terms-page .tc-terms-scroll-only {
-      max-height: 45vh !important;
+      max-height: min(38vh, calc(100dvh - 300px)) !important;
       min-height: 0 !important;
       overflow-y: auto !important;
       overflow-x: hidden !important;
-      flex: 0 1 auto !important;
+      flex: 1 1 auto !important;
       border-color: rgba(255,255,255,0.14) !important;
-      margin: 0 0 10px 0 !important;
+      margin: 0 0 8px 0 !important;
       -webkit-overflow-scrolling: touch !important;
     }
     body.auth-login-splash.auth-terms-page .tc-terms-scroll-only::-webkit-scrollbar {
@@ -3906,7 +3912,8 @@ if not st.session_state['logged_in']:
       overflow: visible !important;
       position: relative !important;
       z-index: 120 !important;
-      margin-bottom: 120px !important;
+      margin-bottom: 96px !important;
+      margin-top: 4px !important;
     }
     /* CTA 버튼 영역: 화면 최하단 고정 */
     body.auth-login-splash.auth-terms-page div:has(> [data-testid="stButton"] > button[kind="primary"]) {
@@ -3987,9 +3994,9 @@ if not st.session_state['logged_in']:
       color: inherit !important;
       font-weight: 800 !important;
     }
-    /* ── 약관 페이지 상단 여백 최소화 ── */
+    /* ── 약관 페이지 상단 여백 0 (#76) ── */
     body.auth-login-splash.auth-terms-page .block-container {
-      padding-top: 0.25rem !important;
+      padding-top: 0 !important;
     }
     /* ── 약관 expander 내부 테이블/텍스트 흰색 (검은 글씨 겹침 방지) ── */
     body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] table,
@@ -4252,19 +4259,23 @@ try {
             _ph_bk_lbl = "🟡  카카오로 계속하기"
             _ph_be_lbl = "✉️  이메일로 계속하기"
 
-        # Plan #75: 오버레이 터치 통과 + 드로어 여백·pointer-events 강제
+        # Plan #76: 상단 정렬·여백 0, 비주얼 85%·-50px, 교차내비는 별도 버튼
         _splash_css = (
-            "<style data-gluc-plan-h='75'>\n"
+            "<style data-gluc-plan-h='76'>\n"
             "@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');\n"
             "body.auth-login-splash:not(.auth-terms-page){overflow:hidden!important;"
-            "max-height:100dvh!important;height:100dvh!important;}\n"
+            "max-height:100dvh!important;height:100dvh!important;margin:0!important;padding:0!important;}\n"
+            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stAppViewContainer'],"
+            "body.auth-login-splash:not(.auth-terms-page) section[tabindex='0'],"
+            "body.auth-login-splash:not(.auth-terms-page) .main{"
+            "padding-top:0!important;margin-top:0!important;}\n"
             "body.auth-login-splash:not(.auth-terms-page) .stApp,"
             "body.auth-login-splash:not(.auth-terms-page) [data-testid='stAppViewContainer'],"
             "body.auth-login-splash:not(.auth-terms-page) section[tabindex='0']{"
             "background:#0f172a!important;min-height:100dvh!important;}\n"
             "body.auth-login-splash:not(.auth-terms-page) .block-container{"
             "overflow-x:hidden!important;overflow-y:auto!important;background:#0f172a!important;"
-            "max-width:100%!important;padding:0 16px!important;"
+            "max-width:100%!important;padding:0 16px!important;margin-top:0!important;padding-top:0!important;"
             "padding-bottom:max(120px,env(safe-area-inset-bottom,0px))!important;}\n"
             "body.auth-login-splash:not(.auth-terms-page) .block-container:has(.gluc-phase-drawer){"
             "padding-bottom:max(20px,calc(12px + env(safe-area-inset-bottom,0px)))!important;}\n"
@@ -4277,14 +4288,15 @@ try {
             "{display:none!important;}\n"
             ".gluc-phase-main,.gluc-phase-drawer{display:none!important;}\n"
             ".ns-sp-visual{display:flex;flex-direction:column;align-items:center;text-align:center;"
-            "padding:1.25rem 0.75rem 0.5rem;padding-bottom:100px!important;position:relative;}\n"
+            "padding:0 0.75rem 0.35rem;padding-bottom:88px!important;position:relative;"
+            "margin-top:-50px!important;transform:translateY(0);}\n"
             ".ns-sp-glow{display:none!important;}\n"
-            ".ns-sp-logo{font-size:clamp(2.2rem,8vw,3rem);line-height:1;margin-bottom:8px;}\n"
-            ".ns-sp-title{font-family:'Noto Sans KR',sans-serif;font-size:clamp(1.1rem,4.5vw,1.5rem);"
+            ".ns-sp-logo{font-size:clamp(1.87rem,6.8vw,2.55rem);line-height:1;margin-bottom:6px;}\n"
+            ".ns-sp-title{font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.94rem,3.8vw,1.28rem);"
             "font-weight:900;color:#fff;margin-bottom:2px;}\n"
-            ".ns-sp-tagline{font-size:clamp(0.55rem,2vw,0.65rem);font-weight:500;"
-            "color:rgba(255,255,255,0.4);letter-spacing:0.1em;margin-bottom:10px;}\n"
-            ".ns-sp-chart-wrap{width:100%;max-width:260px;margin:0 auto 8px;}\n"
+            ".ns-sp-tagline{font-size:clamp(0.47rem,1.7vw,0.55rem);font-weight:500;"
+            "color:rgba(255,255,255,0.4);letter-spacing:0.1em;margin-bottom:8px;}\n"
+            ".ns-sp-chart-wrap{width:85%;max-width:221px;margin:0 auto 6px;}\n"
             ".ns-sp-path-safe{stroke-dasharray:none;stroke-dashoffset:0;}\n"
             ".ns-sp-path-spike{stroke-dasharray:none;stroke-dashoffset:0;}\n"
             ".ns-sp-glow-line{opacity:1;}\n"
@@ -4360,10 +4372,11 @@ try {
             "background:#334155!important;border:1px solid #475569!important;color:#f1f5f9!important;}\n"
             "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] > button[kind='tertiary']{"
-            "width:100%!important;height:28px!important;min-height:28px!important;"
+            "width:100%!important;height:auto!important;min-height:30px!important;"
             "background:transparent!important;border:none!important;"
-            "color:rgba(255,255,255,0.65)!important;font-size:0.68rem!important;"
-            "font-weight:600!important;padding:2px!important;}\n"
+            "color:rgba(147,197,253,0.95)!important;font-size:0.62rem!important;"
+            "font-weight:600!important;padding:6px 4px!important;line-height:1.2!important;"
+            "white-space:normal!important;}\n"
             "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{"
             "color:inherit!important;margin:0!important;}\n"
@@ -4535,14 +4548,26 @@ try {
                 st.rerun()
             
 
-            if st.button(
-                "← 뒤로",
-                key="gluc_sp_back",
-                use_container_width=True,
-                type="tertiary",
-            ):
-                st.session_state["splash_drawer_open"] = False
-                st.rerun()
+            if _splash_intent == "login":
+                if st.button(
+                    "처음이신가요? 회원가입 바로가기",
+                    key="gluc_sp_nav_signup",
+                    use_container_width=True,
+                    type="tertiary",
+                ):
+                    st.session_state["splash_auth_intent"] = "signup"
+                    st.session_state["auth_intent"] = "signup"
+                    st.rerun()
+            else:
+                if st.button(
+                    "이미 회원이신가요? 로그인 바로가기",
+                    key="gluc_sp_nav_login",
+                    use_container_width=True,
+                    type="tertiary",
+                ):
+                    st.session_state["splash_auth_intent"] = "login"
+                    st.session_state["auth_intent"] = "login"
+                    st.rerun()
 
         st.stop()
 
