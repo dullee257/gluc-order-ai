@@ -4186,7 +4186,11 @@ try {
 
         st.stop()
 
-    # ---------- 프리미엄 랜딩 화면 (풀스크린 Zero-Scroll + Bottom Drawer) ----------
+    # ══════════════════════════════════════════════════════════════════════════
+    # Plan E: 순수 st.button + CSS 스플래시 화면 (JS 브릿지 완전 폐기)
+    # JS onload/trigger/SVG trojan 방식을 전량 제거하고,
+    # Streamlit 네이티브 위젯(st.button)으로만 통신한다.
+    # ══════════════════════════════════════════════════════════════════════════
     if not st.session_state.get("auth_splash_done"):
         if "splash_drawer_open" not in st.session_state:
             st.session_state["splash_drawer_open"] = False
@@ -4195,311 +4199,452 @@ try {
         if "auth_intent" not in st.session_state:
             st.session_state["auth_intent"] = st.session_state.get("splash_auth_intent", "login")
 
-        # ── #63 Plan-C: Native Input Setter — on_change 콜백 ──
-        def _on_splash_trigger():
-            _val = str(st.session_state.get("gluc_splash_trigger", "") or "").strip()
-            if not _val:
-                return
-            # 즉시 초기화 (다음 rerun에서 재실행 방지)
-            st.session_state["gluc_splash_trigger"] = ""
-            action = _val.split(":")[0]
-            if action == "open_login":
-                st.session_state["splash_drawer_open"] = True
-                st.session_state["splash_auth_intent"] = "login"
-                st.session_state["auth_intent"] = "login"
-            elif action == "open_signup":
-                st.session_state["splash_drawer_open"] = True
-                st.session_state["splash_auth_intent"] = "signup"
-                st.session_state["auth_intent"] = "signup"
-            elif action == "close_drawer":
-                st.session_state["splash_drawer_open"] = False
-            elif action in ("google", "naver", "kakao", "email"):
-                _intent = st.session_state.get("splash_auth_intent", "login")
-                st.session_state["auth_intent"] = _intent
-                st.session_state["auth_mode"] = _intent
-                st.session_state["auth_splash_done"] = True
-                st.session_state["auth_sheet_open"] = True
-                if action in ("google", "naver", "kakao"):
-                    st.session_state["pending_social_provider"] = action
-                    st.session_state["auth_phase"] = "terms"
-                else:
-                    st.session_state["auth_phase"] = "sheet"
-                st.session_state["splash_drawer_open"] = False
-
-        _ov = " open" if st.session_state.get("splash_drawer_open") else ""
-        _dr = " open" if st.session_state.get("splash_drawer_open") else ""
-        # #59: 인텐트 단일 소스 — splash_auth_intent만 사용 (회원가입 드로어 문구 불일치 방지)
         _splash_intent = str(st.session_state.get("splash_auth_intent", "login")).strip()
         if _splash_intent not in ("login", "signup"):
             _splash_intent = "login"
         st.session_state["splash_auth_intent"] = _splash_intent
         st.session_state["auth_intent"] = _splash_intent
         _ai = _splash_intent
-        _int_js = _splash_intent.replace("\\", "\\\\").replace("'", "\\'")
+
         if _ai == "signup":
             _ph_d_title = "처음이신가요? Sign Up"
             _ph_d_sub = "3초 가입하기 → 7일 PRO 무료 체험 시작"
-            _ph_bg_lbl = "Google로 가입하기"
-            _ph_bn_lbl = "네이버로 가입하기"
-            _ph_bk_lbl = "카카오로 가입하기"
-            _ph_be_lbl = "이메일로 가입하기"
+            _ph_bg_lbl = "🔵  Google로 가입하기"
+            _ph_bn_lbl = "🟢  네이버로 가입하기"
+            _ph_bk_lbl = "🟡  카카오로 가입하기"
+            _ph_be_lbl = "✉️  이메일로 가입하기"
         else:
-            _ph_d_title = "반가워요! 로그인"
+            _ph_d_title = "반가워요!  로그인"
             _ph_d_sub = "3초 소셜 로그인으로 바로 시작하세요"
-            _ph_bg_lbl = "Google로 계속하기"
-            _ph_bn_lbl = "네이버로 계속하기"
-            _ph_bk_lbl = "카카오로 계속하기"
-            _ph_be_lbl = "이메일로 계속하기"
+            _ph_bg_lbl = "🔵  Google로 계속하기"
+            _ph_bn_lbl = "🟢  네이버로 계속하기"
+            _ph_bk_lbl = "🟡  카카오로 계속하기"
+            _ph_be_lbl = "✉️  이메일로 계속하기"
 
-        # noinspection HtmlRequiredLangAttribute
-        st.markdown(
-            (
-                """
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
-#gluc-splash-root*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-#gluc-splash-root{position:fixed;inset:0;z-index:2147483647;background:#0f172a;font-family:'Noto Sans KR',-apple-system,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent;}
-#gluc-splash-root .screen{position:relative;width:100%;height:100%;overflow:hidden;text-align:center;}
-#gluc-splash-root .visual{position:absolute;top:0;left:0;right:0;bottom:160px;height:calc(100% - 160px);min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding:12px 20px 0;z-index:1;}
-#gluc-splash-root .glow-bg{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:500px;height:52%;background:radial-gradient(ellipse at 50% 22%,rgba(16,185,129,0.19) 0%,transparent 65%);pointer-events:none;z-index:0;}
-#gluc-splash-root .logo{font-size:clamp(2.6rem,9vw,3.6rem);line-height:1;margin-bottom:9px;filter:drop-shadow(0 0 18px rgba(239,68,68,0.52));animation:rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.05s both;}
-#gluc-splash-root .title{font-size:clamp(1.25rem,5.2vw,1.65rem);font-weight:900;color:#ffffff;letter-spacing:-0.5px;margin-bottom:3px;animation:rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.18s both;}
-#gluc-splash-root .tagline{font-size:clamp(0.6rem,2.3vw,0.7rem);font-weight:500;color:rgba(255,255,255,0.34);letter-spacing:0.12em;margin-bottom:14px;animation:rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.3s both;}
-#gluc-splash-root .chart-wrap{width:100%;max-width:280px;max-height:40%;overflow:hidden;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;flex-shrink:1;animation:rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.42s both;}
-#gluc-splash-root .chart-wrap svg{width:100%;height:auto;}
-#gluc-splash-root .path-safe{stroke-dasharray:180;stroke-dashoffset:180;animation:draw 1.0s ease-out 0.75s forwards;}
-#gluc-splash-root .path-spike{stroke-dasharray:140;stroke-dashoffset:140;animation:draw 0.75s ease-in 1.75s forwards;}
-#gluc-splash-root .glow-line{opacity:0;animation:fadein 0.5s ease-out 2.4s forwards;}
-#gluc-splash-root .copy1{font-size:clamp(0.79rem,3.3vw,0.90rem);font-weight:700;color:rgba(255,255,255,0.66);line-height:1.5;margin-bottom:4px;animation:rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.54s both;}
-#gluc-splash-root .copy1 em{font-style:normal;color:#fbbf24;font-weight:800;}
-#gluc-splash-root .copy2{font-size:clamp(0.84rem,3.6vw,0.97rem);font-weight:800;color:#ffffff;line-height:1.45;animation:rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;}
-#gluc-splash-root .copy2 em{font-style:normal;color:#10b981;}
-#gluc-splash-root .btn-section{position:absolute;bottom:0;left:0;right:0;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:8px 20px;padding-bottom:max(20px,env(safe-area-inset-bottom,0px));z-index:2;animation:rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;}
-#gluc-splash-root .btn-main{width:100%;max-width:420px;height:54px;background:rgba(255,255,255,0.11);border:1px solid rgba(255,255,255,0.24);border-radius:16px;color:#ffffff;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.9rem,3.5vw,1.0rem);font-weight:800;cursor:pointer;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background 0.15s,transform 0.09s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;pointer-events:auto!important;position:relative;z-index:10;}
-#gluc-splash-root .btn-sub{width:100%;max-width:420px;height:46px;background:transparent;border:1.5px solid rgba(16,185,129,0.50);border-radius:14px;color:#34d399;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.80rem,3.1vw,0.88rem);font-weight:700;cursor:pointer;transition:background 0.15s,transform 0.09s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;pointer-events:auto!important;position:relative;z-index:10;}
-#gluc-splash-root .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.58);z-index:50;}
-#gluc-splash-root .overlay.open{display:block;}
-#gluc-splash-root .drawer{position:fixed;bottom:-100%;left:0;right:0;background:linear-gradient(180deg,#1e293b 0%,#0f1f30 100%);border-radius:24px 24px 0 0;border-top:1px solid rgba(255,255,255,0.10);padding:14px 22px max(28px,env(safe-area-inset-bottom,0px));z-index:100;transition:bottom 0.40s cubic-bezier(0.22,1,0.36,1);box-shadow:0 -10px 48px rgba(0,0,0,0.58);max-height:72vh;overflow-y:auto;}
-#gluc-splash-root .drawer.open{bottom:0;}
-#gluc-splash-root .handle{width:38px;height:4px;background:rgba(255,255,255,0.17);border-radius:2px;margin:0 auto 16px;}
-#gluc-splash-root .drawer-title{font-size:clamp(1.0rem,4.2vw,1.12rem);font-weight:900;color:#ffffff;text-align:center;margin-bottom:5px;letter-spacing:-0.02em;}
-#gluc-splash-root .drawer-sub{font-size:0.70rem;color:rgba(255,255,255,0.36);text-align:center;margin-bottom:16px;}
-#gluc-splash-root .social-btn{width:100%;height:52px;border-radius:14px;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.82rem,3.2vw,0.91rem);font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px;padding:0 18px;margin-bottom:9px;border:none;transition:transform 0.09s,filter 0.12s;letter-spacing:-0.01em;text-align:left;touch-action:manipulation;-webkit-tap-highlight-color:transparent;pointer-events:auto!important;position:relative;z-index:10;}
-#gluc-splash-root .social-btn:last-child{margin-bottom:0;}
-#gluc-splash-root .social-btn .ico{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-#gluc-splash-root .social-btn .lbl{flex:1;text-align:center;}
-#gluc-splash-root .btn-google{background:#ffffff;color:#3c4043;}
-#gluc-splash-root .btn-naver{background:#03C75A;color:#ffffff;}
-#gluc-splash-root .btn-kakao{background:#FEE500;color:#191919;}
-#gluc-splash-root .btn-email{background:rgba(16,185,129,0.18);color:#34d399;border:1px solid rgba(16,185,129,0.35);}
-@keyframes spin{to{transform:rotate(360deg);}}
-@keyframes rise{from{transform:translateY(22px);opacity:0;}to{transform:translateY(0);opacity:1;}}
-@keyframes draw{to{stroke-dashoffset:0;}}
-@keyframes fadein{to{opacity:1;}}
-@media screen and (max-height:750px){
-  #gluc-splash-root .logo{font-size:2.0rem!important;margin-bottom:5px;}
-  #gluc-splash-root .title{font-size:1.05rem!important;margin-bottom:2px;}
-  #gluc-splash-root .tagline{font-size:0.57rem!important;margin-bottom:8px;}
-  #gluc-splash-root .copy1{font-size:0.70rem!important;margin-bottom:2px;line-height:1.3;}
-  #gluc-splash-root .copy2{font-size:0.72rem!important;line-height:1.3;}
-  #gluc-splash-root .btn-main{height:48px!important;}
-  #gluc-splash-root .btn-sub{height:40px!important;}
-  #gluc-splash-root .chart-wrap{max-height:120px;}
-}
-@media screen and (max-height:600px){
-  #gluc-splash-root .logo{font-size:1.5rem!important;margin-bottom:3px;}
-  #gluc-splash-root .title{font-size:0.92rem!important;}
-  #gluc-splash-root .tagline{display:none!important;}
-  #gluc-splash-root .copy1,#gluc-splash-root .copy2{font-size:0.66rem!important;margin-bottom:1px;}
-  #gluc-splash-root .btn-main{height:44px!important;font-size:0.88rem!important;}
-  #gluc-splash-root .btn-sub{height:36px!important;font-size:0.78rem!important;}
-}
-</style>
-<div id="gluc-splash-root">
-<div class="glow-bg"></div>
-<div class="screen">
-  <div class="visual">
-    <div class="logo">🩸</div>
-    <div class="title">나의 혈당 기록소</div>
-    <div class="tagline">BLOOD GLUCOSE SCANNER AI</div>
-    <div class="chart-wrap">
-      <svg viewBox="0 0 280 108" width="100%" style="overflow:visible;height:auto;display:block;" aria-hidden="true">
-        <rect x="0" y="0" width="280" height="108" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-        <line x1="12" y1="26" x2="268" y2="26" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-        <line x1="12" y1="52" x2="268" y2="52" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-        <line x1="12" y1="78" x2="268" y2="78" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
-        <rect x="12" y="4" width="256" height="22" rx="4" fill="rgba(239,68,68,0.07)"/>
-        <text x="16" y="15" font-size="8" fill="rgba(239,68,68,0.55)" font-family="sans-serif">위험 &gt;140</text>
-        <rect x="12" y="46" width="256" height="32" rx="4" fill="rgba(16,185,129,0.07)"/>
-        <text x="16" y="58" font-size="8" fill="rgba(16,185,129,0.55)" font-family="sans-serif">정상 &lt;100</text>
-        <polyline class="glow-line" points="20,64 60,62 100,60 140,57 180,59 220,58 260,60" stroke="rgba(16,185,129,0.28)" stroke-width="9" stroke-linecap="round" fill="none"/>
-        <polyline class="path-safe" points="20,64 60,62 100,60 140,57 180,59 220,58 260,60" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        <polyline class="glow-line" points="20,64 55,60 90,50 120,18 145,6 168,22 200,46 235,57 260,60" stroke="rgba(239,68,68,0.22)" stroke-width="9" stroke-linecap="round" fill="none"/>
-        <polyline class="path-spike" points="20,64 55,60 90,50 120,18 145,6 168,22 200,46 235,57 260,60" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        <circle cx="22" cy="101" r="4" fill="#10b981"/>
-        <text x="30" y="104" font-size="8.5" fill="rgba(255,255,255,0.52)" font-family="sans-serif">식이섬유 먼저</text>
-        <circle cx="122" cy="101" r="4" fill="#ef4444"/>
-        <text x="130" y="104" font-size="8.5" fill="rgba(255,255,255,0.52)" font-family="sans-serif">탄수화물 먼저</text>
-      </svg>
-    </div>
-    <div class="copy1"><em>AI</em>가 당신의 식단을 감시합니다</div>
-    <div class="copy2"><em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em></div>
-  </div>
-  <div class="btn-section">
-    <button class="btn-main" id="gluc-main-login">로그인</button>
-    <button class="btn-sub" id="gluc-main-signup">회원가입</button>
-  </div>
-</div>
-<div class="overlay__OVERLAY_OPEN__" id="gluc-overlay"></div>
-<div class="drawer__DRAWER_OPEN__" id="gluc-drawer">
-  <div class="handle"></div>
-  <div class="drawer-title" id="gluc-d-title">__D_TITLE__</div>
-  <div class="drawer-sub" id="gluc-d-sub">__D_SUB__</div>
-  <button class="social-btn btn-google" id="gluc-bg">
-    <span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg></span>
-    <span class="lbl" id="gluc-bg-lbl">__BG_LBL__</span>
-  </button>
-  <button class="social-btn btn-naver" id="gluc-bn">
-    <span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/></svg></span>
-    <span class="lbl" id="gluc-bn-lbl">__BN_LBL__</span>
-  </button>
-  <button class="social-btn btn-kakao" id="gluc-bk">
-    <span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg"><path fill="#191919" d="M12 3C6.477 3 2 6.477 2 10.8c0 2.7 1.617 5.077 4.077 6.523l-.985 3.677 4.246-2.8A11.8 11.8 0 0 0 12 18.6c5.523 0 10-3.477 10-7.8S17.523 3 12 3z"/></svg></span>
-    <span class="lbl" id="gluc-bk-lbl">__BK_LBL__</span>
-  </button>
-  <button class="social-btn btn-email" id="gluc-be">
-    <span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="4" width="20" height="16" rx="3" stroke="#34d399" stroke-width="1.8"/><path d="M2 8l10 7 10-7" stroke="#34d399" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-    <span class="lbl" id="gluc-be-lbl">__BE_LBL__</span>
-  </button>
-</div>
-</div>
-"""
-            ).replace("__OVERLAY_OPEN__", _ov)
-            .replace("__DRAWER_OPEN__", _dr)
-            .replace("__D_TITLE__", html_module.escape(_ph_d_title))
-            .replace("__D_SUB__", html_module.escape(_ph_d_sub))
-            .replace("__BG_LBL__", html_module.escape(_ph_bg_lbl))
-            .replace("__BN_LBL__", html_module.escape(_ph_bn_lbl))
-            .replace("__BK_LBL__", html_module.escape(_ph_bk_lbl))
-            .replace("__BE_LBL__", html_module.escape(_ph_be_lbl)),
-            unsafe_allow_html=True,
-        )
-
-
-        # ── #63 Plan-C: CSS 정리 (Streamlit chrome 숨김 + 래퍼 pointer-events 제거) ──
+        # ── Plan E CSS: 스플래시 전체 UI (다크 네이비 전면 배경 + 버튼 스타일링) ──
         st.markdown(
             """
 <style>
-/* ① 숨김 트리거 input: 화면 밖 1px */
-body.auth-splash-screen [data-testid="stTextInput"] {
-  position: fixed !important;
-  left: -9999px !important;
-  top: 0 !important;
-  width: 1px !important;
-  height: 1px !important;
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
+
+/* ── 스플래시 전용: 다크 배경 + Streamlit chrome 숨김 ── */
+body.auth-login-splash.auth-splash-screen {
   overflow: hidden !important;
-  pointer-events: none !important;
-  opacity: 0 !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
 }
-/* ② Streamlit UI chrome 숨김 (스플래시 화면 전용) */
-body.auth-splash-screen header[data-testid="stHeader"],
-body.auth-splash-screen #MainMenu,
-body.auth-splash-screen .stDeployButton,
-body.auth-splash-screen footer[data-testid="stFooter"],
-body.auth-splash-screen [data-testid="stToolbar"],
-body.auth-splash-screen [data-testid="stDecoration"] {
+body.auth-login-splash.auth-splash-screen .stApp,
+body.auth-login-splash.auth-splash-screen [data-testid="stAppViewContainer"],
+body.auth-login-splash.auth-splash-screen section[tabindex="0"],
+body.auth-login-splash.auth-splash-screen .block-container {
+  overflow: hidden !important;
+  background: #0f172a !important;
+}
+body.auth-login-splash.auth-splash-screen header[data-testid="stHeader"],
+body.auth-login-splash.auth-splash-screen #MainMenu,
+body.auth-login-splash.auth-splash-screen footer,
+body.auth-login-splash.auth-splash-screen [data-testid="stToolbar"],
+body.auth-login-splash.auth-splash-screen [data-testid="stDecoration"],
+body.auth-login-splash.auth-splash-screen [data-testid="stStatusWidget"] {
   display: none !important;
 }
-/* ③ Streamlit 레이아웃 래퍼: pointer-events 차단 해제
-   (스플래시 루트가 z-index 최상위라 래퍼가 클릭을 가로채면 안 됨) */
-body.auth-splash-screen .stApp,
-body.auth-splash-screen [data-testid="stAppViewContainer"],
-body.auth-splash-screen [data-testid="stMain"],
-body.auth-splash-screen section[tabindex="0"],
-body.auth-splash-screen .block-container,
-body.auth-splash-screen .stMainBlockContainer {
-  pointer-events: none !important;
+
+/* ── 비주얼 영역 ── */
+.ns-sp-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2rem 1.2rem 0.5rem;
+  position: relative;
 }
-/* ④ 실제로 클릭받아야 하는 요소는 명시적으로 복원 */
-#gluc-splash-root,
-#gluc-splash-root * {
-  pointer-events: auto !important;
+.ns-sp-glow {
+  position: absolute;
+  top: -40px; left: 50%;
+  transform: translateX(-50%);
+  width: 340px; height: 300px;
+  background: radial-gradient(ellipse at 50% 28%, rgba(16,185,129,0.20) 0%, transparent 68%);
+  pointer-events: none;
 }
-#gluc-splash-root .glow-bg {
-  pointer-events: none !important;
+.ns-sp-logo {
+  font-size: clamp(2.6rem, 9vw, 3.5rem);
+  line-height: 1;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 0 20px rgba(239,68,68,0.52));
+  animation: ns-sp-rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.05s both;
 }
+.ns-sp-title {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: clamp(1.25rem, 5.2vw, 1.65rem);
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+  margin-bottom: 3px;
+  animation: ns-sp-rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.18s both;
+}
+.ns-sp-tagline {
+  font-size: clamp(0.60rem, 2.3vw, 0.70rem);
+  font-weight: 500;
+  color: rgba(255,255,255,0.34);
+  letter-spacing: 0.12em;
+  margin-bottom: 14px;
+  animation: ns-sp-rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.30s both;
+}
+.ns-sp-chart-wrap {
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto 10px;
+  animation: ns-sp-rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.42s both;
+}
+.ns-sp-path-safe {
+  stroke-dasharray: 180;
+  stroke-dashoffset: 180;
+  animation: ns-sp-draw 1.0s ease-out 0.75s forwards;
+}
+.ns-sp-path-spike {
+  stroke-dasharray: 140;
+  stroke-dashoffset: 140;
+  animation: ns-sp-draw 0.75s ease-in 1.75s forwards;
+}
+.ns-sp-glow-line {
+  opacity: 0;
+  animation: ns-sp-fadein 0.5s ease-out 2.4s forwards;
+}
+.ns-sp-copy1 {
+  font-size: clamp(0.79rem, 3.3vw, 0.90rem);
+  font-weight: 700;
+  color: rgba(255,255,255,0.66);
+  line-height: 1.5;
+  margin-bottom: 4px;
+  animation: ns-sp-rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.54s both;
+}
+.ns-sp-copy1 em { font-style: normal; color: #fbbf24; font-weight: 800; }
+.ns-sp-copy2 {
+  font-size: clamp(0.84rem, 3.6vw, 0.97rem);
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.45;
+  margin-bottom: 0;
+  animation: ns-sp-rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;
+}
+.ns-sp-copy2 em { font-style: normal; color: #10b981; }
+
+/* ── 하단 버튼 영역 (메인 로그인/회원가입) ── */
+.ns-sp-btn-section {
+  animation: ns-sp-rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;
+  padding: 0.5rem 0 0.2rem;
+}
+
+/* ── 메인 버튼: 글래스모피즘 ── */
+body.auth-login-splash .ns-sp-btn-section [data-testid="stButton"] > button {
+  background: rgba(255,255,255,0.11) !important;
+  border: 1px solid rgba(255,255,255,0.26) !important;
+  border-radius: 16px !important;
+  color: #ffffff !important;
+  font-family: 'Noto Sans KR', sans-serif !important;
+  font-size: clamp(0.9rem, 3.5vw, 1.0rem) !important;
+  font-weight: 800 !important;
+  height: 54px !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  transition: background 0.15s, transform 0.09s !important;
+  letter-spacing: -0.02em !important;
+}
+body.auth-login-splash .ns-sp-btn-section [data-testid="stButton"] > button:hover {
+  background: rgba(255,255,255,0.18) !important;
+  transform: scale(1.01) !important;
+}
+body.auth-login-splash .ns-sp-btn-section [data-testid="stButton"] > button[kind="secondary"] {
+  background: transparent !important;
+  border: 1.5px solid rgba(16,185,129,0.52) !important;
+  color: #34d399 !important;
+  height: 46px !important;
+}
+body.auth-login-splash .ns-sp-btn-section [data-testid="stButton"] > button[kind="secondary"]:hover {
+  background: rgba(16,185,129,0.10) !important;
+}
+body.auth-login-splash .ns-sp-btn-section [data-testid="stButton"] [data-testid="stMarkdownContainer"] p {
+  color: inherit !important;
+  font-weight: 800 !important;
+}
+
+/* ── 드로어 헤더 ── */
+.ns-sp-drawer-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+.ns-sp-drawer-handle {
+  width: 38px; height: 4px;
+  background: rgba(255,255,255,0.17);
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+.ns-sp-drawer-title {
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: clamp(1.0rem, 4.2vw, 1.12rem);
+  font-weight: 900;
+  color: #ffffff;
+  margin-bottom: 5px;
+  letter-spacing: -0.02em;
+}
+.ns-sp-drawer-sub {
+  font-size: 0.70rem;
+  color: rgba(255,255,255,0.36);
+  margin-bottom: 4px;
+}
+
+/* ── 소셜 버튼 스타일 (드로어 안) ── */
+/* Google */
+body.auth-login-splash .ns-sp-social-google [data-testid="stButton"] > button {
+  background: #ffffff !important;
+  color: #3c4043 !important;
+  border: none !important;
+  border-radius: 14px !important;
+  height: 52px !important;
+  font-size: clamp(0.82rem, 3.2vw, 0.91rem) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+body.auth-login-splash .ns-sp-social-google [data-testid="stButton"] [data-testid="stMarkdownContainer"] p {
+  color: #3c4043 !important;
+  font-weight: 700 !important;
+}
+body.auth-login-splash .ns-sp-social-google [data-testid="stButton"] > button:hover {
+  background: #f5f5f5 !important;
+  transform: scale(1.01) !important;
+}
+/* Naver */
+body.auth-login-splash .ns-sp-social-naver [data-testid="stButton"] > button {
+  background: #03C75A !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 14px !important;
+  height: 52px !important;
+  font-size: clamp(0.82rem, 3.2vw, 0.91rem) !important;
+  font-weight: 700 !important;
+}
+body.auth-login-splash .ns-sp-social-naver [data-testid="stButton"] [data-testid="stMarkdownContainer"] p {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+/* Kakao */
+body.auth-login-splash .ns-sp-social-kakao [data-testid="stButton"] > button {
+  background: #FEE500 !important;
+  color: #191919 !important;
+  border: none !important;
+  border-radius: 14px !important;
+  height: 52px !important;
+  font-size: clamp(0.82rem, 3.2vw, 0.91rem) !important;
+  font-weight: 700 !important;
+}
+body.auth-login-splash .ns-sp-social-kakao [data-testid="stButton"] [data-testid="stMarkdownContainer"] p {
+  color: #191919 !important;
+  font-weight: 700 !important;
+}
+/* Email */
+body.auth-login-splash .ns-sp-social-email [data-testid="stButton"] > button {
+  background: rgba(16,185,129,0.18) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16,185,129,0.38) !important;
+  border-radius: 14px !important;
+  height: 52px !important;
+  font-size: clamp(0.82rem, 3.2vw, 0.91rem) !important;
+  font-weight: 700 !important;
+}
+body.auth-login-splash .ns-sp-social-email [data-testid="stButton"] [data-testid="stMarkdownContainer"] p {
+  color: #34d399 !important;
+  font-weight: 700 !important;
+}
+/* 뒤로가기 버튼 (드로어 닫기) */
+body.auth-login-splash .ns-sp-close-btn [data-testid="stButton"] > button {
+  background: transparent !important;
+  border: none !important;
+  color: rgba(255,255,255,0.35) !important;
+  font-size: 0.76rem !important;
+  font-weight: 500 !important;
+  height: auto !important;
+  min-height: 32px !important;
+  padding: 4px 12px !important;
+}
+body.auth-login-splash .ns-sp-close-btn [data-testid="stButton"] [data-testid="stMarkdownContainer"] p {
+  color: rgba(255,255,255,0.35) !important;
+  font-size: 0.76rem !important;
+}
+
+/* ── 게스트 버튼 (비로그인 체험) ── */
+body.auth-login-splash .ns-sp-guest-btn [data-testid="stButton"] > button {
+  background: transparent !important;
+  border: none !important;
+  color: rgba(255,255,255,0.30) !important;
+  font-size: 0.73rem !important;
+  font-weight: 500 !important;
+  height: auto !important;
+  min-height: 30px !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+body.auth-login-splash .ns-sp-guest-btn [data-testid="stButton"] [data-testid="stMarkdownContainer"] p {
+  color: rgba(255,255,255,0.30) !important;
+  font-size: 0.73rem !important;
+  text-decoration: underline !important;
+}
+
+@keyframes ns-sp-rise {
+  from { transform: translateY(22px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes ns-sp-draw  { to { stroke-dashoffset: 0; } }
+@keyframes ns-sp-fadein { to { opacity: 1; } }
 </style>
 """,
             unsafe_allow_html=True,
         )
 
-        # 숨김 트리거 입력창 — JS Native Setter로 값을 주입해 on_change 실행
-        st.text_input(
-            "gluc_trigger",
-            key="gluc_splash_trigger",
-            label_visibility="collapsed",
-            on_change=_on_splash_trigger,
-        )
-
-        # ── #66 Plan-D: SVG onload 트로이 목마 (Iframe 없이 Parent DOM 직접 실행) ──
-        # html.escape(quote=True)로 " → &quot; 변환 → onload 속성 안 안전하게 삽입
-        _svg_js = (
-            "(function(){"
-            "try{document.body.classList.add('auth-splash-screen');}catch(z){}"
-            "if(document.body.__glucInit)return;"
-            "document.body.__glucInit=true;"
-            "var _c=window.console;"
-            "_c.log('\uD83D\uDE80 [Trojan] JS Executed directly in Parent DOM!');"
-            "var idMap={"
-            "'gluc-main-login':'open_login',"
-            "'gluc-main-signup':'open_signup',"
-            "'gluc-overlay':'close_drawer',"
-            "'gluc-bg':'google',"
-            "'gluc-bn':'naver',"
-            "'gluc-bk':'kakao',"
-            "'gluc-be':'email'"
-            "};"
-            "function fire(a){"
-            "_c.log('\uD83D\uDFE2 fire:',a);"
-            "var w=document.querySelector('[data-testid=\"stTextInput\"]'),"
-            "inp=w?w.querySelector('input'):null;"
-            "if(!inp){_c.warn('\u26A0\uFE0F no input');return;}"
-            "try{"
-            "Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value')"
-            ".set.call(inp,a+':'+Date.now());"
-            "inp.dispatchEvent(new Event('input',{bubbles:true}));"
-            "inp.dispatchEvent(new Event('change',{bubbles:true}));"
-            "_c.log('\u2705 React Trigger \ubc1c\uc0ac \uc644\ub8cc:',a);"
-            "}catch(ex){_c.error('\uD83D\uDEA8',ex);}"
-            "}"
-            "function find(el){"
-            "if(!el||!el.closest)return null;"
-            "var ids=Object.keys(idMap),i;"
-            "for(i=0;i<ids.length;i++){if(el.closest('#'+ids[i]))return ids[i];}"
-            "return null;"
-            "}"
-            "document.body.addEventListener('click',function(e){"
-            "var id=find(e.target);if(!id)return;"
-            "_c.log('\uD83D\uDD34 click:',id);"
-            "e.stopPropagation();fire(idMap[id]);"
-            "},true);"
-            "document.body.addEventListener('touchend',function(e){"
-            "var id=find(e.target);if(!id)return;"
-            "_c.log('\uD83D\uDD34 touch:',id);"
-            "e.preventDefault();e.stopPropagation();fire(idMap[id]);"
-            "},{passive:false,capture:true});"
-            "_c.log('\u2705 [Trojan] \ub9ac\uc2a4\ub108 \ub4f1\ub85d \uc644\ub8cc');"
-            "})()"
-        )
-        _svg_attr = html_module.escape(_svg_js, quote=True)
+        # ── 비주얼 영역 (SVG 혈당 차트 + 타이틀 + 카피) — 순수 HTML, JS 없음 ──
         st.markdown(
-            f'<svg onload="{_svg_attr}" style="display:none;"></svg>',
+            """
+<div class="ns-sp-visual">
+  <div class="ns-sp-glow"></div>
+  <div class="ns-sp-logo">🩸</div>
+  <div class="ns-sp-title">나의 혈당 기록소</div>
+  <div class="ns-sp-tagline">BLOOD GLUCOSE SCANNER AI</div>
+  <div class="ns-sp-chart-wrap">
+    <svg viewBox="0 0 280 108" width="100%" style="overflow:visible;height:auto;display:block;" aria-hidden="true">
+      <rect x="0" y="0" width="280" height="108" rx="14" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+      <line x1="12" y1="26" x2="268" y2="26" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+      <line x1="12" y1="52" x2="268" y2="52" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+      <line x1="12" y1="78" x2="268" y2="78" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+      <rect x="12" y="4" width="256" height="22" rx="4" fill="rgba(239,68,68,0.07)"/>
+      <text x="16" y="15" font-size="8" fill="rgba(239,68,68,0.55)" font-family="sans-serif">위험 &gt;140</text>
+      <rect x="12" y="46" width="256" height="32" rx="4" fill="rgba(16,185,129,0.07)"/>
+      <text x="16" y="58" font-size="8" fill="rgba(16,185,129,0.55)" font-family="sans-serif">정상 &lt;100</text>
+      <polyline class="ns-sp-glow-line" points="20,64 60,62 100,60 140,57 180,59 220,58 260,60" stroke="rgba(16,185,129,0.28)" stroke-width="9" stroke-linecap="round" fill="none"/>
+      <polyline class="ns-sp-path-safe" points="20,64 60,62 100,60 140,57 180,59 220,58 260,60" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <polyline class="ns-sp-glow-line" points="20,64 55,60 90,50 120,18 145,6 168,22 200,46 235,57 260,60" stroke="rgba(239,68,68,0.22)" stroke-width="9" stroke-linecap="round" fill="none"/>
+      <polyline class="ns-sp-path-spike" points="20,64 55,60 90,50 120,18 145,6 168,22 200,46 235,57 260,60" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <circle cx="22" cy="101" r="4" fill="#10b981"/>
+      <text x="30" y="104" font-size="8.5" fill="rgba(255,255,255,0.52)" font-family="sans-serif">식이섬유 먼저</text>
+      <circle cx="122" cy="101" r="4" fill="#ef4444"/>
+      <text x="130" y="104" font-size="8.5" fill="rgba(255,255,255,0.52)" font-family="sans-serif">탄수화물 먼저</text>
+    </svg>
+  </div>
+  <div class="ns-sp-copy1"><em>AI</em>가 당신의 식단을 감시합니다</div>
+  <div class="ns-sp-copy2"><em>먹는 순서</em>가 바꾸는 <em>혈당 변화</em></div>
+</div>
+""",
             unsafe_allow_html=True,
         )
 
-        # --- 하단에 남은 구 components.v1.html 잔재 삭제 표시 ---
-        st.stop()
+        # ═══════════════════════════════════════════════════════════════
+        # Plan E 핵심: st.button으로 모든 인터랙션을 처리
+        # 드로어가 닫혀 있으면 → [로그인] / [회원가입] 버튼만 표시
+        # 드로어가 열려 있으면 → 소셜 버튼 4개 + 뒤로가기 표시
+        # ═══════════════════════════════════════════════════════════════
 
+        if not st.session_state.get("splash_drawer_open"):
+            # ── 메인 버튼 섹션: 로그인 / 회원가입 ──
+            st.markdown('<div class="ns-sp-btn-section">', unsafe_allow_html=True)
+            if st.button("로그인", key="sp_btn_login", use_container_width=True, type="primary"):
+                st.session_state["splash_drawer_open"] = True
+                st.session_state["splash_auth_intent"] = "login"
+                st.session_state["auth_intent"] = "login"
+                st.rerun()
+            if st.button("회원가입", key="sp_btn_signup", use_container_width=True):
+                st.session_state["splash_drawer_open"] = True
+                st.session_state["splash_auth_intent"] = "signup"
+                st.session_state["auth_intent"] = "signup"
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # 게스트 체험 링크
+            st.markdown('<div class="ns-sp-guest-btn">', unsafe_allow_html=True)
+            if st.button("로그인 없이 둘러보기", key="sp_btn_guest", use_container_width=True):
+                st.session_state["auth_splash_done"] = True
+                st.session_state["auth_mode"] = "login"
+                st.session_state["auth_phase"] = "sheet"
+                st.session_state["auth_sheet_open"] = False
+                st.session_state["auth_guest_step"] = True
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        else:
+            # ── 드로어 열림: 소셜 버튼 4개 ──
+            # 드로어 헤더
+            st.markdown(
+                f"""
+<div class="ns-sp-drawer-header">
+  <div class="ns-sp-drawer-handle"></div>
+  <div class="ns-sp-drawer-title">{html_module.escape(_ph_d_title)}</div>
+  <div class="ns-sp-drawer-sub">{html_module.escape(_ph_d_sub)}</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+
+            # Google
+            st.markdown('<div class="ns-sp-social-google">', unsafe_allow_html=True)
+            if st.button(_ph_bg_lbl, key="sp_soc_google", use_container_width=True):
+                _intent = st.session_state.get("splash_auth_intent", "login")
+                st.session_state["auth_intent"] = _intent
+                st.session_state["auth_mode"] = _intent
+                st.session_state["auth_splash_done"] = True
+                st.session_state["auth_sheet_open"] = True
+                st.session_state["pending_social_provider"] = "google"
+                st.session_state["auth_phase"] = "terms"
+                st.session_state["splash_drawer_open"] = False
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # Naver
+            st.markdown('<div class="ns-sp-social-naver">', unsafe_allow_html=True)
+            if st.button(_ph_bn_lbl, key="sp_soc_naver", use_container_width=True):
+                _intent = st.session_state.get("splash_auth_intent", "login")
+                st.session_state["auth_intent"] = _intent
+                st.session_state["auth_mode"] = _intent
+                st.session_state["auth_splash_done"] = True
+                st.session_state["auth_sheet_open"] = True
+                st.session_state["pending_social_provider"] = "naver"
+                st.session_state["auth_phase"] = "terms"
+                st.session_state["splash_drawer_open"] = False
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # Kakao
+            st.markdown('<div class="ns-sp-social-kakao">', unsafe_allow_html=True)
+            if st.button(_ph_bk_lbl, key="sp_soc_kakao", use_container_width=True):
+                _intent = st.session_state.get("splash_auth_intent", "login")
+                st.session_state["auth_intent"] = _intent
+                st.session_state["auth_mode"] = _intent
+                st.session_state["auth_splash_done"] = True
+                st.session_state["auth_sheet_open"] = True
+                st.session_state["pending_social_provider"] = "kakao"
+                st.session_state["auth_phase"] = "terms"
+                st.session_state["splash_drawer_open"] = False
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # Email
+            st.markdown('<div class="ns-sp-social-email">', unsafe_allow_html=True)
+            if st.button(_ph_be_lbl, key="sp_soc_email", use_container_width=True):
+                _intent = st.session_state.get("splash_auth_intent", "login")
+                st.session_state["auth_intent"] = _intent
+                st.session_state["auth_mode"] = _intent
+                st.session_state["auth_splash_done"] = True
+                st.session_state["auth_sheet_open"] = True
+                st.session_state["pending_social_provider"] = None
+                st.session_state["auth_phase"] = "sheet"
+                st.session_state["splash_drawer_open"] = False
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            # 뒤로가기 (드로어 닫기)
+            st.markdown('<div class="ns-sp-close-btn">', unsafe_allow_html=True)
+            if st.button("← 뒤로", key="sp_drawer_close", use_container_width=True):
+                st.session_state["splash_drawer_open"] = False
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        st.stop()
     # ---------- 슬라이드업 느낌의 로그인 시트 ----------
     if st.session_state.get("auth_sheet_open") and not st.session_state.get("auth_guest_step"):
         st.components.v1.html(
