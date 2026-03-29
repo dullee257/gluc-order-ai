@@ -4220,7 +4220,7 @@ try {
         st.stop()
 
     # ══════════════════════════════════════════════════════════════════════════
-    # Plan E: 순수 st.button + 스코프 CSS (help → title, :not(.auth-terms-page))
+    # Plan H: key=gluc_sp_* + phase 마커 + kind + :has(); 드로어 시 메인 버튼 미렌더
     # ══════════════════════════════════════════════════════════════════════════
     if not st.session_state.get("auth_splash_done"):
         if "splash_drawer_open" not in st.session_state:
@@ -4252,9 +4252,9 @@ try {
             _ph_bk_lbl = "🟡  카카오로 계속하기"
             _ph_be_lbl = "✉️  이메일로 계속하기"
 
-        # Plan E 스플래시 CSS: 약관 제외(:not(.auth-terms-page)), help→title 로만 버튼 타겟
+        # Plan H: Python key는 DOM에 없음(React). .gluc-phase-main / .gluc-phase-drawer 마커 + kind + :has() 로 식별.
         _splash_css = (
-            "<style data-gluc-splash-css='72'>\n"
+            "<style data-gluc-plan-h='73'>\n"
             "@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');\n"
             "body.auth-login-splash:not(.auth-terms-page){overflow:hidden!important;"
             "max-height:100dvh!important;height:100dvh!important;}\n"
@@ -4272,6 +4272,7 @@ try {
             "body.auth-login-splash:not(.auth-terms-page) [data-testid='stDecoration'],"
             "body.auth-login-splash:not(.auth-terms-page) [data-testid='stStatusWidget']"
             "{display:none!important;}\n"
+            ".gluc-phase-main,.gluc-phase-drawer{display:none!important;}\n"
             ".ns-sp-visual{display:flex;flex-direction:column;align-items:center;text-align:center;"
             "padding:2rem 1rem 0.5rem;padding-bottom:170px!important;position:relative;}\n"
             ".ns-sp-glow{position:absolute;top:-40px;left:50%;transform:translateX(-50%);"
@@ -4302,12 +4303,10 @@ try {
             "color:#fff;line-height:1.45;margin-bottom:0;"
             "animation:ns-sp-rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;}\n"
             ".ns-sp-copy2 em{font-style:normal;color:#34d399;}\n"
-            "/* 오버레이: 투명→불투명 */\n"
             ".ns-sp-overlay{position:fixed!important;inset:0!important;z-index:40!important;"
             "background:rgba(0,0,0,0)!important;animation:ns-sp-overlay-in 0.32s ease forwards!important;"
             "pointer-events:auto!important;}\n"
             "@keyframes ns-sp-overlay-in{to{background:rgba(0,0,0,0.58)!important;}}\n"
-            "/* 드로어 데코 패널 (Streamlit이 위젯을 div로 감싸지 않으므로 별도 블록) */\n"
             ".ns-sp-drawer-backdrop{position:fixed!important;left:0!important;right:0!important;"
             "bottom:0!important;height:min(72vh,560px)!important;z-index:41!important;"
             "pointer-events:none!important;"
@@ -4326,79 +4325,83 @@ try {
             "font-size:clamp(1.0rem,4.2vw,1.12rem);font-weight:900;color:#fff;"
             "margin-bottom:5px;letter-spacing:-0.02em;}\n"
             ".ns-sp-drawer-sub{font-size:0.70rem;color:rgba(255,255,255,0.42);margin-bottom:2px;}\n"
-            "/* 스플래시 버튼 공통: 너비·폰트 (title=gluc_sp_* 만) */\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title^='gluc_sp_']{"
-            "width:100%!important;box-sizing:border-box!important;font-family:'Noto Sans KR',sans-serif!important;"
-            "font-weight:800!important;letter-spacing:-0.02em!important;padding:0!important;"
-            "transition:transform 0.12s ease,box-shadow 0.2s ease,background 0.2s ease!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title^='gluc_sp_']:active{"
-            "transform:scale(0.98)!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title^='gluc_sp_'] "
-            "[data-testid='stMarkdownContainer'] p{color:inherit!important;margin:0!important;"
-            "font-weight:inherit!important;}\n"
-            "/* 하단 고정: 로그인·회원가입 (글래스모피즘) */\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='element-container']"
-            ":has([data-testid='stButton'] > button[title='gluc_sp_login']){"
-            "position:fixed!important;z-index:50!important;"
+            "/* ── 메인(phase-main): key=gluc_sp_login(primary), gluc_sp_signup(secondary) — DOM엔 key 없음 ── */\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-main ~ div[data-testid='stElementContainer']"
+            ":has([data-testid='stButton'] > button[kind='primary']){"
+            "position:fixed!important;left:max(18px,env(safe-area-inset-left,0px))!important;"
+            "right:max(18px,env(safe-area-inset-right,0px))!important;"
             "bottom:calc(max(16px,env(safe-area-inset-bottom,0px)) + 54px)!important;"
-            "left:max(18px,env(safe-area-inset-left,0px))!important;"
+            "z-index:60!important;max-width:440px!important;margin:0 auto!important;width:auto!important;"
+            "animation:ns-sp-rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.8s both!important;}\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-main ~ div[data-testid='stElementContainer']"
+            ":has([data-testid='stButton'] > button[kind='secondary']){"
+            "position:fixed!important;left:max(18px,env(safe-area-inset-left,0px))!important;"
             "right:max(18px,env(safe-area-inset-right,0px))!important;"
-            "max-width:440px!important;margin:0 auto!important;width:auto!important;"
-            "animation:ns-sp-rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.82s both!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='element-container']"
-            ":has([data-testid='stButton'] > button[title='gluc_sp_signup']){"
-            "position:fixed!important;z-index:50!important;"
             "bottom:max(14px,env(safe-area-inset-bottom,0px))!important;"
-            "left:max(18px,env(safe-area-inset-left,0px))!important;"
-            "right:max(18px,env(safe-area-inset-right,0px))!important;"
-            "max-width:440px!important;margin:0 auto!important;width:auto!important;"
-            "animation:ns-sp-rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.88s both!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_login']{"
-            "height:52px!important;border-radius:18px!important;color:#fff!important;"
-            "background:rgba(255,255,255,0.10)!important;"
+            "z-index:60!important;max-width:440px!important;margin:0 auto!important;width:auto!important;"
+            "animation:ns-sp-rise 0.65s cubic-bezier(0.22,1,0.36,1) 0.86s both!important;}\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-main ~ div[data-testid='stElementContainer']"
+            " [data-testid='stButton'] > button[kind='primary']{"
+            "width:100%!important;height:52px!important;border-radius:18px!important;color:#fff!important;"
+            "background:rgba(255,255,255,0.11)!important;"
             "backdrop-filter:blur(22px) saturate(165%)!important;"
             "-webkit-backdrop-filter:blur(22px) saturate(165%)!important;"
-            "border:1px solid rgba(255,255,255,0.28)!important;"
-            "box-shadow:0 8px 32px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.14)!important;"
-            "font-size:clamp(0.92rem,3.4vw,1.02rem)!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_login']:hover{"
-            "background:rgba(255,255,255,0.14)!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_signup']{"
-            "height:48px!important;border-radius:18px!important;"
-            "background:rgba(16,185,129,0.08)!important;"
+            "border:1px solid rgba(255,255,255,0.30)!important;"
+            "box-shadow:0 10px 36px rgba(0,0,0,0.38),inset 0 1px 0 rgba(255,255,255,0.16)!important;"
+            "font-size:clamp(0.92rem,3.4vw,1.02rem)!important;font-weight:800!important;"
+            "font-family:'Noto Sans KR',sans-serif!important;}\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-main ~ div[data-testid='stElementContainer']"
+            " [data-testid='stButton'] > button[kind='secondary']{"
+            "width:100%!important;height:48px!important;border-radius:18px!important;"
+            "background:rgba(16,185,129,0.10)!important;"
             "backdrop-filter:blur(18px)!important;-webkit-backdrop-filter:blur(18px)!important;"
-            "border:1px solid rgba(52,211,153,0.38)!important;color:#ecfdf5!important;"
-            "box-shadow:0 6px 24px rgba(0,0,0,0.28)!important;"
-            "font-size:clamp(0.86rem,3.2vw,0.96rem)!important;font-weight:700!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_signup']:hover{"
-            "background:rgba(16,185,129,0.12)!important;border-color:rgba(52,211,153,0.5)!important;}\n"
-            "/* 드로어 버튼 레이어 */\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_google'],"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_naver'],"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_kakao'],"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_email'],"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_back']{"
-            "position:relative!important;z-index:44!important;border-radius:14px!important;height:50px!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_google']{"
+            "border:1px solid rgba(52,211,153,0.42)!important;color:#ecfdf5!important;"
+            "box-shadow:0 8px 28px rgba(0,0,0,0.32)!important;"
+            "font-size:clamp(0.86rem,3.2vw,0.96rem)!important;font-weight:700!important;"
+            "font-family:'Noto Sans KR',sans-serif!important;}\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-main ~ div[data-testid='stElementContainer']"
+            " [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{"
+            "color:inherit!important;margin:0!important;font-weight:inherit!important;}\n"
+            "/* ── 드로어(phase-drawer): kind로 구분 — google primary, naver/kakao/email secondary, back tertiary ── */\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            ":has([data-testid='stButton'] > button[kind='primary']){"
+            "position:relative!important;z-index:55!important;margin-bottom:8px!important;}\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            ":has([data-testid='stButton'] > button[kind='secondary']){"
+            "position:relative!important;z-index:55!important;margin-bottom:8px!important;}\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            ":has([data-testid='stButton'] > button[kind='tertiary']){"
+            "position:relative!important;z-index:55!important;margin-top:4px!important;}\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            " [data-testid='stButton'] > button[kind='primary']{"
+            "width:100%!important;height:50px!important;border-radius:14px!important;"
             "background:#fff!important;color:#3c4043!important;border:none!important;"
-            "font-size:clamp(0.82rem,3vw,0.92rem)!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_naver']{"
-            "background:#03C75A!important;color:#fff!important;border:none!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_kakao']{"
-            "background:#FEE500!important;color:#191919!important;border:none!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_email']{"
-            "background:rgba(16,185,129,0.14)!important;color:#a7f3d0!important;"
-            "border:1px solid rgba(52,211,153,0.35)!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button[title='gluc_sp_back']{"
-            "background:transparent!important;border:none!important;color:rgba(255,255,255,0.45)!important;"
-            "height:auto!important;min-height:36px!important;font-size:0.78rem!important;"
-            "font-weight:600!important;}\n"
+            "font-weight:800!important;font-family:'Noto Sans KR',sans-serif!important;"
+            "font-size:clamp(0.82rem,3vw,0.92rem)!important;"
+            "box-shadow:0 4px 14px rgba(0,0,0,0.2)!important;}\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            " [data-testid='stButton'] > button[kind='secondary']{"
+            "width:100%!important;height:50px!important;border-radius:14px!important;"
+            "font-weight:800!important;font-family:'Noto Sans KR',sans-serif!important;"
+            "font-size:clamp(0.82rem,3vw,0.92rem)!important;"
+            "background:rgba(255,255,255,0.10)!important;"
+            "backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;"
+            "border:1px solid rgba(255,255,255,0.18)!important;color:#fff!important;}\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            " [data-testid='stButton'] > button[kind='tertiary']{"
+            "width:100%!important;background:transparent!important;border:none!important;"
+            "color:rgba(255,255,255,0.5)!important;font-size:0.78rem!important;"
+            "min-height:36px!important;font-weight:600!important;}\n"
+            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            " [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{"
+            "color:inherit!important;margin:0!important;}\n"
             "@keyframes ns-sp-rise{from{transform:translateY(20px);opacity:0;}"
             "to{transform:translateY(0);opacity:1;}}\n"
             "@keyframes ns-sp-draw{to{stroke-dashoffset:0;}}\n"
             "@keyframes ns-sp-fadein{to{opacity:1;}}\n"
             "</style>\n"
         )
+        st.markdown(_splash_css, unsafe_allow_html=True)
 
         # ── 비주얼 영역 (SVG 혈당 차트 + 타이틀 + 카피) — 순수 HTML, JS 없음 ──
         st.markdown(
@@ -4435,19 +4438,17 @@ try {
             unsafe_allow_html=True,
         )
 
-        # ═══════════════════════════════════════════════════════════════
-        # Plan E 핵심: st.button으로 모든 인터랙션을 처리
-        # 드로어가 닫혀 있으면 → [로그인] / [회원가입] 버튼만 표시
-        # 드로어가 열려 있으면 → 소셜 버튼 4개 + 뒤로가기 표시
-        # ═══════════════════════════════════════════════════════════════
-
+        # Plan H: 드로어 열림 시 메인 버튼은 Python에서 렌더하지 않음(잔상 방지)
         if not st.session_state.get("splash_drawer_open"):
+            st.markdown(
+                '<div class="gluc-phase-main" aria-hidden="true"></div>',
+                unsafe_allow_html=True,
+            )
             if st.button(
                 "로그인",
-                key="sp_btn_login",
+                key="gluc_sp_login",
                 use_container_width=True,
                 type="primary",
-                help="gluc_sp_login",
             ):
                 st.session_state["splash_drawer_open"] = True
                 st.session_state["splash_auth_intent"] = "login"
@@ -4455,18 +4456,22 @@ try {
                 st.rerun()
             if st.button(
                 "회원가입",
-                key="sp_btn_signup",
+                key="gluc_sp_signup",
                 use_container_width=True,
-                help="gluc_sp_signup",
+                type="secondary",
             ):
                 st.session_state["splash_drawer_open"] = True
                 st.session_state["splash_auth_intent"] = "signup"
                 st.session_state["auth_intent"] = "signup"
                 st.rerun()
         else:
-            st.markdown('<div class="ns-sp-overlay"></div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="gluc-phase-drawer" aria-hidden="true"></div>',
+                unsafe_allow_html=True,
+            )
             st.markdown(
                 f"""
+<div class="ns-sp-overlay"></div>
 <div class="ns-sp-drawer-backdrop" aria-hidden="true"></div>
 <div class="ns-sp-drawer-header">
   <div class="ns-sp-drawer-handle"></div>
@@ -4480,9 +4485,9 @@ try {
             # Google
             if st.button(
                 _ph_bg_lbl,
-                key="sp_soc_google",
+                key="gluc_sp_google",
                 use_container_width=True,
-                help="gluc_sp_google",
+                type="primary",
             ):
                 _intent = st.session_state.get("splash_auth_intent", "login")
                 st.session_state["auth_intent"] = _intent
@@ -4498,9 +4503,9 @@ try {
             # Naver
             if st.button(
                 _ph_bn_lbl,
-                key="sp_soc_naver",
+                key="gluc_sp_naver",
                 use_container_width=True,
-                help="gluc_sp_naver",
+                type="secondary",
             ):
                 _intent = st.session_state.get("splash_auth_intent", "login")
                 st.session_state["auth_intent"] = _intent
@@ -4516,9 +4521,9 @@ try {
             # Kakao
             if st.button(
                 _ph_bk_lbl,
-                key="sp_soc_kakao",
+                key="gluc_sp_kakao",
                 use_container_width=True,
-                help="gluc_sp_kakao",
+                type="secondary",
             ):
                 _intent = st.session_state.get("splash_auth_intent", "login")
                 st.session_state["auth_intent"] = _intent
@@ -4534,9 +4539,9 @@ try {
             # Email
             if st.button(
                 _ph_be_lbl,
-                key="sp_soc_email",
+                key="gluc_sp_email",
                 use_container_width=True,
-                help="gluc_sp_email",
+                type="secondary",
             ):
                 _intent = st.session_state.get("splash_auth_intent", "login")
                 st.session_state["auth_intent"] = _intent
@@ -4551,9 +4556,9 @@ try {
 
             if st.button(
                 "← 뒤로",
-                key="sp_drawer_close",
+                key="gluc_sp_back",
                 use_container_width=True,
-                help="gluc_sp_back",
+                type="tertiary",
             ):
                 st.session_state["splash_drawer_open"] = False
                 st.rerun()
