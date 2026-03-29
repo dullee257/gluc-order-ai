@@ -4265,6 +4265,7 @@ try {
         import time as _time
         _css_ver = str(int(_time.time()))
         # ── Plan F CSS: 캐시 버스팅 + !important 전면 강제화 ──
+        # ── Plan F CSS: 캐시 버스팅(data-version) + !important 전면 강제화 ──
         import time as _time
         _css_ver = str(int(_time.time()))
         _splash_css = (
@@ -4309,29 +4310,60 @@ try {
             "color:#ffffff;line-height:1.45;margin-bottom:0;"
             "animation:ns-sp-rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;}\n"
             ".ns-sp-copy2 em{font-style:normal;color:#10b981;}\n"
-            "/* ── [Plan F] 하단 버튼: !important 전면 강제화 ── */\n"
-            ".ns-sp-btn-section{"
-            "position:fixed!important;bottom:0!important;left:0!important;right:0!important;"
-            "width:100vw!important;z-index:999999!important;"
-            "padding:10px 20px max(30px,env(safe-area-inset-bottom,30px))!important;"
-            "background:linear-gradient(to top,#0f172a 55%,rgba(15,23,42,0.96) 78%,transparent 100%)!important;"
-            "animation:ns-sp-rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both!important;"
-            "display:flex!important;flex-direction:column!important;gap:8px!important;"
-            "transform:none!important;will-change:auto!important;"
-            "backface-visibility:hidden!important;-webkit-backface-visibility:hidden!important;}\n"
-            "body.auth-login-splash .ns-sp-btn-section [data-testid='stButton']>button{"
-            "background:rgba(255,255,255,0.11)!important;border:1px solid rgba(255,255,255,0.26)!important;"
-            "border-radius:16px!important;color:#ffffff!important;"
-            "font-family:'Noto Sans KR',sans-serif!important;"
-            "font-size:clamp(0.9rem,3.5vw,1.0rem)!important;font-weight:800!important;"
-            "height:54px!important;width:100%!important;"
-            "backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;"
-            "transition:background 0.15s,transform 0.09s!important;letter-spacing:-0.02em!important;}\n"
-            "body.auth-login-splash .ns-sp-btn-section [data-testid='stButton']>button[kind='secondary']{"
-            "background:transparent!important;border:1.5px solid rgba(16,185,129,0.52)!important;"
-            "color:#34d399!important;height:46px!important;}\n"
-            "body.auth-login-splash .ns-sp-btn-section [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{"
-            "color:inherit!important;font-weight:800!important;}\n"
+            "/* ── 속성 선택자 전역 주입: 모든 stButton 공통 초기화 ── */\n"
+            "body.auth-login-splash [data-testid='stButton'] > button {"
+            "  width: 100% !important; height: 54px !important; border-radius: 16px !important;"
+            "  font-family: 'Noto Sans KR', sans-serif !important; font-size: clamp(0.9rem, 3.5vw, 1.0rem) !important;"
+            "  font-weight: 800 !important; letter-spacing: -0.02em !important;"
+            "  background: rgba(255,255,255,0.11) !important; color: #ffffff !important;"
+            "  border: 1px solid rgba(255,255,255,0.26) !important; padding: 0 !important; margin: 0 !important;"
+            "  transition: background 0.15s, transform 0.09s !important; box-sizing: border-box !important;"
+            "}\n"
+            "body.auth-login-splash [data-testid='stButton'] > button:active { transform: scale(0.97) !important; }\n"
+            "body.auth-login-splash [data-testid='stButton'] [data-testid='stMarkdownContainer'] p { color: inherit !important; font-weight: 800 !important; margin: 0 !important; }\n"
+            "/* ── 속성 선택자: 특정 텍스트를 포함하는 버튼 타격 (nth-child 및 속성 응용) ── */\n"
+            "/* [로그인] 버튼 - primary */\n"
+            "body.auth-login-splash.auth-splash-screen [data-testid='element-container']:has(button[kind='primary']) {"
+            "  position: fixed !important; bottom: calc(max(30px, env(safe-area-inset-bottom, 30px)) + 62px) !important;"
+            "  left: 20px !important; right: 20px !important; width: auto !important; z-index: 999999 !important;"
+            "  animation: ns-sp-rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both !important;"
+            "}\n"
+            "body.auth-login-splash.auth-splash-screen [data-testid='stButton']:has(button[kind='primary']) > button {"
+            "  background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important; color: #ffffff !important; border: none !important;"
+            "  box-shadow: 0 0 20px rgba(16,185,129,0.35) !important;"
+            "}\n"
+            "/* [회원가입] 버튼 - secondary */\n"
+            "body.auth-login-splash.auth-splash-screen [data-testid='element-container']:has(button[kind='secondary']):nth-last-child(1) {"
+            "  position: fixed !important; bottom: max(30px, env(safe-area-inset-bottom, 30px)) !important;"
+            "  left: 20px !important; right: 20px !important; width: auto !important; z-index: 999999 !important;"
+            "  animation: ns-sp-rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.94s both !important;"
+            "}\n"
+            "body.auth-login-splash.auth-splash-screen [data-testid='stButton']:has(button[kind='secondary']) > button {"
+            "  background: transparent !important; color: #34d399 !important; border: 1.5px solid rgba(16,185,129,0.52) !important; height: 46px !important;"
+            "}\n"
+            "/* ── 드로어 소셜 로그인 버튼 색상 특화 (nth-last-child 로 순서 타격) ── */\n"
+            "/* Google */\n"
+            "body.auth-login-splash.auth-splash-screen [data-testid='element-container']:nth-last-child(5) > [data-testid='stButton'] > button {"
+            "  background: #ffffff !important; color: #3c4043 !important; border: none !important;"
+            "}\n"
+            "/* Naver */\n"
+            "body.auth-login-splash.auth-splash-screen [data-testid='element-container']:nth-last-child(4) > [data-testid='stButton'] > button {"
+            "  background: #03C75A !important; color: #ffffff !important; border: none !important;"
+            "}\n"
+            "/* Kakao */\n"
+            "body.auth-login-splash.auth-splash-screen [data-testid='element-container']:nth-last-child(3) > [data-testid='stButton'] > button {"
+            "  background: #FEE500 !important; color: #191919 !important; border: none !important;"
+            "}\n"
+            "/* Email */\n"
+            "body.auth-login-splash.auth-splash-screen [data-testid='element-container']:nth-last-child(2) > [data-testid='stButton'] > button {"
+            "  background: rgba(16,185,129,0.18) !important; color: #34d399 !important; border: 1px solid rgba(16,185,129,0.38) !important;"
+            "}\n"
+            "/* 뒤로 */\n"
+            "body.auth-login-splash.auth-splash-screen [data-testid='element-container']:nth-last-child(1) > [data-testid='stButton'] > button {"
+            "  background: transparent !important; border: none !important; color: rgba(255,255,255,0.35) !important;"
+            "  font-size: 0.76rem !important; height: auto !important; min-height: 32px !important; padding: 4px 12px !important;"
+            "}\n"
+            "/* ── 드로어 섹션 CSS ── */\n"
             ".ns-sp-drawer-header{text-align:center;margin-bottom:16px;}\n"
             ".ns-sp-drawer-handle{width:38px;height:4px;background:rgba(255,255,255,0.17);"
             "border-radius:2px;margin:0 auto 16px;}\n"
@@ -4339,40 +4371,14 @@ try {
             "font-size:clamp(1.0rem,4.2vw,1.12rem);font-weight:900;color:#ffffff;"
             "margin-bottom:5px;letter-spacing:-0.02em;}\n"
             ".ns-sp-drawer-sub{font-size:0.70rem;color:rgba(255,255,255,0.36);margin-bottom:4px;}\n"
-            "body.auth-login-splash .ns-sp-social-google [data-testid='stButton']>button{"
-            "background:#ffffff!important;color:#3c4043!important;border:none!important;"
-            "border-radius:14px!important;height:52px!important;width:100%!important;"
-            "font-size:clamp(0.82rem,3.2vw,0.91rem)!important;font-weight:700!important;}\n"
-            "body.auth-login-splash .ns-sp-social-google [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{color:#3c4043!important;font-weight:700!important;}\n"
-            "body.auth-login-splash .ns-sp-social-naver [data-testid='stButton']>button{"
-            "background:#03C75A!important;color:#ffffff!important;border:none!important;"
-            "border-radius:14px!important;height:52px!important;width:100%!important;"
-            "font-size:clamp(0.82rem,3.2vw,0.91rem)!important;font-weight:700!important;}\n"
-            "body.auth-login-splash .ns-sp-social-naver [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{color:#ffffff!important;font-weight:700!important;}\n"
-            "body.auth-login-splash .ns-sp-social-kakao [data-testid='stButton']>button{"
-            "background:#FEE500!important;color:#191919!important;border:none!important;"
-            "border-radius:14px!important;height:52px!important;width:100%!important;"
-            "font-size:clamp(0.82rem,3.2vw,0.91rem)!important;font-weight:700!important;}\n"
-            "body.auth-login-splash .ns-sp-social-kakao [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{color:#191919!important;font-weight:700!important;}\n"
-            "body.auth-login-splash .ns-sp-social-email [data-testid='stButton']>button{"
-            "background:rgba(16,185,129,0.18)!important;color:#34d399!important;"
-            "border:1px solid rgba(16,185,129,0.38)!important;"
-            "border-radius:14px!important;height:52px!important;width:100%!important;"
-            "font-size:clamp(0.82rem,3.2vw,0.91rem)!important;font-weight:700!important;}\n"
-            "body.auth-login-splash .ns-sp-social-email [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{color:#34d399!important;font-weight:700!important;}\n"
-            "body.auth-login-splash .ns-sp-close-btn [data-testid='stButton']>button{"
-            "background:transparent!important;border:none!important;"
-            "color:rgba(255,255,255,0.35)!important;font-size:0.76rem!important;"
-            "font-weight:500!important;height:auto!important;min-height:32px!important;padding:4px 12px!important;}\n"
-            "body.auth-login-splash .ns-sp-close-btn [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{color:rgba(255,255,255,0.35)!important;font-size:0.76rem!important;}\n"
-            "/* ── [Plan F] 드로어 섹션: 전체를 하단에서 통째로 슬라이드업 ── */\n"
             ".ns-sp-drawer-section{"
             "position:fixed!important;bottom:0!important;left:0!important;right:0!important;"
             "width:100vw!important;z-index:1000000!important;"
             "background:linear-gradient(180deg,#1e2e42 0%,#0f1f30 100%)!important;"
             "border-radius:24px 24px 0 0!important;"
             "border-top:1px solid rgba(255,255,255,0.14)!important;"
-            "padding:16px 0 max(32px,env(safe-area-inset-bottom,32px))!important;"
+            "padding:16px 20px max(32px,env(safe-area-inset-bottom,32px))!important;"
+            "display:flex!important;flex-direction:column!important;gap:8px!important;"
             "box-shadow:0 -16px 60px rgba(0,0,0,0.72)!important;"
             "animation:ns-sp-slide-up 0.38s ease-out both!important;"
             "will-change:transform!important;backface-visibility:hidden!important;"
@@ -4381,7 +4387,6 @@ try {
             "position:fixed!important;inset:0!important;"
             "background:rgba(0,0,0,0.55)!important;z-index:999998!important;"
             "animation:ns-sp-fadein 0.25s ease both!important;}\n"
-            "/* ── [Plan F] 약관 table 텍스트 강제 흰색 ── */\n"
             "body.auth-login-splash table,"
             "body.auth-login-splash table th,"
             "body.auth-login-splash table td{color:#ffffff!important;"
@@ -4396,8 +4401,6 @@ try {
             "@keyframes ns-sp-fadein{to{opacity:1;}}\n"
             "</style>\n"
         )
-        st.markdown(_splash_css, unsafe_allow_html=True)
-
 
         # ── 비주얼 영역 (SVG 혈당 차트 + 타이틀 + 카피) — 순수 HTML, JS 없음 ──
         st.markdown(
@@ -4442,7 +4445,7 @@ try {
 
         if not st.session_state.get("splash_drawer_open"):
             # ── 메인 버튼 섹션: 로그인 / 회원가입 (화면 최하단 fixed) ──
-            st.markdown('<div class="ns-sp-btn-section">', unsafe_allow_html=True)
+            # 구조 단순화: st.button() 연속 배치
             if st.button("로그인", key="sp_btn_login", use_container_width=True, type="primary"):
                 st.session_state["splash_drawer_open"] = True
                 st.session_state["splash_auth_intent"] = "login"
@@ -4453,8 +4456,6 @@ try {
                 st.session_state["splash_auth_intent"] = "signup"
                 st.session_state["auth_intent"] = "signup"
                 st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
-
         else:
             # ── 드로어 열림: 오버레이 + 슬라이드업 래퍼 + 소셜 버튼 4개 ──
             # 배경 오버레이 (fadein CSS)
@@ -4474,7 +4475,6 @@ try {
             )
 
             # Google
-            st.markdown('<div class="ns-sp-social-google">', unsafe_allow_html=True)
             if st.button(_ph_bg_lbl, key="sp_soc_google", use_container_width=True):
                 _intent = st.session_state.get("splash_auth_intent", "login")
                 st.session_state["auth_intent"] = _intent
@@ -4485,10 +4485,9 @@ try {
                 st.session_state["auth_phase"] = "terms"
                 st.session_state["splash_drawer_open"] = False
                 st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+            
 
             # Naver
-            st.markdown('<div class="ns-sp-social-naver">', unsafe_allow_html=True)
             if st.button(_ph_bn_lbl, key="sp_soc_naver", use_container_width=True):
                 _intent = st.session_state.get("splash_auth_intent", "login")
                 st.session_state["auth_intent"] = _intent
@@ -4499,10 +4498,9 @@ try {
                 st.session_state["auth_phase"] = "terms"
                 st.session_state["splash_drawer_open"] = False
                 st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+            
 
             # Kakao
-            st.markdown('<div class="ns-sp-social-kakao">', unsafe_allow_html=True)
             if st.button(_ph_bk_lbl, key="sp_soc_kakao", use_container_width=True):
                 _intent = st.session_state.get("splash_auth_intent", "login")
                 st.session_state["auth_intent"] = _intent
@@ -4513,10 +4511,9 @@ try {
                 st.session_state["auth_phase"] = "terms"
                 st.session_state["splash_drawer_open"] = False
                 st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+            
 
             # Email
-            st.markdown('<div class="ns-sp-social-email">', unsafe_allow_html=True)
             if st.button(_ph_be_lbl, key="sp_soc_email", use_container_width=True):
                 _intent = st.session_state.get("splash_auth_intent", "login")
                 st.session_state["auth_intent"] = _intent
@@ -4527,14 +4524,13 @@ try {
                 st.session_state["auth_phase"] = "sheet"
                 st.session_state["splash_drawer_open"] = False
                 st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+            
 
             # 뒤로가기 (드로어 닫기)
-            st.markdown('<div class="ns-sp-close-btn">', unsafe_allow_html=True)
             if st.button("← 뒤로", key="sp_drawer_close", use_container_width=True):
                 st.session_state["splash_drawer_open"] = False
                 st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+            
             # 드로어 래퍼 닫기
             st.markdown("</div>", unsafe_allow_html=True)  # ns-sp-drawer-section
 
@@ -4736,7 +4732,7 @@ html, body {
             st.session_state["pending_social_provider"] = "kakao"
             st.session_state["auth_phase"] = "terms"
             st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+    
 
     with st.expander("✉️ 이메일로 계속하기"):
         c1, c2, c3 = st.columns(3)
@@ -4830,7 +4826,7 @@ html, body {
             st.session_state["pending_social_provider"] = "kakao"
             st.session_state["auth_phase"] = "terms"
             st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+        
         st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
         if st.button("✉️ 이메일로 회원가입하기", key="reg_ko_email", use_container_width=True):
             st.session_state["auth_mode"] = "signup"
