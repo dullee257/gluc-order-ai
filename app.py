@@ -4266,7 +4266,7 @@ try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
 #gluc-splash-root*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-#gluc-splash-root{position:fixed;inset:0;z-index:999998;background:#0f172a;font-family:'Noto Sans KR',-apple-system,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent;}
+#gluc-splash-root{position:fixed;inset:0;z-index:2147483647;background:#0f172a;font-family:'Noto Sans KR',-apple-system,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent;}
 #gluc-splash-root .screen{position:relative;width:100%;height:100%;overflow:hidden;text-align:center;}
 #gluc-splash-root .visual{position:absolute;top:0;left:0;right:0;bottom:160px;height:calc(100% - 160px);min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding:12px 20px 0;z-index:1;}
 #gluc-splash-root .glow-bg{position:fixed;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:500px;height:52%;background:radial-gradient(ellipse at 50% 22%,rgba(16,185,129,0.19) 0%,transparent 65%);pointer-events:none;z-index:0;}
@@ -4283,8 +4283,8 @@ try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e
 #gluc-splash-root .copy2{font-size:clamp(0.84rem,3.6vw,0.97rem);font-weight:800;color:#ffffff;line-height:1.45;animation:rise 0.6s cubic-bezier(0.22,1,0.36,1) 0.66s both;}
 #gluc-splash-root .copy2 em{font-style:normal;color:#10b981;}
 #gluc-splash-root .btn-section{position:absolute;bottom:0;left:0;right:0;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:8px 20px;padding-bottom:max(20px,env(safe-area-inset-bottom,0px));z-index:2;animation:rise 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both;}
-#gluc-splash-root .btn-main{width:100%;max-width:420px;height:54px;background:rgba(255,255,255,0.11);border:1px solid rgba(255,255,255,0.24);border-radius:16px;color:#ffffff;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.9rem,3.5vw,1.0rem);font-weight:800;cursor:pointer;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background 0.15s,transform 0.09s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
-#gluc-splash-root .btn-sub{width:100%;max-width:420px;height:46px;background:transparent;border:1.5px solid rgba(16,185,129,0.50);border-radius:14px;color:#34d399;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.80rem,3.1vw,0.88rem);font-weight:700;cursor:pointer;transition:background 0.15s,transform 0.09s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+#gluc-splash-root .btn-main{width:100%;max-width:420px;height:54px;background:rgba(255,255,255,0.11);border:1px solid rgba(255,255,255,0.24);border-radius:16px;color:#ffffff;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.9rem,3.5vw,1.0rem);font-weight:800;cursor:pointer;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background 0.15s,transform 0.09s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;pointer-events:auto!important;position:relative;z-index:10;}
+#gluc-splash-root .btn-sub{width:100%;max-width:420px;height:46px;background:transparent;border:1.5px solid rgba(16,185,129,0.50);border-radius:14px;color:#34d399;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.80rem,3.1vw,0.88rem);font-weight:700;cursor:pointer;transition:background 0.15s,transform 0.09s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;pointer-events:auto!important;position:relative;z-index:10;}
 #gluc-splash-root .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.58);z-index:50;}
 #gluc-splash-root .overlay.open{display:block;}
 #gluc-splash-root .drawer{position:fixed;bottom:-100%;left:0;right:0;background:linear-gradient(180deg,#1e293b 0%,#0f1f30 100%);border-radius:24px 24px 0 0;border-top:1px solid rgba(255,255,255,0.10);padding:14px 22px max(28px,env(safe-area-inset-bottom,0px));z-index:100;transition:bottom 0.40s cubic-bezier(0.22,1,0.36,1);box-shadow:0 -10px 48px rgba(0,0,0,0.58);max-height:72vh;overflow-y:auto;}
@@ -4292,7 +4292,7 @@ try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e
 #gluc-splash-root .handle{width:38px;height:4px;background:rgba(255,255,255,0.17);border-radius:2px;margin:0 auto 16px;}
 #gluc-splash-root .drawer-title{font-size:clamp(1.0rem,4.2vw,1.12rem);font-weight:900;color:#ffffff;text-align:center;margin-bottom:5px;letter-spacing:-0.02em;}
 #gluc-splash-root .drawer-sub{font-size:0.70rem;color:rgba(255,255,255,0.36);text-align:center;margin-bottom:16px;}
-#gluc-splash-root .social-btn{width:100%;height:52px;border-radius:14px;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.82rem,3.2vw,0.91rem);font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px;padding:0 18px;margin-bottom:9px;border:none;transition:transform 0.09s,filter 0.12s;letter-spacing:-0.01em;text-align:left;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+#gluc-splash-root .social-btn{width:100%;height:52px;border-radius:14px;font-family:'Noto Sans KR',sans-serif;font-size:clamp(0.82rem,3.2vw,0.91rem);font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px;padding:0 18px;margin-bottom:9px;border:none;transition:transform 0.09s,filter 0.12s;letter-spacing:-0.01em;text-align:left;touch-action:manipulation;-webkit-tap-highlight-color:transparent;pointer-events:auto!important;position:relative;z-index:10;}
 #gluc-splash-root .social-btn:last-child{margin-bottom:0;}
 #gluc-splash-root .social-btn .ico{width:22px;height:22px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
 #gluc-splash-root .social-btn .lbl{flex:1;text-align:center;}
@@ -4381,84 +4381,6 @@ try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e
   </button>
 </div>
 </div>
-<script>
-/* #63 Plan-C JS Bridge — 같은 document 컨텍스트, 크로스프레임 불필요 */
-(function() {
-  function getTrigger() {
-    var wrap = document.querySelector('[data-testid="stTextInput"]');
-    return wrap ? wrap.querySelector('input') : null;
-  }
-  function fireAction(action) {
-    var inp = getTrigger();
-    if (!inp) return;
-    try {
-      var setter = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype, 'value'
-      ).set;
-      setter.call(inp, action + ':' + Date.now());
-      inp.dispatchEvent(new Event('input', { bubbles: true }));
-      inp.dispatchEvent(new Event('change', { bubbles: true }));
-    } catch(e) {}
-  }
-  function bindAll() {
-    var btnLogin  = document.getElementById('gluc-main-login');
-    var btnSignup = document.getElementById('gluc-main-signup');
-    if (btnLogin && !btnLogin.__gBound) {
-      btnLogin.__gBound = true;
-      btnLogin.addEventListener('click', function(e) {
-        e.stopPropagation(); fireAction('open_login');
-      });
-      btnLogin.addEventListener('touchend', function(e) {
-        e.preventDefault(); e.stopPropagation(); fireAction('open_login');
-      }, { passive: false });
-    }
-    if (btnSignup && !btnSignup.__gBound) {
-      btnSignup.__gBound = true;
-      btnSignup.addEventListener('click', function(e) {
-        e.stopPropagation(); fireAction('open_signup');
-      });
-      btnSignup.addEventListener('touchend', function(e) {
-        e.preventDefault(); e.stopPropagation(); fireAction('open_signup');
-      }, { passive: false });
-    }
-    [['gluc-bg','google'],['gluc-bn','naver'],
-     ['gluc-bk','kakao'],['gluc-be','email']].forEach(function(p) {
-      var btn = document.getElementById(p[0]);
-      if (btn && !btn.__gBound) {
-        btn.__gBound = true;
-        (function(prov) {
-          btn.addEventListener('click', function(e) {
-            e.stopPropagation(); fireAction(prov);
-          });
-          btn.addEventListener('touchend', function(e) {
-            e.preventDefault(); e.stopPropagation(); fireAction(prov);
-          }, { passive: false });
-        })(p[1]);
-      }
-    });
-    var ov = document.getElementById('gluc-overlay');
-    if (ov && !ov.__gBound) {
-      ov.__gBound = true;
-      ov.addEventListener('click', function(e) {
-        e.stopPropagation(); fireAction('close_drawer');
-      });
-      ov.addEventListener('touchend', function(e) {
-        e.preventDefault(); e.stopPropagation(); fireAction('close_drawer');
-      }, { passive: false });
-    }
-  }
-  bindAll();
-  [50, 150, 300, 500, 800, 1200].forEach(function(t) {
-    setTimeout(bindAll, t);
-  });
-  try {
-    new MutationObserver(function() { bindAll(); }).observe(
-      document.body || document.documentElement,
-      { childList: true, subtree: true }
-    );
-  } catch(e) {}
-})();
-</script>
 """
             ).replace("__OVERLAY_OPEN__", _ov)
             .replace("__DRAWER_OPEN__", _dr)
@@ -4472,11 +4394,11 @@ try { window.parent.document.body.classList.add('auth-splash-screen'); } catch(e
         )
 
 
-        # ── #63 Plan-C: Native Input Setter (Hidden Trigger) ──
-        # 숨김 트리거 input을 화면 밖으로 추방하는 CSS
+        # ── #63 Plan-C: CSS 정리 (Streamlit chrome 숨김 + 래퍼 pointer-events 제거) ──
         st.markdown(
             """
 <style>
+/* ① 숨김 트리거 input: 화면 밖 1px */
 body.auth-splash-screen [data-testid="stTextInput"] {
   position: fixed !important;
   left: -9999px !important;
@@ -4486,6 +4408,33 @@ body.auth-splash-screen [data-testid="stTextInput"] {
   overflow: hidden !important;
   pointer-events: none !important;
   opacity: 0 !important;
+}
+/* ② Streamlit UI chrome 숨김 (스플래시 화면 전용) */
+body.auth-splash-screen header[data-testid="stHeader"],
+body.auth-splash-screen #MainMenu,
+body.auth-splash-screen .stDeployButton,
+body.auth-splash-screen footer[data-testid="stFooter"],
+body.auth-splash-screen [data-testid="stToolbar"],
+body.auth-splash-screen [data-testid="stDecoration"] {
+  display: none !important;
+}
+/* ③ Streamlit 레이아웃 래퍼: pointer-events 차단 해제
+   (스플래시 루트가 z-index 최상위라 래퍼가 클릭을 가로채면 안 됨) */
+body.auth-splash-screen .stApp,
+body.auth-splash-screen [data-testid="stAppViewContainer"],
+body.auth-splash-screen [data-testid="stMain"],
+body.auth-splash-screen section[tabindex="0"],
+body.auth-splash-screen .block-container,
+body.auth-splash-screen .stMainBlockContainer {
+  pointer-events: none !important;
+}
+/* ④ 실제로 클릭받아야 하는 요소는 명시적으로 복원 */
+#gluc-splash-root,
+#gluc-splash-root * {
+  pointer-events: auto !important;
+}
+#gluc-splash-root .glow-bg {
+  pointer-events: none !important;
 }
 </style>
 """,
@@ -4500,49 +4449,69 @@ body.auth-splash-screen [data-testid="stTextInput"] {
             on_change=_on_splash_trigger,
         )
 
-        # ── #63 Plan-C 안전망: st.markdown <script> 미실행 시 iframe fallback ──
-        # (크로스프레임 Event 생성 시 window.parent.Event 사용 → React 인식 보장)
+        # ── #65 Plan-C JS Bridge (st.components.v1.html 전용 — 반드시 실행됨) ──
         st.components.v1.html(
             """<script>
 (function() {
-  var pd = window.parent.document;
-  var pw = window.parent;
+  var pw = window.parent;          /* 부모 window */
+  var pd = pw.document;            /* 부모 document */
+  var pc = pw.console;             /* 부모 console → F12에서 직접 보임 */
+
+  /* ✅ 생존 신고: 이 줄이 F12 콘솔에 찍혀야 JS가 정상 로드된 것 */
+  pc.log('\uD83D\uDE80 [System] Hidden Trigger JS Loaded Successfully!');
+
+  /* ✅ 전역 클릭 추적기: 캡처링 단계에서 모든 클릭 감지 */
+  pd.addEventListener('click', function(e) {
+    pc.log('\uD83D\uDD34 \ud130\uce58\ub41c \uc694\uc18c:', e.target.tagName,
+           '| id:', e.target.id,
+           '| class:', e.target.className.toString().substring(0, 60));
+  }, true);
 
   function getTrigger() {
     var wrap = pd.querySelector('[data-testid="stTextInput"]');
     return wrap ? wrap.querySelector('input') : null;
   }
+
   function fireAction(action) {
+    pc.log('\uD83D\uDFE2 [fireAction] \ud638\ucd9c:', action);
     var inp = getTrigger();
-    if (!inp) return;
+    if (!inp) { pc.warn('\u26A0\uFE0F [fireAction] stTextInput\uc744 \ucc3e\uc9c0 \ubabb\ud568!'); return; }
     try {
       var setter = Object.getOwnPropertyDescriptor(
         pw.HTMLInputElement.prototype, 'value'
       ).set;
       setter.call(inp, action + ':' + Date.now());
-      /* pw.Event: 부모 window 컨텍스트로 생성 → React 이벤트 시스템이 확실히 인식 */
+      /* pw.Event: 부모 window 컨텍스트로 생성 → React가 반드시 인식 */
       inp.dispatchEvent(new pw.Event('input',  { bubbles: true }));
       inp.dispatchEvent(new pw.Event('change', { bubbles: true }));
-    } catch(e) {}
+      pc.log('\u2705 [fireAction] \uc774\ubca4\ud2b8 \ubc1c\uc0ac \uc644\ub8cc:', action);
+    } catch(e) { pc.error('\uD83D\uDEA8 [fireAction] \uc2e4\ud328:', e); }
   }
+
   function bindAll() {
     var btnLogin  = pd.getElementById('gluc-main-login');
     var btnSignup = pd.getElementById('gluc-main-signup');
     if (btnLogin && !btnLogin.__gBound) {
       btnLogin.__gBound = true;
+      pc.log('\uD83D\uDD17 [bind] gluc-main-login \ubc14\uc778\ub529 \uc644\ub8cc');
       btnLogin.addEventListener('click', function(e) {
+        pc.log('\uD83D\uDC49 [click] gluc-main-login');
         e.stopPropagation(); fireAction('open_login');
       });
       btnLogin.addEventListener('touchend', function(e) {
+        pc.log('\uD83D\uDC49 [touch] gluc-main-login');
         e.preventDefault(); e.stopPropagation(); fireAction('open_login');
       }, { passive: false });
     }
     if (btnSignup && !btnSignup.__gBound) {
       btnSignup.__gBound = true;
+      pc.log('\uD83D\uDD17 [bind] gluc-main-signup \ubc14\uc778\ub529 \uc644\ub8cc');
       btnSignup.addEventListener('click', function(e) {
+        pc.log('\uD83D\uDC49 [click] gluc-main-signup');
         e.stopPropagation(); fireAction('open_signup');
       });
       btnSignup.addEventListener('touchend', function(e) {
+        pc.log('\uD83D\uDC49 [touch] gluc-main-signup');
         e.preventDefault(); e.stopPropagation(); fireAction('open_signup');
       }, { passive: false });
     }
@@ -4551,11 +4520,14 @@ body.auth-splash-screen [data-testid="stTextInput"] {
       var btn = pd.getElementById(p[0]);
       if (btn && !btn.__gBound) {
         btn.__gBound = true;
+        pc.log('\uD83D\uDD17 [bind]', p[0], '\ubc14\uc778\ub529 \uc644\ub8cc');
         (function(prov) {
           btn.addEventListener('click', function(e) {
+            pc.log('\uD83D\uDC49 [click]', prov);
             e.stopPropagation(); fireAction(prov);
           });
           btn.addEventListener('touchend', function(e) {
+            pc.log('\uD83D\uDC49 [touch]', prov);
             e.preventDefault(); e.stopPropagation(); fireAction(prov);
           }, { passive: false });
         })(p[1]);
@@ -4564,6 +4536,7 @@ body.auth-splash-screen [data-testid="stTextInput"] {
     var ov = pd.getElementById('gluc-overlay');
     if (ov && !ov.__gBound) {
       ov.__gBound = true;
+      pc.log('\uD83D\uDD17 [bind] gluc-overlay \ubc14\uc778\ub529 \uc644\ub8cc');
       ov.addEventListener('click', function(e) {
         e.stopPropagation(); fireAction('close_drawer');
       });
@@ -4572,8 +4545,9 @@ body.auth-splash-screen [data-testid="stTextInput"] {
       }, { passive: false });
     }
   }
+
   bindAll();
-  [50, 150, 300, 500, 800, 1200].forEach(function(t) {
+  [50, 150, 300, 500, 800, 1500].forEach(function(t) {
     setTimeout(bindAll, t);
   });
   try {
