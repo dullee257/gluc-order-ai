@@ -2,6 +2,7 @@
 """NutriSort AI - 한글 기본, UTF-8 소스·출력 통일."""
 import sys
 import os
+import subprocess
 import time
 import json
 import traceback
@@ -53,6 +54,29 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed",
     menu_items={"Get Help": None, "Report a bug": None, "About": None},
+)
+
+
+def _deploy_probe_text():
+    """배포 버전 확인용(가설 E). 화면 우하단 고정 표시."""
+    h = os.environ.get("GIT_COMMIT", "").strip() or os.environ.get("RENDER_GIT_COMMIT", "").strip()
+    if not h:
+        try:
+            h = subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+                stderr=subprocess.DEVNULL,
+                text=True,
+            ).strip()
+        except Exception:
+            h = "(git 없음)"
+    t = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    return f"probe: {h} @ {t}"
+
+
+st.markdown(
+    f'<p style="position:fixed;bottom:4px;right:6px;margin:0;font-size:10px;opacity:0.65;z-index:99999;background:#fff;padding:2px 6px;border-radius:4px;">{_deploy_probe_text()}</p>',
+    unsafe_allow_html=True,
 )
 
 # ══════════════════════════════════════════════════════════════════════════════
