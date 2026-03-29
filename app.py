@@ -56,8 +56,6 @@ st.set_page_config(
     menu_items={"Get Help": None, "Report a bug": None, "About": None},
 )
 
-st.warning("⚠️ 긴급 복구 모드 가동 중… (렌더링·가시성 우선 복원)")
-
 
 def _deploy_probe_text():
     """배포 버전 확인용(가설 E). 화면 우하단 고정 표시."""
@@ -3903,11 +3901,15 @@ if not st.session_state['logged_in']:
     body.auth-login-splash .stApp [data-testid="stMarkdownContainer"] a {
       color: rgba(255,255,255,0.80) !important;
     }
-    /* 약관 페이지: 본문·링크·체크박스 라벨 전부 순백 (#ffffff) */
-    body.auth-login-splash.auth-terms-page .stApp [data-testid="stMarkdownContainer"] p,
-    body.auth-login-splash.auth-terms-page .stApp [data-testid="stMarkdownContainer"] li,
-    body.auth-login-splash.auth-terms-page .stApp [data-testid="stMarkdownContainer"] a,
-    body.auth-login-splash.auth-terms-page .stApp [data-testid="stMarkdownContainer"] span {
+    /* 약관 페이지: 본문·링크·체크박스 라벨 전부 순백 (#ffffff) — #83: :has()만 사용 */
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stMarkdownContainer"] p,
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stMarkdownContainer"] li,
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stMarkdownContainer"] a,
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stMarkdownContainer"] span,
+    body.auth-login-splash:has(#gluc-terms-detail-root) .stApp [data-testid="stMarkdownContainer"] p,
+    body.auth-login-splash:has(#gluc-terms-detail-root) .stApp [data-testid="stMarkdownContainer"] li,
+    body.auth-login-splash:has(#gluc-terms-detail-root) .stApp [data-testid="stMarkdownContainer"] a,
+    body.auth-login-splash:has(#gluc-terms-detail-root) .stApp [data-testid="stMarkdownContainer"] span {
       color: #ffffff !important;
     }
     body.auth-login-splash .stApp [data-testid="stCheckbox"] label,
@@ -3915,9 +3917,9 @@ if not st.session_state['logged_in']:
     body.auth-login-splash .stApp [data-testid="stCheckbox"] span {
       color: rgba(255,255,255,0.88) !important;
     }
-    body.auth-login-splash.auth-terms-page .stApp [data-testid="stCheckbox"] label,
-    body.auth-login-splash.auth-terms-page .stApp [data-testid="stCheckbox"] label p,
-    body.auth-login-splash.auth-terms-page .stApp [data-testid="stCheckbox"] span {
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stCheckbox"] label,
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stCheckbox"] label p,
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stCheckbox"] span {
       color: #ffffff !important;
     }
     body.auth-login-splash .stApp [data-testid="stExpander"] > details {
@@ -3930,14 +3932,14 @@ if not st.session_state['logged_in']:
     body.auth-login-splash .stApp [data-testid="stExpander"] summary {
       color: rgba(255,255,255,0.78) !important;
     }
-    body.auth-login-splash.auth-terms-page .stApp [data-testid="stExpander"] summary p,
-    body.auth-login-splash.auth-terms-page .stApp [data-testid="stExpander"] summary span,
-    body.auth-login-splash.auth-terms-page .stApp [data-testid="stExpander"] summary {
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stExpander"] summary p,
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stExpander"] summary span,
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stExpander"] summary {
       color: #ffffff !important;
     }
-    body.auth-login-splash.auth-terms-page .stApp table,
-    body.auth-login-splash.auth-terms-page .stApp table th,
-    body.auth-login-splash.auth-terms-page .stApp table td {
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp table,
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp table th,
+    body.auth-login-splash:has(#gluc-terms-page-title) .stApp table td {
       color: #ffffff !important;
       border-color: rgba(255,255,255,0.22) !important;
     }
@@ -3951,19 +3953,12 @@ if not st.session_state['logged_in']:
     }
     /* KR 단일: Facebook 버튼 제거 */
     .auth-terms-panel { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem; background: rgba(255,255,255,0.05); max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
-    /* ── 약관 동의 화면: 전체 스크롤 차단 + 박스 내부 스크롤 ── */
-    body.auth-login-splash.auth-terms-page {
+    /* ── 약관 동의 화면: 전체 스크롤 차단 + 박스 내부 스크롤 (#83: body/.stApp overflow 미조작) */
+    body.auth-login-splash:has(#gluc-terms-page-title) {
       overflow: hidden !important;
       height: 100dvh !important;
     }
-    body.auth-login-splash.auth-terms-page .stApp,
-    body.auth-login-splash.auth-terms-page [data-testid="stAppViewContainer"],
-    body.auth-login-splash.auth-terms-page section[tabindex="0"] {
-      overflow: hidden !important;
-      height: 100dvh !important;
-    }
-    /* 약관: 전체 페이지 스크롤 금지 — 체크+expander는 테두리 컨테이너 안만 스크롤 */
-    body.auth-login-splash.auth-terms-page .block-container {
+    body.auth-login-splash:has(#gluc-terms-page-title) .block-container {
       height: 100dvh !important;
       overflow: hidden !important;
       padding-top: 0 !important;
@@ -3973,8 +3968,8 @@ if not st.session_state['logged_in']:
       scrollbar-width: thin !important;
       min-height: 0 !important;
     }
-    /*     #77: 약관 본문 높이 타이트 — 전체동의 잘림 방지 */
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only {
+    /*     #77: 약관 목록 — 체크 6개가 들어 있는 테두리 박스만 스크롤 */
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stVerticalBlockBorderWrapper"]:has([data-testid="stCheckbox"]) {
       max-height: min(30vh, calc(100dvh - 340px)) !important;
       min-height: 0 !important;
       overflow-y: auto !important;
@@ -3984,15 +3979,15 @@ if not st.session_state['logged_in']:
       margin: 0 0 8px 0 !important;
       -webkit-overflow-scrolling: touch !important;
     }
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only::-webkit-scrollbar {
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stVerticalBlockBorderWrapper"]:has([data-testid="stCheckbox"])::-webkit-scrollbar {
       width: 5px;
     }
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only::-webkit-scrollbar-thumb {
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stVerticalBlockBorderWrapper"]:has([data-testid="stCheckbox"])::-webkit-scrollbar-thumb {
       background: rgba(16,185,129,0.35);
       border-radius: 3px;
     }
     /* #59: 전체 동의 — 고정 CTA에 가리지 않도록 + flex에서 잘리지 않게 */
-    body.auth-login-splash.auth-terms-page .block-container .tc-master-wrap {
+    body.auth-login-splash:has(#gluc-terms-page-title) .block-container .tc-master-wrap {
       flex: 0 0 auto !important;
       min-height: 0 !important;
       max-height: none !important;
@@ -4003,7 +3998,7 @@ if not st.session_state['logged_in']:
       margin-top: 4px !important;
     }
     /* CTA 버튼 영역: 화면 최하단 고정 */
-    body.auth-login-splash.auth-terms-page div:has(> [data-testid="stButton"] > button[kind="primary"]) {
+    body.auth-login-splash:has(#gluc-terms-page-title) div:has(> [data-testid="stButton"] > button[kind="primary"]) {
       position: fixed !important;
       bottom: 0 !important;
       left: 0 !important; right: 0 !important;
@@ -4012,7 +4007,7 @@ if not st.session_state['logged_in']:
       padding: 12px 16px 20px !important;
     }
     /* 스플래시 전용 레이아웃(스크롤 제로·크롬 숨김)은 아래 Plan E 블록의
-       body.auth-login-splash:not(.auth-terms-page) 스코프 CSS에서 일원 관리 */
+       body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) 스코프 CSS에서 일원 관리 */
     /* ── 약관 expander 다크 스타일 (모바일 100% 안정) ── */
     body.auth-login-splash .stApp [data-testid="stExpander"] > details {
       background: rgba(255,255,255,0.04) !important;
@@ -4082,138 +4077,73 @@ if not st.session_state['logged_in']:
       font-weight: 800 !important;
     }
     /* ── 약관 페이지 상단 여백 0 (#76) ── */
-    body.auth-login-splash.auth-terms-page .block-container {
+    body.auth-login-splash:has(#gluc-terms-page-title) .block-container {
       padding-top: 0 !important;
     }
     /* #77: 약관 제목을 뷰포트 최상단에 밀착 — Streamlit 기본 상단 공백 상쇄 */
-    body.auth-login-splash.auth-terms-page [data-testid="stMarkdownContainer"]:has(#gluc-terms-page-title) {
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stMarkdownContainer"]:has(#gluc-terms-page-title) {
       margin-top: -72px !important;
       padding-top: 0 !important;
     }
-    body.auth-login-splash.auth-terms-page [data-testid="stElementContainer"]:has(#gluc-terms-page-title) {
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stElementContainer"]:has(#gluc-terms-page-title) {
       margin-top: -72px !important;
       padding-top: 0 !important;
     }
-    body.auth-login-splash.auth-terms-page div#gluc-terms-page-title {
+    body.auth-login-splash:has(#gluc-terms-page-title) div#gluc-terms-page-title {
       margin-top: 0 !important;
     }
-    /* #79: 약관 목록 — JS가 div.tc-item-row로 stHorizontalBlock 래핑 */
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row {
+    /* #83: 약관 목록 한 줄 + chevron (순수 CSS, :has / ::after) */
+    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stHorizontalBlock"]:has(button[kind="secondary"]) {
       display: flex !important;
       flex-direction: row !important;
       align-items: center !important;
       justify-content: space-between !important;
       flex-wrap: nowrap !important;
       width: 100% !important;
-      gap: 6px !important;
-      margin: 0 0 2px 0 !important;
     }
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row > [data-testid="stHorizontalBlock"] {
-      flex: 1 1 auto !important;
-      min-width: 0 !important;
-      width: 100% !important;
-    }
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"] {
-      display: flex !important;
-      align-items: center !important;
-    }
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:first-child {
-      flex: 1 1 auto !important;
-      min-width: 0 !important;
-    }
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child {
-      flex: 0 0 auto !important;
-      max-width: 52px !important;
-    }
-    /* #81: Chevron — ::after 가상 요소로 화살표(폰트/SVG 아이콘 미사용) */
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"] {
+    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stHorizontalBlock"] button[kind="secondary"] {
       position: relative !important;
-      font-size: 0 !important;
-      line-height: 0 !important;
-      color: transparent !important;
       min-width: 44px !important;
-      width: 44px !important;
-      height: 44px !important;
+      min-height: 44px !important;
       padding: 0 !important;
       border: none !important;
       background-color: rgba(255,255,255,0.10) !important;
-      background-image: none !important;
       box-shadow: none !important;
     }
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"]::after {
-      content: "" !important;
-      position: absolute !important;
-      left: 50% !important;
-      top: 50% !important;
-      width: 8px !important;
-      height: 8px !important;
-      margin-top: -4px !important;
-      margin-left: -6px !important;
-      border-right: 2px solid #ffffff !important;
-      border-bottom: 2px solid #ffffff !important;
-      transform: rotate(-45deg) !important;
-      pointer-events: none !important;
-      box-sizing: border-box !important;
+    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stHorizontalBlock"] button[kind="secondary"] p {
+      display: none !important;
     }
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"] p,
-    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"] span {
-      opacity: 0 !important;
-      font-size: 0 !important;
+    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stHorizontalBlock"] button[kind="secondary"] span {
+      display: none !important;
     }
-    /* #81: 약관 상세 — 메인 앱 컨테이너 스크롤 + 천장 밀착 */
-    body.auth-login-splash.auth-terms-page.auth-terms-detail-page,
-    body.auth-login-splash.auth-terms-page.auth-terms-detail-page .stApp,
-    body.auth-login-splash.auth-terms-page.auth-terms-detail-page [data-testid="stAppViewContainer"],
-    body.auth-login-splash.auth-terms-page.auth-terms-detail-page section[tabindex="0"] {
-      overflow-x: hidden !important;
+    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stHorizontalBlock"] button[kind="secondary"]::after {
+      content: '' !important;
+      display: inline-block !important;
+      width: 20px !important;
+      height: 20px !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 5l7 7-7 7'/%3E%3C/svg%3E") !important;
+      background-size: contain !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+    }
+    /* #83: 약관 상세 — .tc-detail-view 마커가 있을 때 본문 테두리만 스크롤 (body/.stApp 미조작) */
+    body.auth-login-splash:has(#gluc-terms-detail-root) .block-container {
+      padding-top: 0 !important;
+    }
+    body.auth-login-splash:has(#gluc-terms-detail-root) section[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"] {
       overflow-y: auto !important;
-      height: auto !important;
-      min-height: 100dvh !important;
-      max-height: none !important;
-    }
-    body.auth-login-splash.auth-terms-page.auth-terms-detail-page .block-container {
-      overflow: visible !important;
-      height: auto !important;
-      min-height: 100dvh !important;
-      padding-top: 0 !important;
-      margin-top: -100px !important;
-    }
-    /* #79: 약관 상세 — 상단 여백 제거 + 스크롤 영역 + sticky 헤더 */
-    body.auth-login-splash.auth-terms-detail-page .block-container,
-    body.auth-login-splash.auth-terms-detail-page [data-testid="stAppViewContainer"],
-    body.auth-login-splash.auth-terms-detail-page section[tabindex="0"] {
-      padding-top: 0 !important;
-    }
-    body.auth-login-splash.auth-terms-detail-page [data-testid="stMain"] > div {
-      padding-top: 0 !important;
-      margin-top: 0 !important;
-    }
-    body.auth-login-splash.auth-terms-detail-page [data-testid="stElementContainer"].tc-detail-header-sticky {
-      position: sticky !important;
-      top: 0 !important;
-      z-index: 500 !important;
-      background: linear-gradient(180deg, #0f172a 85%, rgba(15,23,42,0.97) 100%) !important;
-      margin: 0 !important;
-      padding: 0 0 8px 0 !important;
-      border-bottom: 1px solid rgba(255,255,255,0.12);
-    }
-    body.auth-login-splash.auth-terms-page.auth-terms-detail-page section[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"].tc-detail-scroll-root,
-    body.auth-login-splash.auth-terms-detail-page section[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"] {
-      max-height: calc(100vh - 100px) !important;
-      max-height: calc(100dvh - 100px) !important;
-      overflow-y: auto !important;
-      overflow-x: hidden !important;
+      max-height: 80vh !important;
+      max-height: 80dvh !important;
       -webkit-overflow-scrolling: touch !important;
-      margin-top: 0 !important;
       padding: 12px 14px 20px !important;
       background: rgba(2, 6, 23, 0.55) !important;
       border-color: rgba(255,255,255,0.14) !important;
     }
-    body.auth-login-splash.auth-terms-detail-page [data-testid="stMarkdownContainer"] p,
-    body.auth-login-splash.auth-terms-detail-page [data-testid="stMarkdownContainer"] li,
-    body.auth-login-splash.auth-terms-detail-page [data-testid="stMarkdownContainer"] h1,
-    body.auth-login-splash.auth-terms-detail-page [data-testid="stMarkdownContainer"] h2,
-    body.auth-login-splash.auth-terms-detail-page [data-testid="stMarkdownContainer"] h3 {
+    body.auth-login-splash:has(#gluc-terms-detail-root) [data-testid="stMarkdownContainer"] p,
+    body.auth-login-splash:has(#gluc-terms-detail-root) [data-testid="stMarkdownContainer"] li,
+    body.auth-login-splash:has(#gluc-terms-detail-root) [data-testid="stMarkdownContainer"] h1,
+    body.auth-login-splash:has(#gluc-terms-detail-root) [data-testid="stMarkdownContainer"] h2,
+    body.auth-login-splash:has(#gluc-terms-detail-root) [data-testid="stMarkdownContainer"] h3 {
       color: rgba(255,255,255,0.96) !important;
     }
     /* ── 약관 expander 내부 테이블/텍스트 흰색 (검은 글씨 겹침 방지) ── */
@@ -4284,68 +4214,9 @@ if not st.session_state['logged_in']:
             st.query_params["tc"] = "list"
             st.rerun()
         _td_title, _td_body = _TERMS_DETAIL_PAGES[_tgt]
-        st.components.v1.html(
-            """<script>
-try {
-  window.parent.document.body.classList.add('auth-terms-page');
-  window.parent.document.body.classList.add('auth-terms-detail-page');
-  window.parent.document.body.classList.remove('auth-splash-screen');
-} catch(e) {}
-(function(){
-  var doc = window.parent.document;
-  function markStickyHeader() {
-    try {
-      var m = doc.querySelector('section[data-testid="stMain"]');
-      if (!m) return;
-      var btn = m.querySelector('button[kind="secondary"]');
-      if (!btn) return;
-      var ec = btn.closest('[data-testid="stElementContainer"]');
-      if (ec) ec.classList.add('tc-detail-header-sticky');
-    } catch(e) {}
-  }
-  function stripOverflowHiddenAncestors() {
-    try {
-      ['body','.stApp','[data-testid="stAppViewContainer"]','section[tabindex="0"]','.block-container','[data-testid="stMain"]'].forEach(function(sel) {
-        var el = doc.querySelector(sel);
-        if (!el) return;
-        el.style.setProperty('overflow','visible','important');
-        el.style.setProperty('overflow-x','visible','important');
-        el.style.setProperty('overflow-y','visible','important');
-      });
-    } catch(e) {}
-  }
-  function markDetailScrollRoot() {
-    try {
-      var main = doc.querySelector('section[data-testid="stMain"]');
-      if (!main) return;
-      var borders = main.querySelectorAll('[data-testid="stVerticalBlockBorderWrapper"]');
-      if (!borders.length) return;
-      var last = borders[borders.length - 1];
-      last.classList.add('tc-detail-scroll-root');
-      last.style.setProperty('overflow-y','auto','important');
-      last.style.setProperty('overflow-x','hidden','important');
-      last.style.setProperty('max-height','calc(100dvh - 100px)','important');
-      last.style.setProperty('-webkit-overflow-scrolling','touch');
-    } catch(e) {}
-  }
-  function detailRun() {
-    stripOverflowHiddenAncestors();
-    markDetailScrollRoot();
-    markStickyHeader();
-  }
-  detailRun();
-  [0,80,200,450].forEach(function(ms){ setTimeout(detailRun, ms); });
-  try {
-    var main = doc.querySelector('section[data-testid="stMain"]');
-    if (main && !window.__glucTermsDetailMO) {
-      window.__glucTermsDetailMO = true;
-      var mo = new MutationObserver(function(){ detailRun(); });
-      mo.observe(main, { childList: true, subtree: true, attributes: true });
-    }
-  } catch(e) {}
-})();
-</script>""",
-            height=0,
+        st.markdown(
+            '<div id="gluc-terms-detail-root" class="tc-detail-view" aria-hidden="true"></div>',
+            unsafe_allow_html=True,
         )
         if st.button(
             f"← {_td_title}",
@@ -4363,94 +4234,6 @@ try {
     # ---------- 약관 동의 화면 (소셜 클릭 후) — 토스/카카오 수준 상용 폼팩터 ----------
     if st.session_state.get("auth_phase") == "terms" and st.session_state.get("pending_social_provider"):
         prov = st.session_state["pending_social_provider"]
-
-        # 약관 페이지 전용 body 클래스 + URL 정리(뒤로가기 시 ?__auth 잔상 방지)
-        st.components.v1.html(
-            """<script>
-try {
-  window.parent.document.body.classList.add('auth-terms-page');
-  window.parent.document.body.classList.remove('auth-terms-detail-page');
-  window.parent.document.body.classList.remove('auth-splash-screen');
-  var _pw = window.parent;
-  var _u = new URL(_pw.location.href);
-  if (_u.searchParams.has('__auth') || _u.searchParams.has('intent')) {
-    _u.search = '';
-    _pw.history.replaceState({}, '', _u.pathname + _u.hash);
-  }
-} catch(e) {}
-</script>""",
-            height=0,
-        )
-
-        # #59: 약관 6개만 45vh 스크롤 — 첫 border 래퍼에 클래스 부여 (전역 border 셀렉터 제거)
-        st.components.v1.html(
-            """<script>
-(function() {
-  var doc = window.parent.document;
-  function tagTermsScroll() {
-    try {
-      var m = doc.querySelector('section[data-testid="stMain"]');
-      if (!m) return;
-      var w = m.querySelector('[data-testid="stVerticalBlockBorderWrapper"]');
-      if (w) w.classList.add('tc-terms-scroll-only');
-    } catch(e) {}
-  }
-  function tagTermItemRows() {
-    try {
-      var m = doc.querySelector('section[data-testid="stMain"]');
-      if (!m) return;
-      var w = m.querySelector('.tc-terms-scroll-only');
-      if (!w) return;
-      w.querySelectorAll('[data-testid="stHorizontalBlock"]').forEach(function(el) {
-        if (el.parentElement && el.parentElement.classList.contains('tc-item-row')) return;
-        var wrap = doc.createElement('div');
-        wrap.className = 'tc-item-row';
-        el.parentNode.insertBefore(wrap, el);
-        wrap.appendChild(el);
-      });
-    } catch(e) {}
-  }
-  function applyFlexRows() {
-    try {
-      var w = doc.querySelector('.tc-terms-scroll-only');
-      if (!w) return;
-      w.querySelectorAll('[data-testid="stHorizontalBlock"]').forEach(function(hb) {
-        hb.style.setProperty('display','flex','important');
-        hb.style.setProperty('flex-direction','row','important');
-        hb.style.setProperty('align-items','center','important');
-        hb.style.setProperty('justify-content','space-between','important');
-        hb.style.setProperty('flex-wrap','nowrap','important');
-        hb.style.setProperty('width','100%','important');
-        var pr = hb.parentElement;
-        if (pr && pr.classList && pr.classList.contains('tc-item-row')) {
-          pr.style.setProperty('display','flex','important');
-          pr.style.setProperty('flex-direction','row','important');
-          pr.style.setProperty('align-items','center','important');
-          pr.style.setProperty('justify-content','space-between','important');
-          pr.style.setProperty('width','100%','important');
-        }
-      });
-    } catch(e) {}
-  }
-  function runAll() {
-    tagTermsScroll();
-    tagTermItemRows();
-    applyFlexRows();
-  }
-  runAll();
-  [50,120,300,600].forEach(function(ms){ setTimeout(runAll, ms); });
-  try {
-    var main = doc.querySelector('section[data-testid="stMain"]');
-    if (main && !window.__glucTermsListMO) {
-      window.__glucTermsListMO = true;
-      var mo = new MutationObserver(function(){ runAll(); });
-      mo.observe(main, { childList: true, subtree: true, attributes: true });
-    }
-  } catch(e) {}
-})();
-</script>""",
-            height=0,
-        )
 
         # ── 헤더 ─────────────────────────────────────────────────────────────
         st.markdown(
@@ -4636,28 +4419,28 @@ try {
         _splash_css = (
             "<style data-gluc-plan-h='77'>\n"
             "@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');\n"
-            "body.auth-login-splash:not(.auth-terms-page){overflow:hidden!important;"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)){overflow:hidden!important;"
             "max-height:100dvh!important;height:100dvh!important;margin:0!important;padding:0!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stAppViewContainer'],"
-            "body.auth-login-splash:not(.auth-terms-page) section[tabindex='0'],"
-            "body.auth-login-splash:not(.auth-terms-page) .main{"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stAppViewContainer'],"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) section[tabindex='0'],"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .main{"
             "padding-top:0!important;margin-top:0!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) .stApp,"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stAppViewContainer'],"
-            "body.auth-login-splash:not(.auth-terms-page) section[tabindex='0']{"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .stApp,"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stAppViewContainer'],"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) section[tabindex='0']{"
             "background:#0f172a!important;min-height:100dvh!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) .block-container{"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .block-container{"
             "overflow-x:hidden!important;overflow-y:auto!important;background:#0f172a!important;"
             "max-width:100%!important;padding:0 16px!important;margin-top:0!important;padding-top:0!important;"
             "padding-bottom:max(120px,env(safe-area-inset-bottom,0px))!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) .block-container:has(.gluc-phase-drawer){"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .block-container:has(.gluc-phase-drawer){"
             "padding-bottom:max(20px,calc(12px + env(safe-area-inset-bottom,0px)))!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) header[data-testid='stHeader'],"
-            "body.auth-login-splash:not(.auth-terms-page) #MainMenu,"
-            "body.auth-login-splash:not(.auth-terms-page) footer,"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stToolbar'],"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stDecoration'],"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stStatusWidget']"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) header[data-testid='stHeader'],"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) #MainMenu,"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) footer,"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stToolbar'],"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stDecoration'],"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stStatusWidget']"
             "{display:none!important;}\n"
             ".gluc-phase-main,.gluc-phase-drawer{display:none!important;}\n"
             ".ns-sp-visual{display:flex;flex-direction:column;align-items:center;text-align:center;"
@@ -4700,51 +4483,51 @@ try {
             "margin-bottom:2px!important;}\n"
             ".ns-sp-drawer-sub{font-size:0.62rem!important;color:rgba(255,255,255,0.55);margin-bottom:0!important;}\n"
             "/* 메인 버튼: 단순 솔리드 */\n"
-            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-main ~ div[data-testid='stElementContainer']"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .gluc-phase-main ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] > button[kind='primary']{"
             "width:100%!important;height:46px!important;border-radius:10px!important;color:#0f172a!important;"
             "background:#fff!important;border:1px solid #e2e8f0!important;"
             "font-size:0.92rem!important;font-weight:800!important;"
             "font-family:'Noto Sans KR',sans-serif!important;box-shadow:none!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-main ~ div[data-testid='stElementContainer']"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .gluc-phase-main ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] > button[kind='secondary']{"
             "width:100%!important;height:44px!important;border-radius:10px!important;"
             "background:#10b981!important;border:1px solid #059669!important;color:#fff!important;"
             "font-size:0.88rem!important;font-weight:700!important;"
             "font-family:'Noto Sans KR',sans-serif!important;box-shadow:none!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-main ~ div[data-testid='stElementContainer']"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .gluc-phase-main ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{"
             "color:inherit!important;margin:0!important;font-weight:inherit!important;}\n"
             "/* 스플래시 전역: 버튼 터치·클릭 항상 수신 */\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'],"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stButton'] > button{"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stButton'],"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stButton'] > button{"
             "pointer-events:auto!important;}\n"
             "/* 드로어 소셜: 높이·간격 압축 (4+뒤로 한 화면) */\n"
-            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             ":has([data-testid='stButton'] > button[kind='primary']){"
             "position:relative!important;z-index:70!important;margin-bottom:2px!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             ":has([data-testid='stButton'] > button[kind='secondary']){"
             "position:relative!important;z-index:70!important;margin-bottom:2px!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             ":has([data-testid='stButton'] > button[kind='tertiary']){"
             "position:relative!important;z-index:70!important;margin-top:0!important;"
             "margin-bottom:max(8px,env(safe-area-inset-bottom,0px))!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] > button[kind='primary']{"
             "width:100%!important;height:34px!important;min-height:34px!important;"
             "border-radius:8px!important;padding:2px 8px!important;"
             "background:#fff!important;color:#3c4043!important;border:none!important;"
             "font-weight:700!important;font-family:'Noto Sans KR',sans-serif!important;"
             "font-size:0.72rem!important;line-height:1.2!important;box-shadow:none!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] > button[kind='secondary']{"
             "width:100%!important;height:34px!important;min-height:34px!important;"
             "border-radius:8px!important;padding:2px 8px!important;"
             "font-weight:700!important;font-family:'Noto Sans KR',sans-serif!important;"
             "font-size:0.72rem!important;line-height:1.2!important;"
             "background:#334155!important;border:1px solid #475569!important;color:#f1f5f9!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] > button[kind='tertiary']{"
             "width:100%!important;height:auto!important;min-height:28px!important;"
             "background:transparent!important;border:none!important;outline:none!important;"
@@ -4752,20 +4535,20 @@ try {
             "color:rgba(226,232,240,0.92)!important;font-size:0.62rem!important;"
             "font-weight:500!important;padding:4px 2px!important;line-height:1.25!important;"
             "white-space:normal!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{"
             "color:inherit!important;margin:0!important;}\n"
             "/* ── #74 맨 아래: 메인 로그인/가입 줄을 뷰포트 하단에 고정 (stVerticalBlock 직계 자식) ── */\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stVerticalBlock']:has(.gluc-phase-main)"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stVerticalBlock']:has(.gluc-phase-main)"
             " > div:has(button){"
             "position:fixed!important;bottom:0!important;left:max(16px,env(safe-area-inset-left,0px))!important;"
             "right:max(16px,env(safe-area-inset-right,0px))!important;"
             "z-index:60!important;max-width:440px!important;margin-left:auto!important;margin-right:auto!important;"
             "width:auto!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stVerticalBlock']:has(.gluc-phase-main)"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stVerticalBlock']:has(.gluc-phase-main)"
             " > div:has(button[kind='primary']){"
             "bottom:calc(44px + 8px + max(8px,env(safe-area-inset-bottom,0px)))!important;}\n"
-            "body.auth-login-splash:not(.auth-terms-page) [data-testid='stVerticalBlock']:has(.gluc-phase-main)"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stVerticalBlock']:has(.gluc-phase-main)"
             " > div:has(button[kind='secondary']){"
             "bottom:max(8px,env(safe-area-inset-bottom,0px))!important;}\n"
             "</style>\n"
