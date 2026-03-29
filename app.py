@@ -76,12 +76,13 @@ if _TOP_AUTH:
     st.session_state["auth_splash_done"] = True
     st.session_state["auth_sheet_open"]  = True
     st.session_state["auth_mode"]        = _TOP_INTENT
-    if _TOP_AUTH in ("google", "naver", "kakao"):
+    if _TOP_AUTH in ("google", "naver", "kakao", "email"):
         st.session_state["pending_social_provider"] = _TOP_AUTH
-        st.session_state["auth_phase"]              = "terms"
-    else:  # email
+        st.session_state["auth_phase"] = "terms"
+    else:
+        st.session_state["pending_social_provider"] = None
         st.session_state["auth_phase"] = "sheet"
-    st.rerun()                                     # 즉시 재렌더링 — 약관 or 이메일 폼
+    st.rerun()                                     # 즉시 재렌더링 — 약관 우선
 # ══════════════════════════════════════════════════════════════════════════════
 
 
@@ -3483,6 +3484,8 @@ def handle_social_login(provider: str) -> dict:
     p = (provider or "").strip().lower()
     if p == "google":
         return {"action": "oauth_google"}
+    if p == "email":
+        return {"action": "email_sheet"}
     if p in ("naver", "kakao", "facebook"):
         return {"action": "stub", "provider": p}
     return {"action": "error", "provider": p}
@@ -3886,9 +3889,9 @@ if not st.session_state['logged_in']:
       scrollbar-width: thin !important;
       min-height: 0 !important;
     }
-    /*     #76: 약관 본문 max-height 제한 + 스크롤 — 전체동의·CTA 확보 */
+    /*     #77: 약관 본문 높이 타이트 — 전체동의 잘림 방지 */
     body.auth-login-splash.auth-terms-page .tc-terms-scroll-only {
-      max-height: min(38vh, calc(100dvh - 300px)) !important;
+      max-height: min(30vh, calc(100dvh - 340px)) !important;
       min-height: 0 !important;
       overflow-y: auto !important;
       overflow-x: hidden !important;
@@ -3998,6 +4001,18 @@ if not st.session_state['logged_in']:
     body.auth-login-splash.auth-terms-page .block-container {
       padding-top: 0 !important;
     }
+    /* #77: 약관 제목을 뷰포트 최상단에 밀착 — Streamlit 기본 상단 공백 상쇄 */
+    body.auth-login-splash.auth-terms-page [data-testid="stMarkdownContainer"]:has(#gluc-terms-page-title) {
+      margin-top: -72px !important;
+      padding-top: 0 !important;
+    }
+    body.auth-login-splash.auth-terms-page [data-testid="stElementContainer"]:has(#gluc-terms-page-title) {
+      margin-top: -72px !important;
+      padding-top: 0 !important;
+    }
+    body.auth-login-splash.auth-terms-page div#gluc-terms-page-title {
+      margin-top: 0 !important;
+    }
     /* ── 약관 expander 내부 테이블/텍스트 흰색 (검은 글씨 겹침 방지) ── */
     body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] table,
     body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] table th,
@@ -4102,11 +4117,11 @@ try {
         # ── 헤더 ─────────────────────────────────────────────────────────────
         st.markdown(
             """
-            <div style="text-align:center;margin:0 0 8px;">
+            <div id="gluc-terms-page-title" style="text-align:center;margin:0 0 6px;padding:0;">
               <div style="font-size:1.2rem;font-weight:900;color:#fff;letter-spacing:-0.02em;">
                 📋 서비스 약관 동의
               </div>
-              <div style="font-size:0.75rem;color:rgba(255,255,255,0.46);margin-top:4px;">
+              <div style="font-size:0.75rem;color:rgba(255,255,255,0.46);margin-top:3px;">
                 필수 항목에 모두 동의해야 서비스를 이용하실 수 있습니다.
               </div>
             </div>
@@ -4222,6 +4237,8 @@ try {
             elif decision.get("action") == "stub":
                 pname = str(decision.get("provider", prov) or "").title()
                 st.session_state["auth_flash_msg"] = get_text(_lg, "social_provider_stub", provider=pname)
+            elif decision.get("action") == "email_sheet":
+                pass
             st.rerun()
 
         st.stop()
@@ -4259,9 +4276,9 @@ try {
             _ph_bk_lbl = "🟡  카카오로 계속하기"
             _ph_be_lbl = "✉️  이메일로 계속하기"
 
-        # Plan #76: 상단 정렬·여백 0, 비주얼 85%·-50px, 교차내비는 별도 버튼
+        # Plan #77: 약관 단일화·드로어 바닥 밀착·교차내비 텍스트 전용
         _splash_css = (
-            "<style data-gluc-plan-h='76'>\n"
+            "<style data-gluc-plan-h='77'>\n"
             "@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');\n"
             "body.auth-login-splash:not(.auth-terms-page){overflow:hidden!important;"
             "max-height:100dvh!important;height:100dvh!important;margin:0!important;padding:0!important;}\n"
@@ -4312,6 +4329,7 @@ try {
             "/* 드로어 패널: 슬라이드·페이드 제거, 즉시 표시·높이 자동 */\n"
             ".ns-sp-drawer-backdrop{position:fixed!important;left:0!important;right:0!important;"
             "bottom:0!important;top:auto!important;max-height:85dvh!important;height:auto!important;"
+            "margin:0!important;padding:0!important;"
             "z-index:35!important;pointer-events:none!important;"
             "background:#1a2332!important;"
             "border-radius:12px 12px 0 0!important;"
@@ -4355,7 +4373,7 @@ try {
             "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             ":has([data-testid='stButton'] > button[kind='tertiary']){"
             "position:relative!important;z-index:70!important;margin-top:0!important;"
-            "margin-bottom:max(12px,env(safe-area-inset-bottom,0px))!important;}\n"
+            "margin-bottom:max(8px,env(safe-area-inset-bottom,0px))!important;}\n"
             "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] > button[kind='primary']{"
             "width:100%!important;height:34px!important;min-height:34px!important;"
@@ -4372,10 +4390,11 @@ try {
             "background:#334155!important;border:1px solid #475569!important;color:#f1f5f9!important;}\n"
             "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] > button[kind='tertiary']{"
-            "width:100%!important;height:auto!important;min-height:30px!important;"
-            "background:transparent!important;border:none!important;"
-            "color:rgba(147,197,253,0.95)!important;font-size:0.62rem!important;"
-            "font-weight:600!important;padding:6px 4px!important;line-height:1.2!important;"
+            "width:100%!important;height:auto!important;min-height:28px!important;"
+            "background:transparent!important;border:none!important;outline:none!important;"
+            "box-shadow:none!important;-webkit-tap-highlight-color:transparent!important;"
+            "color:rgba(226,232,240,0.92)!important;font-size:0.62rem!important;"
+            "font-weight:500!important;padding:4px 2px!important;line-height:1.25!important;"
             "white-space:normal!important;}\n"
             "body.auth-login-splash:not(.auth-terms-page) .gluc-phase-drawer ~ div[data-testid='stElementContainer']"
             " [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{"
@@ -4542,8 +4561,8 @@ try {
                 st.session_state["auth_mode"] = _intent
                 st.session_state["auth_splash_done"] = True
                 st.session_state["auth_sheet_open"] = True
-                st.session_state["pending_social_provider"] = None
-                st.session_state["auth_phase"] = "sheet"
+                st.session_state["pending_social_provider"] = "email"
+                st.session_state["auth_phase"] = "terms"
                 st.session_state["splash_drawer_open"] = False
                 st.rerun()
             
@@ -4865,6 +4884,8 @@ html, body {
         st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
         if st.button("✉️ 이메일로 회원가입하기", key="reg_ko_email", use_container_width=True):
             st.session_state["auth_mode"] = "signup"
+            st.session_state["pending_social_provider"] = "email"
+            st.session_state["auth_phase"] = "terms"
             st.rerun()
 
     st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
