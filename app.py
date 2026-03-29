@@ -4094,6 +4094,90 @@ if not st.session_state['logged_in']:
     body.auth-login-splash.auth-terms-page div#gluc-terms-page-title {
       margin-top: 0 !important;
     }
+    /* #79: 약관 목록 — JS가 div.tc-item-row로 stHorizontalBlock 래핑 */
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row {
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      flex-wrap: nowrap !important;
+      width: 100% !important;
+      gap: 6px !important;
+      margin: 0 0 2px 0 !important;
+    }
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row > [data-testid="stHorizontalBlock"] {
+      flex: 1 1 auto !important;
+      min-width: 0 !important;
+      width: 100% !important;
+    }
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"] {
+      display: flex !important;
+      align-items: center !important;
+    }
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:first-child {
+      flex: 1 1 auto !important;
+      min-width: 0 !important;
+    }
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child {
+      flex: 0 0 auto !important;
+      max-width: 52px !important;
+    }
+    /* Heroicons Chevron Right 스타일 SVG — 글자 숨김 */
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"] {
+      font-size: 0 !important;
+      line-height: 0 !important;
+      color: transparent !important;
+      min-width: 44px !important;
+      width: 44px !important;
+      height: 44px !important;
+      padding: 0 !important;
+      border: none !important;
+      background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23e2e8f0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 4.5l7.5 7.5-7.5 7.5'/%3E%3C/svg%3E") center / 22px 22px no-repeat !important;
+      box-shadow: none !important;
+    }
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"] p,
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"] span {
+      opacity: 0 !important;
+      font-size: 0 !important;
+    }
+    /* #79: 약관 상세 — 상단 여백 제거 + 스크롤 영역 + sticky 헤더 */
+    body.auth-login-splash.auth-terms-detail-page .block-container,
+    body.auth-login-splash.auth-terms-detail-page [data-testid="stAppViewContainer"],
+    body.auth-login-splash.auth-terms-detail-page section[tabindex="0"] {
+      padding-top: 0 !important;
+      margin-top: 0 !important;
+    }
+    body.auth-login-splash.auth-terms-detail-page [data-testid="stMain"] > div {
+      padding-top: 0 !important;
+      margin-top: 0 !important;
+    }
+    body.auth-login-splash.auth-terms-detail-page [data-testid="stElementContainer"].tc-detail-header-sticky {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 500 !important;
+      background: linear-gradient(180deg, #0f172a 85%, rgba(15,23,42,0.97) 100%) !important;
+      margin: 0 !important;
+      padding: 0 0 8px 0 !important;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    body.auth-login-splash.auth-terms-detail-page section[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"] {
+      max-height: calc(100vh - 80px) !important;
+      max-height: calc(100dvh - 80px) !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      -webkit-overflow-scrolling: touch !important;
+      margin-top: 0 !important;
+      padding: 12px 14px 20px !important;
+      background: rgba(2, 6, 23, 0.55) !important;
+      border-color: rgba(255,255,255,0.14) !important;
+    }
+    body.auth-login-splash.auth-terms-detail-page [data-testid="stMarkdownContainer"] p,
+    body.auth-login-splash.auth-terms-detail-page [data-testid="stMarkdownContainer"] li,
+    body.auth-login-splash.auth-terms-detail-page [data-testid="stMarkdownContainer"] h1,
+    body.auth-login-splash.auth-terms-detail-page [data-testid="stMarkdownContainer"] h2,
+    body.auth-login-splash.auth-terms-detail-page [data-testid="stMarkdownContainer"] h3 {
+      color: rgba(255,255,255,0.96) !important;
+    }
     /* ── 약관 expander 내부 테이블/텍스트 흰색 (검은 글씨 겹침 방지) ── */
     body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] table,
     body.auth-login-splash .stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] table th,
@@ -4166,8 +4250,24 @@ if not st.session_state['logged_in']:
             """<script>
 try {
   window.parent.document.body.classList.add('auth-terms-page');
+  window.parent.document.body.classList.add('auth-terms-detail-page');
   window.parent.document.body.classList.remove('auth-splash-screen');
 } catch(e) {}
+(function(){
+  function markStickyHeader() {
+    try {
+      var m = window.parent.document.querySelector('section[data-testid="stMain"]');
+      if (!m) return;
+      var btn = m.querySelector('button[kind="secondary"]');
+      if (!btn) return;
+      var ec = btn.closest('[data-testid="stElementContainer"]');
+      if (ec) ec.classList.add('tc-detail-header-sticky');
+    } catch(e) {}
+  }
+  setTimeout(markStickyHeader, 0);
+  setTimeout(markStickyHeader, 80);
+  setTimeout(markStickyHeader, 250);
+})();
 </script>""",
             height=0,
         )
@@ -4193,6 +4293,7 @@ try {
             """<script>
 try {
   window.parent.document.body.classList.add('auth-terms-page');
+  window.parent.document.body.classList.remove('auth-terms-detail-page');
   window.parent.document.body.classList.remove('auth-splash-screen');
   var _pw = window.parent;
   var _u = new URL(_pw.location.href);
@@ -4217,9 +4318,25 @@ try {
       if (w) w.classList.add('tc-terms-scroll-only');
     } catch(e) {}
   }
+  function tagTermItemRows() {
+    try {
+      var m = window.parent.document.querySelector('section[data-testid="stMain"]');
+      if (!m) return;
+      var w = m.querySelector('.tc-terms-scroll-only');
+      if (!w) return;
+      w.querySelectorAll('[data-testid="stHorizontalBlock"]').forEach(function(el) {
+        if (el.parentElement && el.parentElement.classList.contains('tc-item-row')) return;
+        var wrap = document.createElement('div');
+        wrap.className = 'tc-item-row';
+        el.parentNode.insertBefore(wrap, el);
+        wrap.appendChild(el);
+      });
+    } catch(e) {}
+  }
   tagTermsScroll();
-  setTimeout(tagTermsScroll, 50);
-  setTimeout(tagTermsScroll, 200);
+  tagTermItemRows();
+  setTimeout(function(){ tagTermsScroll(); tagTermItemRows(); }, 50);
+  setTimeout(function(){ tagTermsScroll(); tagTermItemRows(); }, 200);
 })();
 </script>""",
             height=0,
@@ -4269,21 +4386,21 @@ try {
             with _r1a:
                 st.checkbox("[필수] 서비스 이용약관 동의", key="tc_tos")
             with _r1b:
-                if st.button("›", key="tc_chevron_tos", help="약관 전문"):
+                if st.button(" ", key="tc_chevron_tos", help="약관 전문 보기", type="secondary"):
                     _tc_nav_detail("tos")
 
             _r2a, _r2b = st.columns([11, 1])
             with _r2a:
                 st.checkbox("[필수] 개인정보 수집 및 이용 동의", key="tc_priv")
             with _r2b:
-                if st.button("›", key="tc_chevron_priv", help="약관 전문"):
+                if st.button(" ", key="tc_chevron_priv", help="약관 전문 보기", type="secondary"):
                     _tc_nav_detail("priv")
 
             _r3a, _r3b = st.columns([11, 1])
             with _r3a:
                 st.checkbox("[필수] 민감정보(건강정보) 처리 동의", key="tc_health")
             with _r3b:
-                if st.button("›", key="tc_chevron_health", help="약관 전문"):
+                if st.button(" ", key="tc_chevron_health", help="약관 전문 보기", type="secondary"):
                     _tc_nav_detail("health")
 
             st.markdown(
@@ -4295,21 +4412,21 @@ try {
             with _r4a:
                 st.checkbox("[선택] 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
             with _r4b:
-                if st.button("›", key="tc_chevron_mkt", help="약관 전문"):
+                if st.button(" ", key="tc_chevron_mkt", help="약관 전문 보기", type="secondary"):
                     _tc_nav_detail("mkt")
 
             _r5a, _r5b = st.columns([11, 1])
             with _r5a:
                 st.checkbox("[선택] 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
             with _r5b:
-                if st.button("›", key="tc_chevron_custom_priv", help="약관 전문"):
+                if st.button(" ", key="tc_chevron_custom_priv", help="약관 전문 보기", type="secondary"):
                     _tc_nav_detail("custom_priv")
 
             _r6a, _r6b = st.columns([11, 1])
             with _r6a:
                 st.checkbox("[선택] 빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", key="tc_bigdata")
             with _r6b:
-                if st.button("›", key="tc_chevron_bigdata", help="약관 전문"):
+                if st.button(" ", key="tc_chevron_bigdata", help="약관 전문 보기", type="secondary"):
                     _tc_nav_detail("bigdata")
 
         # ── 구분선 ─────────────────────────────────────────────────────────
