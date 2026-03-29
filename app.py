@@ -1285,17 +1285,9 @@ BASE_URL = (_base or "https://nutrisort.streamlit.app").rstrip("/")
 _base_host = BASE_URL.replace("https://", "").replace("http://", "").split("/")[0]
 _embed_script = """
     <script>
-    // 1. 문서 객체 참조 (Streamlit Cloud의 CORS 에러 우회하기 위해 try-catch 적용)
+    // 1. 명령문 #81: 메인 문서 직접 참조 (st.html 주입 — iframe 아님)
     let doc = window.document;
     let win = window;
-    try {
-        if (window.parent.document) {
-            doc = window.parent.document;
-            win = window.parent;
-        }
-    } catch (e) {
-        console.log("CORS blocked accessing parent window. Using current window.");
-    }
 
     var agent = navigator.userAgent.toLowerCase();
     var targetUrl = '__BASE_URL__';
@@ -1451,9 +1443,9 @@ _embed_script = """
 
     </script>
     """
-st.components.v1.html(
+st.html(
     _embed_script.replace("__BASE_URL__", BASE_URL).replace("__BASE_HOST__", _base_host),
-    height=0,
+    unsafe_allow_javascript=True,
 )
 from google import genai  # 패키지: google-genai (구 google-generativeai 아님)
 from google.genai import types as gtypes
@@ -3303,15 +3295,13 @@ st.markdown(f"""
 # ──────────────────────────────────────────────────────────────────────────────
 # PWA 메타 태그 + 스플래시 스크린 (Phase 7)
 # ──────────────────────────────────────────────────────────────────────────────
-import streamlit.components.v1 as _stc_pwa
-
-# ① PWA 메타 태그: window.parent.document.head에 직접 주입 (JS via iframe)
-_stc_pwa.html(
+# ① PWA 메타 태그: document.head 직접 주입 (명령문 #81: st.html, iframe 아님)
+st.html(
     """
 <script>
 (function() {
     try {
-        var doc = window.parent.document;
+        var doc = document;
         var head = doc.head;
         var _metas = [
             { name: "apple-mobile-web-app-capable",          content: "yes" },
@@ -3353,8 +3343,7 @@ _stc_pwa.html(
 })();
 </script>
 """,
-    height=0,
-    scrolling=False,
+    unsafe_allow_javascript=True,
 )
 
 # ② 스플래시 스크린 HTML (첫 세션 로드 시 1회만 표시)
@@ -3586,9 +3575,9 @@ if not st.session_state['logged_in']:
     # 로그아웃 시 localStorage 클리어 JS 주입
     if st.session_state.pop("_logout_pending_ls_clear", False):
         st.session_state["_ls_auth_revoked"] = True
-        st.components.v1.html(
-            "<script>try{(window.parent||window).localStorage.removeItem('bgs_auth');}catch(e){}</script>",
-            height=0,
+        st.html(
+            "<script>try{localStorage.removeItem('bgs_auth');}catch(e){}</script>",
+            unsafe_allow_javascript=True,
         )
     # localStorage → query param 방식으로 세션 복원
     if "__al" in st.query_params and not st.session_state.get("_ls_auth_revoked"):
@@ -3677,11 +3666,11 @@ if not st.session_state['logged_in']:
 
     _sync_terms_navigation()
     if st.session_state.get("pending_social_provider"):
-        st.components.v1.html(
+        st.html(
             """
 <script>
 (function(){
-  var w = window.parent || window;
+  var w = window;
   if (w.__glucTermsPopstate) return;
   w.__glucTermsPopstate = true;
   w.addEventListener("popstate", function() {
@@ -3690,7 +3679,7 @@ if not st.session_state['logged_in']:
 })();
 </script>
 """,
-            height=0,
+            unsafe_allow_javascript=True,
         )
 
     # --- 약관 통과 후 Google OAuth 1회 자동 제출 (Firebase UID 통합 전 단계: Google 계정 식별) ---
@@ -3712,7 +3701,7 @@ if not st.session_state['logged_in']:
             <script>document.getElementById("gOAuthForm").submit();</script>
             <p style="font-size:14px;color:#666;">Redirecting to Google…</p>
             """
-            st.components.v1.html(_oauth_html, height=120)
+            st.html(_oauth_html, unsafe_allow_javascript=True)
             st.caption(_t.get("oauth_open_in_browser", ""))
         else:
             st.error(_t.get("google_login_disabled_help", "Configure OAuth client ID."))
@@ -4146,8 +4135,9 @@ if not st.session_state['logged_in']:
       flex: 0 0 auto !important;
       max-width: 52px !important;
     }
-    /* #80: Chevron — SVG만 background-image(붉은 베이스로 위치 확인) + 흰색 삼각 */
+    /* #81: Chevron — ::after 가상 요소로 화살표(폰트/SVG 아이콘 미사용) */
     body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"] {
+      position: relative !important;
       font-size: 0 !important;
       line-height: 0 !important;
       color: transparent !important;
@@ -4156,24 +4146,37 @@ if not st.session_state['logged_in']:
       height: 44px !important;
       padding: 0 !important;
       border: none !important;
-      background-color: #b91c1c !important;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z'/%3E%3C/svg%3E") !important;
-      background-repeat: no-repeat !important;
-      background-position: center !important;
-      background-size: 22px 22px !important;
+      background-color: rgba(255,255,255,0.10) !important;
+      background-image: none !important;
       box-shadow: none !important;
+    }
+    body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"]::after {
+      content: "" !important;
+      position: absolute !important;
+      left: 50% !important;
+      top: 50% !important;
+      width: 8px !important;
+      height: 8px !important;
+      margin-top: -4px !important;
+      margin-left: -6px !important;
+      border-right: 2px solid #ffffff !important;
+      border-bottom: 2px solid #ffffff !important;
+      transform: rotate(-45deg) !important;
+      pointer-events: none !important;
+      box-sizing: border-box !important;
     }
     body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"] p,
     body.auth-login-splash.auth-terms-page .tc-terms-scroll-only div.tc-item-row [data-testid="column"]:last-child [data-testid="stButton"] > button[kind="secondary"] span {
       opacity: 0 !important;
       font-size: 0 !important;
     }
-    /* #80: 약관 상세 — 목록용 overflow:hidden 상쇄 + 천장 밀착 */
+    /* #81: 약관 상세 — 메인 앱 컨테이너 스크롤 + 천장 밀착 */
     body.auth-login-splash.auth-terms-page.auth-terms-detail-page,
     body.auth-login-splash.auth-terms-page.auth-terms-detail-page .stApp,
     body.auth-login-splash.auth-terms-page.auth-terms-detail-page [data-testid="stAppViewContainer"],
     body.auth-login-splash.auth-terms-page.auth-terms-detail-page section[tabindex="0"] {
-      overflow: visible !important;
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
       height: auto !important;
       min-height: 100dvh !important;
       max-height: none !important;
@@ -4208,7 +4211,7 @@ if not st.session_state['logged_in']:
     body.auth-login-splash.auth-terms-detail-page section[data-testid="stMain"] [data-testid="stVerticalBlockBorderWrapper"] {
       max-height: calc(100vh - 100px) !important;
       max-height: calc(100dvh - 100px) !important;
-      overflow-y: scroll !important;
+      overflow-y: auto !important;
       overflow-x: hidden !important;
       -webkit-overflow-scrolling: touch !important;
       margin-top: 0 !important;
@@ -4265,22 +4268,21 @@ if not st.session_state['logged_in']:
     )
 
     # 랜딩 페이지 + 로그인 폼 전체: 다크 네이비 배경 유지 + Material Icons 폰트 강제 로딩
-    st.components.v1.html(
+    st.html(
         """
     <script>
-    try { window.parent.document.body.classList.add("auth-login-splash"); } catch(e) {}
+    try { document.body.classList.add("auth-login-splash"); } catch(e) {}
     try {
-      var _pd = window.parent.document;
-      if (!_pd.querySelector('link[href*="Material+Icons"]')) {
-        var _lk = _pd.createElement('link');
+      if (!document.querySelector('link[href*="Material+Icons"]')) {
+        var _lk = document.createElement('link');
         _lk.rel = 'stylesheet';
         _lk.href = 'https://fonts.googleapis.com/icon?family=Material+Icons+Outlined';
-        _pd.head.appendChild(_lk);
+        document.head.appendChild(_lk);
       }
     } catch(e) {}
     </script>
     """,
-        height=0,
+        unsafe_allow_javascript=True,
     )
 
     # ---------- 약관 상세 화면 (#78) — chevron 진입, ← 로 목록 복귀 ----------
@@ -4291,15 +4293,15 @@ if not st.session_state['logged_in']:
             st.query_params["tc"] = "list"
             st.rerun()
         _td_title, _td_body = _TERMS_DETAIL_PAGES[_tgt]
-        st.components.v1.html(
+        st.html(
             """<script>
 try {
-  window.parent.document.body.classList.add('auth-terms-page');
-  window.parent.document.body.classList.add('auth-terms-detail-page');
-  window.parent.document.body.classList.remove('auth-splash-screen');
+  document.body.classList.add('auth-terms-page');
+  document.body.classList.add('auth-terms-detail-page');
+  document.body.classList.remove('auth-splash-screen');
 } catch(e) {}
 (function(){
-  var doc = window.parent.document;
+  var doc = document;
   function markStickyHeader() {
     try {
       var m = doc.querySelector('section[data-testid="stMain"]');
@@ -4329,7 +4331,7 @@ try {
       if (!borders.length) return;
       var last = borders[borders.length - 1];
       last.classList.add('tc-detail-scroll-root');
-      last.style.setProperty('overflow-y','scroll','important');
+      last.style.setProperty('overflow-y','auto','important');
       last.style.setProperty('overflow-x','hidden','important');
       last.style.setProperty('max-height','calc(100dvh - 100px)','important');
       last.style.setProperty('-webkit-overflow-scrolling','touch');
@@ -4352,7 +4354,7 @@ try {
   } catch(e) {}
 })();
 </script>""",
-            height=0,
+            unsafe_allow_javascript=True,
         )
         if st.button(
             f"← {_td_title}",
@@ -4372,28 +4374,27 @@ try {
         prov = st.session_state["pending_social_provider"]
 
         # 약관 페이지 전용 body 클래스 + URL 정리(뒤로가기 시 ?__auth 잔상 방지)
-        st.components.v1.html(
+        st.html(
             """<script>
 try {
-  window.parent.document.body.classList.add('auth-terms-page');
-  window.parent.document.body.classList.remove('auth-terms-detail-page');
-  window.parent.document.body.classList.remove('auth-splash-screen');
-  var _pw = window.parent;
-  var _u = new URL(_pw.location.href);
+  document.body.classList.add('auth-terms-page');
+  document.body.classList.remove('auth-terms-detail-page');
+  document.body.classList.remove('auth-splash-screen');
+  var _u = new URL(window.location.href);
   if (_u.searchParams.has('__auth') || _u.searchParams.has('intent')) {
     _u.search = '';
-    _pw.history.replaceState({}, '', _u.pathname + _u.hash);
+    window.history.replaceState({}, '', _u.pathname + _u.hash);
   }
 } catch(e) {}
 </script>""",
-            height=0,
+            unsafe_allow_javascript=True,
         )
 
         # #59: 약관 6개만 45vh 스크롤 — 첫 border 래퍼에 클래스 부여 (전역 border 셀렉터 제거)
-        st.components.v1.html(
+        st.html(
             """<script>
 (function() {
-  var doc = window.parent.document;
+  var doc = document;
   function tagTermsScroll() {
     try {
       var m = doc.querySelector('section[data-testid="stMain"]');
@@ -4417,7 +4418,6 @@ try {
       });
     } catch(e) {}
   }
-  var svgChevron = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23ffffff' d='M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z'/%3E%3C/svg%3E";
   function applyFlexRows() {
     try {
       var w = doc.querySelector('.tc-terms-scroll-only');
@@ -4440,28 +4440,10 @@ try {
       });
     } catch(e) {}
   }
-  function paintChevronButtons() {
-    try {
-      var w = doc.querySelector('.tc-terms-scroll-only');
-      if (!w) return;
-      w.querySelectorAll('[data-testid="stHorizontalBlock"] [data-testid="column"]:last-child [data-testid="stButton"] > button').forEach(function(btn) {
-        btn.style.setProperty('background-color','#b91c1c','important');
-        btn.style.setProperty('background-image','url('+svgChevron+')','important');
-        btn.style.setProperty('background-repeat','no-repeat','important');
-        btn.style.setProperty('background-position','center','important');
-        btn.style.setProperty('background-size','22px 22px','important');
-        btn.style.setProperty('min-width','44px','important');
-        btn.style.setProperty('min-height','44px','important');
-        btn.style.setProperty('color','transparent','important');
-        btn.style.setProperty('font-size','0','important');
-      });
-    } catch(e) {}
-  }
   function runAll() {
     tagTermsScroll();
     tagTermItemRows();
     applyFlexRows();
-    paintChevronButtons();
   }
   runAll();
   [50,120,300,600].forEach(function(ms){ setTimeout(runAll, ms); });
@@ -4475,7 +4457,7 @@ try {
   } catch(e) {}
 })();
 </script>""",
-            height=0,
+            unsafe_allow_javascript=True,
         )
 
         # ── 헤더 ─────────────────────────────────────────────────────────────
@@ -4974,11 +4956,11 @@ try {
 
     # ---------- 슬라이드업 느낌의 로그인 시트 ----------
     if st.session_state.get("auth_sheet_open") and not st.session_state.get("auth_guest_step"):
-        st.components.v1.html(
+        st.html(
             """
         <script>
         try {
-          var m = window.parent.document.querySelector("main");
+          var m = document.querySelector("main");
           if (m && !m.classList.contains("auth-sheet-enter")) {
             m.classList.add("auth-sheet-enter");
             setTimeout(function(){ try { m.classList.remove("auth-sheet-enter"); } catch(e) {} }, 600);
@@ -4986,7 +4968,7 @@ try {
         } catch(e) {}
         </script>
         """,
-            height=0,
+            unsafe_allow_javascript=True,
         )
 
     _flash = st.session_state.pop("auth_flash_msg", None)
@@ -5030,37 +5012,23 @@ try {
     )
 
     # ── 프리미엄 AI 방어 쉴드 비주얼 (로고 ↔ 소셜 버튼 사이) ──
-    st.components.v1.html(
+    st.html(
         """
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
+<div class="gluc-ai-shield-wrap" style="margin:0 auto;text-align:center;background:#0f172a;height:158px;overflow:hidden;display:flex;justify-content:center;align-items:center;">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-html, body {
-  background: #0f172a;
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 158px;
-}
-@keyframes domeGlow {
+@keyframes gluc-domeGlow {
   0%,100% { opacity:0.62; }
   50%      { opacity:1.0; }
 }
-@keyframes sparkle {
+@keyframes gluc-sparkle {
   0%,100% { opacity:0.28; }
   50%      { opacity:0.92; }
 }
-.dome { animation: domeGlow 3.8s ease-in-out infinite; }
-.s1   { animation: sparkle 2.3s ease-in-out infinite; }
-.s2   { animation: sparkle 2.9s ease-in-out infinite 0.65s; }
-.s3   { animation: sparkle 2.1s ease-in-out infinite 1.3s; }
+.gluc-ai-shield-wrap .dome { animation: gluc-domeGlow 3.8s ease-in-out infinite; }
+.gluc-ai-shield-wrap .s1   { animation: gluc-sparkle 2.3s ease-in-out infinite; }
+.gluc-ai-shield-wrap .s2   { animation: gluc-sparkle 2.9s ease-in-out infinite 0.65s; }
+.gluc-ai-shield-wrap .s3   { animation: gluc-sparkle 2.1s ease-in-out infinite 1.3s; }
 </style>
-</head>
-<body>
 <svg viewBox="0 0 280 152" width="280" height="152" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <radialGradient id="domeFill" cx="50%" cy="100%" r="70%">
@@ -5131,11 +5099,8 @@ html, body {
   <text x="227" y="101" text-anchor="middle" font-size="8.5"
         fill="#34d399" font-family="'-apple-system',sans-serif" font-weight="800">LOW</text>
 </svg>
-</body>
-</html>
+</div>
 """,
-        height=162,
-        scrolling=False,
     )
 
     # ── [로그인 섹션] 기존 회원 ───────────────────────────────────────
@@ -5273,27 +5238,27 @@ html, body {
     st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
     # ─── localStorage 자동 로그인 체크 JS (로그인 화면 진입 시 실행) ──────────
-    st.components.v1.html(
+    st.html(
         """
 <script>
 (function(){
   try{
-    var s=(window.parent||window).localStorage;
+    var s=localStorage;
     var a=s.getItem('bgs_auth');
     if(!a)return;
     var d=JSON.parse(a);
     if(!d||!d.u||!d.t)return;
-    var url=new URL(window.parent.location.href);
+    var url=new URL(window.location.href);
     if(url.searchParams.has('__al'))return;
     var raw=JSON.stringify(d);
     var enc=btoa(unescape(encodeURIComponent(raw)));
     url.searchParams.set('__al',enc);
-    window.parent.location.replace(url.toString());
+    window.location.replace(url.toString());
   }catch(e){}
 })();
 </script>
 """,
-        height=0,
+        unsafe_allow_javascript=True,
     )
     st.stop()
 
@@ -5729,10 +5694,10 @@ if not st.session_state.get("_ls_auth_saved") and st.session_state.get("login_ty
     _ls_u = json.dumps(st.session_state.get("user_id") or "")
     _ls_e = json.dumps(st.session_state.get("user_email") or "")
     _ls_t = json.dumps(st.session_state.get("login_type") or "")
-    st.components.v1.html(
-        f"<script>try{{(window.parent||window).localStorage.setItem('bgs_auth',"
+    st.html(
+        f"<script>try{{localStorage.setItem('bgs_auth',"
         f"JSON.stringify({{u:{_ls_u},e:{_ls_e},t:{_ls_t}}}));}}catch(e){{}}</script>",
-        height=0,
+        unsafe_allow_javascript=True,
     )
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -6661,13 +6626,13 @@ if menu_key == "scanner":
             # 토글이 OFF → ON 으로 바뀐 순간에만 권한 요청 + 테스트 알림 발송
             if push_enabled and not _push_prev:
                 st.session_state["push_notif_enabled"] = True
-                st.components.v1.html(
+                st.html(
                     """
 <script>
 (function () {
   try {
-    // Streamlit iframe 안에서 부모 window 를 통해 Notification API 접근
-    var win   = window.parent || window;
+    // 명령문 #81: 메인 window에서 Notification / ServiceWorker 접근
+    var win   = window;
     var nav   = win.navigator;
     var Notif = win.Notification;
 
@@ -6720,8 +6685,7 @@ if menu_key == "scanner":
 })();
 </script>
 """,
-                    height=0,
-                    scrolling=False,
+                    unsafe_allow_javascript=True,
                 )
                 st.success("✅ 알림 권한이 요청되었습니다. 브라우저 팝업에서 '허용'을 눌러주세요.")
 
