@@ -3516,7 +3516,7 @@ def render_terms_agreement(prov: str, _lg: str) -> None:
     for i, term in enumerate(terms_list):
         with st.container():
             st.markdown(
-                '<span class="tc-row-marker" style="display:none"></span>',
+                '<div class="tc-row-marker" aria-hidden="true"></div>',
                 unsafe_allow_html=True,
             )
             st.checkbox(
@@ -4016,7 +4016,7 @@ if not st.session_state['logged_in']:
     }
 
     /* B. [핵심] 진짜 컨테이너(stVerticalBlock) 강제 1줄 가로 정렬 */
-    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-row-marker) {
+    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(.tc-row-marker) {
       display: flex !important;
       flex-direction: row !important;
       flex-wrap: nowrap !important;
@@ -4029,8 +4029,11 @@ if not st.session_state['logged_in']:
       gap: 0 !important;
     }
 
+    /* 마커 숨김(레이아웃 계산에서 제외) */
+    body.auth-login-splash .tc-row-marker { display: none !important; }
+
     /* 1열: 체크박스 영역 (크기 32px로 최소화 및 고정) */
-    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-row-marker) > div:nth-child(2) {
+    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(.tc-row-marker) > div:has([data-testid="stCheckbox"]) {
       flex: 0 0 32px !important;
       width: 32px !important;
       display: flex !important;
@@ -4041,7 +4044,8 @@ if not st.session_state['logged_in']:
     }
 
     /* 2열: 텍스트 버튼 영역 (남는 공간 전체 사용) */
-    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-row-marker) > div:nth-child(3) {
+    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(.tc-row-marker) > div:has(> button),
+    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(.tc-row-marker) > div:has(button) {
       flex: 1 1 auto !important;
       min-width: 0 !important;
       margin: 0 !important;
@@ -4425,14 +4429,15 @@ if not st.session_state['logged_in']:
             "/* #103: REAL MOBILE-ONLY FINAL FIX - Perfect Inline Row (minified) */\n"
             "#gluc-terms-page-title{font-size:15px!important;text-align:center;color:#fff;margin:0 0 6px 0!important;}\n"
             "#gluc-terms-page-sub{font-size:13px!important;text-align:center;color:#94a3b8;margin:0 0 12px 0!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .tc-row-marker){"
+            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(.tc-row-marker){"
             "display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;"
             "margin-bottom:6px!important;padding:4px 10px!important;background:rgba(255,255,255,0.05)!important;"
             "border:1px solid rgba(255,255,255,0.12)!important;border-radius:12px!important;gap:0!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .tc-row-marker)>div:nth-child(2){"
+            "body.auth-login-splash .tc-row-marker{display:none!important;}\n"
+            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(.tc-row-marker)>div:has([data-testid='stCheckbox']){"
             "flex:0 0 32px!important;width:32px!important;display:flex!important;justify-content:center!important;"
             "align-items:center!important;margin:0 6px 0 0!important;padding:0!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .tc-row-marker)>div:nth-child(3){"
+            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(.tc-row-marker)>div:has(button){"
             "flex:1 1 auto!important;min-width:0!important;margin:0!important;padding:0!important;}\n"
             "body.auth-login-splash div[data-testid='stVerticalBlock']:has(.tc-row-marker) button{"
             "background:transparent!important;background-color:transparent!important;border:none!important;box-shadow:none!important;"
