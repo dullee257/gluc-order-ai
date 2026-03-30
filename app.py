@@ -4004,12 +4004,29 @@ if not st.session_state['logged_in']:
       font-size: 12px !important; text-align: center; color: #94a3b8; margin: 0 0 12px 0 !important;
     }
 
-    /* B. 모바일 리스트 여백 파괴 (한 화면에 다 들어오도록 압축) */
+    /* B. [핵심] 모바일 강제 줄바꿈 방지 (무조건 1줄에 나열) */
     .ns-sp-tc-root-mob ~ div [data-testid="stHorizontalBlock"] {
-      margin-bottom: 0px !important; row-gap: 0px !important; padding: 0 !important; align-items: center !important;
+      display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      align-items: center !important;
+      margin-bottom: 0px !important;
+      gap: 0px !important;
     }
-    .ns-sp-tc-root-mob ~ div [data-testid="stHorizontalBlock"] > div[data-testid="element-container"] {
-      margin-bottom: 0px !important; padding-bottom: 0px !important;
+
+    /* B-1. 체크박스 영역 (남는 공간 모두 차지) */
+    .ns-sp-tc-root-mob ~ div [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(1) {
+      flex: 1 1 auto !important;
+      width: auto !important;
+      min-width: 0 !important;
+    }
+
+    /* B-2. 화살표 영역 (우측 끝에 작게 고정) */
+    .ns-sp-tc-root-mob ~ div [data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2) {
+      flex: 0 0 30px !important;
+      width: 30px !important;
+      display: flex !important;
+      justify-content: flex-end !important;
     }
 
     /* C. 체크박스 폰트 크기 강제 축소 및 1줄 고정 (모바일 깨짐 방지) */
@@ -4018,15 +4035,34 @@ if not st.session_state['logged_in']:
       white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.5px !important;
     }
 
-    /* D. 모바일용 순수 CSS 꺾쇠 화살표 (버튼 배경 완전 제거) */
+    /* D. 다크 박스 완전 투명화 및 화살표 삽입 */
     .ns-sp-tc-root-mob ~ div [data-testid="stHorizontalBlock"] button[kind="secondary"] {
-      background: transparent !important; border: none !important; box-shadow: none !important;
-      padding: 0 !important; height: 30px !important; min-height: 0 !important; display: flex !important; justify-content: flex-end !important; align-items: center !important;
+      background: transparent !important;
+      background-color: rgba(0,0,0,0) !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      height: 30px !important;
+      min-height: 0 !important;
+      width: 100% !important;
     }
+
+    /* D-1. 시커먼 박스 안의 텍스트 요소가 있다면 숨김 */
+    .ns-sp-tc-root-mob ~ div [data-testid="stHorizontalBlock"] button[kind="secondary"] p,
+    .ns-sp-tc-root-mob ~ div [data-testid="stHorizontalBlock"] button[kind="secondary"] div {
+      display: none !important;
+    }
+
+    /* D-2. 깨지지 않는 깔끔한 화살표(>) */
     .ns-sp-tc-root-mob ~ div [data-testid="stHorizontalBlock"] button[kind="secondary"]::after {
-      content: '' !important; display: inline-block !important; width: 6px !important; height: 6px !important;
-      border-top: 1.5px solid #94a3b8 !important; border-right: 1.5px solid #94a3b8 !important;
-      transform: rotate(45deg) !important; margin-right: 2px !important;
+      content: '' !important;
+      display: inline-block !important;
+      width: 7px !important;
+      height: 7px !important;
+      border-top: 1.5px solid #94a3b8 !important;
+      border-right: 1.5px solid #94a3b8 !important;
+      transform: rotate(45deg) !important;
+      margin-right: 4px !important;
     }
 
     /* E. 전체 동의 상자 (모바일 터치 최적화) */
@@ -4376,20 +4412,25 @@ if not st.session_state['logged_in']:
             "/* #98: MOBILE-ONLY TABULA RASA TERMS UI */\n"
             "#gluc-mob-tc-title{font-size:16px!important;text-align:center;color:#fff;margin:0 0 6px 0!important;}\n"
             "#gluc-mob-tc-sub{font-size:12px!important;text-align:center;color:#94a3b8;margin:0 0 12px 0!important;}\n"
-            ".ns-sp-tc-root-mob ~ div [data-testid='stHorizontalBlock']{margin-bottom:0!important;row-gap:0!important;"
-            "padding:0!important;align-items:center!important;}\n"
-            ".ns-sp-tc-root-mob ~ div [data-testid='stHorizontalBlock']>div[data-testid='element-container']{"
-            "margin-bottom:0!important;padding-bottom:0!important;}\n"
+            ".ns-sp-tc-root-mob ~ div [data-testid='stHorizontalBlock']{display:flex!important;flex-direction:row!important;"
+            "flex-wrap:nowrap!important;align-items:center!important;margin-bottom:0!important;gap:0!important;}\n"
+            ".ns-sp-tc-root-mob ~ div [data-testid='stHorizontalBlock']>[data-testid='column']:nth-child(1){"
+            "flex:1 1 auto!important;width:auto!important;min-width:0!important;}\n"
+            ".ns-sp-tc-root-mob ~ div [data-testid='stHorizontalBlock']>[data-testid='column']:nth-child(2){"
+            "flex:0 0 30px!important;width:30px!important;display:flex!important;justify-content:flex-end!important;}\n"
             ".ns-sp-tc-root-mob ~ div [data-testid='stHorizontalBlock'] div[data-testid='stMarkdownContainer'] p{"
             "font-size:13px!important;color:#cbd5e1!important;margin:0!important;padding:0!important;"
             "white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.5px!important;}\n"
             ".ns-sp-tc-root-mob ~ div [data-testid='stHorizontalBlock'] button[kind='secondary']{"
-            "background:transparent!important;border:none!important;box-shadow:none!important;padding:0!important;"
-            "height:30px!important;min-height:0!important;display:flex!important;justify-content:flex-end!important;align-items:center!important;}\n"
+            "background:transparent!important;background-color:rgba(0,0,0,0)!important;border:none!important;"
+            "box-shadow:none!important;padding:0!important;height:30px!important;min-height:0!important;width:100%!important;}\n"
+            ".ns-sp-tc-root-mob ~ div [data-testid='stHorizontalBlock'] button[kind='secondary'] p,"
+            ".ns-sp-tc-root-mob ~ div [data-testid='stHorizontalBlock'] button[kind='secondary'] div{"
+            "display:none!important;}\n"
             ".ns-sp-tc-root-mob ~ div [data-testid='stHorizontalBlock'] button[kind='secondary']::after{"
-            "content:''!important;display:inline-block!important;width:6px!important;height:6px!important;"
+            "content:''!important;display:inline-block!important;width:7px!important;height:7px!important;"
             "border-top:1.5px solid #94a3b8!important;border-right:1.5px solid #94a3b8!important;"
-            "transform:rotate(45deg)!important;margin-right:2px!important;}\n"
+            "transform:rotate(45deg)!important;margin-right:4px!important;}\n"
             "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(.tc-master-marker-mob){"
             "border:1px solid #10b981!important;background-color:rgba(16,185,129,0.05)!important;"
             "border-radius:10px!important;padding:4px 12px!important;margin-bottom:8px!important;}\n"
