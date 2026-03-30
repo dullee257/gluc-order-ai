@@ -4454,9 +4454,9 @@ if not st.session_state['logged_in']:
             "/* 오버레이: 시각만 어둡게, 터치는 통과(z-index는 버튼·패널보다 낮게) */\n"
             ".ns-sp-overlay{position:fixed!important;inset:0!important;z-index:25!important;"
             "background:rgba(0,0,0,0.32)!important;pointer-events:none!important;}\n"
-            "/* #88: st.container 바텀시트 — 형제결합자(~)·backdrop 제거, 마커로만 타겟 */\n"
+            "/* #89: st.container 바텀시트 — 올바른 부모 타겟팅 */\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='stVerticalBlock']> [data-testid='element-container']:has(.gluc-phase-drawer-marker){"
+            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker){"
             "position:fixed!important;bottom:0!important;left:0!important;right:0!important;"
             "background:#1a2332!important;border-radius:20px 20px 0 0!important;"
             "border-top:1px solid rgba(255,255,255,0.15)!important;"
@@ -4466,11 +4466,11 @@ if not st.session_state['logged_in']:
             "height:auto!important;max-height:90dvh!important;margin:0!important;"
             "box-sizing:border-box!important;overflow:hidden!important;}\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='stVerticalBlock']> [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
-            " [data-testid='element-container'],"
+            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker)"
+            " > [data-testid='element-container'],"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='stVerticalBlock']> [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
-            " [data-testid='stVerticalBlock']{"
+            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker)"
+            " > [data-testid='stVerticalBlock']{"
             "margin-bottom:0!important;padding-bottom:0!important;}\n"
             ".ns-sp-drawer-header{text-align:center;margin:0 0 4px!important;position:relative;z-index:44;"
             "padding-top:0!important;}\n"
@@ -4503,9 +4503,9 @@ if not st.session_state['logged_in']:
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stButton'],"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stButton'] > button{"
             "pointer-events:auto!important;}\n"
-            "/* 드로어 소셜: 바텀시트 내부 버튼 (마커 컨테이너 기준, ~ 제거) */\n"
+            "/* 드로어 소셜: 바텀시트 내부 버튼 (stVerticalBlock + 마커 기준) */\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
+            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker)"
             " [data-testid='stButton'] > button[kind='primary']{"
             "width:100%!important;height:34px!important;min-height:34px!important;"
             "border-radius:8px!important;padding:2px 8px!important;"
@@ -4513,7 +4513,7 @@ if not st.session_state['logged_in']:
             "font-weight:700!important;font-family:'Noto Sans KR',sans-serif!important;"
             "font-size:0.72rem!important;line-height:1.2!important;box-shadow:none!important;}\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
+            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker)"
             " [data-testid='stButton'] > button[kind='secondary']{"
             "width:100%!important;height:34px!important;min-height:34px!important;"
             "border-radius:8px!important;padding:2px 8px!important;"
@@ -4521,7 +4521,7 @@ if not st.session_state['logged_in']:
             "font-size:0.72rem!important;line-height:1.2!important;"
             "background:#334155!important;border:1px solid #475569!important;color:#f1f5f9!important;}\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
+            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker)"
             " [data-testid='stButton'] > button[kind='tertiary']{"
             "width:100%!important;height:auto!important;min-height:28px!important;"
             "background:transparent!important;border:none!important;outline:none!important;"
@@ -4530,7 +4530,7 @@ if not st.session_state['logged_in']:
             "font-weight:500!important;padding:4px 2px!important;line-height:1.25!important;"
             "white-space:normal!important;}\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
+            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker)"
             " [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{"
             "color:inherit!important;margin:0!important;}\n"
             "/* ── #74 맨 아래: 메인 로그인/가입 줄을 뷰포트 하단에 고정 (stVerticalBlock 직계 자식) ── */\n"
@@ -4617,14 +4617,11 @@ if not st.session_state['logged_in']:
                 '<div class="ns-sp-overlay"></div>',
                 unsafe_allow_html=True,
             )
-            # 2. 바텀시트: 마커·헤더·모든 버튼을 st.container() 안에 묶음 (#88)
+            # 2. 바텀시트: 마커·헤더·모든 버튼을 st.container() 안에 묶음 (#89: 마커+헤더 단일 markdown)
             with st.container():
                 st.markdown(
-                    '<div class="gluc-phase-drawer-marker" aria-hidden="true"></div>',
-                    unsafe_allow_html=True,
-                )
-                st.markdown(
                     f"""
+<div class="gluc-phase-drawer-marker" aria-hidden="true"></div>
 <div class="ns-sp-drawer-header">
   <div class="ns-sp-drawer-handle"></div>
   <div class="ns-sp-drawer-title">{html_module.escape(_ph_d_title)}</div>
