@@ -3487,16 +3487,19 @@ _TC_SLUGS = ("tos", "priv", "health", "mkt", "custom_priv", "bigdata")
 
 
 def render_terms_agreement(prov: str, _lg: str) -> None:
-    st.markdown("<h3 id='gluc-terms-page-title' style='text-align:center; color:#fff; margin-bottom:20px;'>📋 서비스 약관 동의</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#94a3b8; font-size:0.85rem; margin-bottom:30px;'>필수 항목에 모두 동의해야 서비스를 이용하실 수 있습니다.</p>", unsafe_allow_html=True)
+    # 전체를 감싸는 마커 삽입 (#97)
+    st.markdown('<div class="ns-sp-tc-page-wrap" aria-hidden="true"></div>', unsafe_allow_html=True)
+
+    st.markdown("<h3 id='gluc-terms-page-title'>📋 서비스 약관 동의</h3>", unsafe_allow_html=True)
+    st.markdown("<p id='gluc-terms-page-sub'>필수 항목에 모두 동의해야 가입완료 됩니다.</p>", unsafe_allow_html=True)
 
     terms_list = [
-        {"title": "서비스 이용약관 동의", "req": True, "key": TERMS_TOS},
-        {"title": "개인정보 수집 및 이용 동의", "req": True, "key": TERMS_PRIVACY},
-        {"title": "민감정보(건강정보) 처리 동의", "req": True, "key": TERMS_HEALTH},
-        {"title": "맞춤형 혜택 및 마케팅 정보 수신 동의", "req": False, "key": TERMS_MARKETING},
-        {"title": "맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", "req": False, "key": TERMS_CUSTOM_PRIV},
-        {"title": "빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", "req": False, "key": TERMS_BIGDATA},
+        {"title": "서비스 이용약관", "req": True, "key": TERMS_TOS},
+        {"title": "개인정보 수집 및 이용", "req": True, "key": TERMS_PRIVACY},
+        {"title": "민감정보(건강정보) 처리", "req": True, "key": TERMS_HEALTH},
+        {"title": "맞춤형 혜택 및 마케팅 정보 수신", "req": False, "key": TERMS_MARKETING},
+        {"title": "서비스 제공 개인정보 추가 수집·이용", "req": False, "key": TERMS_CUSTOM_PRIV},
+        {"title": "빅데이터 분석 건강정보 처리", "req": False, "key": TERMS_BIGDATA},
     ]
 
     def check_all_status():
@@ -3516,59 +3519,56 @@ def render_terms_agreement(prov: str, _lg: str) -> None:
     for j, sk in enumerate(_TC_KEYS):
         st.session_state[sk] = bool(st.session_state.get(f"terms_{j}", False))
 
+    st.markdown("<div class='ns-sp-tc-list'>", unsafe_allow_html=True)
     for i, term in enumerate(terms_list):
-        cols = st.columns([8, 2])
+        cols = st.columns([8.2, 1.8])
         with cols[0]:
             lbl = f"[{'필수' if term['req'] else '선택'}] {term['title']}"
             st.checkbox(lbl, value=st.session_state.get(f"terms_{i}", False), key=f"terms_{i}", on_change=check_all_status)
         with cols[1]:
-            # 화살표(>) 대신 공백(" ") 삽입하여 CSS ::after가 작동하게 함
             if st.button(" ", key=f"btn_tc_{i}", type="secondary"):
                 st.session_state["auth_phase"] = "terms_detail"
                 st.session_state["target_term"] = _TC_SLUGS[i]
                 st.query_params["tc"] = _TC_SLUGS[i]
                 st.rerun()
-        st.markdown("<div style='margin-bottom:12px;'></div>", unsafe_allow_html=True)
-
-    st.markdown("<hr style='border-color: rgba(255,255,255,0.1); margin: 20px 0;'>", unsafe_allow_html=True)
-
-    # 전체 동의 상자와 체크박스의 완벽한 들여쓰기 교정
-    with st.container(border=True):
-        st.markdown('<div class="tc-master-marker" aria-hidden="true"></div>', unsafe_allow_html=True)
-        master_checked = st.checkbox(
-            "약관 전체 동의",
-            value=st.session_state.get("terms_all", False),
-            key="terms_all",
-            on_change=toggle_all_terms
-        )
+    st.markdown("</div>", unsafe_allow_html=True)
 
     required_keys = [i for i, t in enumerate(terms_list) if t["req"]]
     missing = [i for i in required_keys if not st.session_state.get(f"terms_{i}", False)]
 
-    if missing:
-        missing_titles = [terms_list[i]['title'].split(' 동의')[0].replace(' 개인정보', '').replace(' 처리', '').replace(' 수집 및 이용', '') for i in missing]
-        st.markdown(f"<p style='color:#f59e0b; font-size:0.8rem; text-align:center; margin-top:10px;'>⚠️ 미동의 필수 항목: {' / '.join(missing_titles)}</p>", unsafe_allow_html=True)
-        st.button("동의하고 가입완료", disabled=True, use_container_width=True, key="btn_tc_submit_dis")
-    else:
-        if st.button("동의하고 가입완료", type="primary", use_container_width=True, key="btn_tc_submit"):
-            for j, sk in enumerate(_TC_KEYS):
-                st.session_state[sk] = bool(st.session_state.get(f"terms_{j}", False))
-            st.session_state["terms_accepted_provider"] = prov
-            st.session_state["terms_marketing_agreed"] = st.session_state.get("tc_mkt", False)
-            st.session_state["terms_custom_priv_agreed"] = st.session_state.get("tc_custom_priv", False)
-            st.session_state["terms_bigdata_agreed"] = st.session_state.get("tc_bigdata", False)
-            decision = handle_social_login(prov)
-            st.session_state["auth_phase"] = "sheet"
-            st.session_state["pending_social_provider"] = None
-            if decision.get("action") == "oauth_google":
-                st.session_state["proceed_google_oauth"] = True
+    with st.container():
+        st.markdown('<div class="ns-sp-tc-bottom-fix-marker" aria-hidden="true"></div>', unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown('<div class="tc-master-marker" aria-hidden="true"></div>', unsafe_allow_html=True)
+            st.checkbox(
+                "약관 전체 동의",
+                value=st.session_state.get("terms_all", False),
+                key="terms_all",
+                on_change=toggle_all_terms
+            )
+
+        if missing:
+            st.button("동의하고 가입완료", disabled=True, use_container_width=True, key="btn_tc_submit_dis")
+        else:
+            if st.button("동의하고 가입완료", type="primary", use_container_width=True, key="btn_tc_submit"):
+                for j, sk in enumerate(_TC_KEYS):
+                    st.session_state[sk] = bool(st.session_state.get(f"terms_{j}", False))
+                st.session_state["terms_accepted_provider"] = prov
+                st.session_state["terms_marketing_agreed"] = st.session_state.get("tc_mkt", False)
+                st.session_state["terms_custom_priv_agreed"] = st.session_state.get("tc_custom_priv", False)
+                st.session_state["terms_bigdata_agreed"] = st.session_state.get("tc_bigdata", False)
+                decision = handle_social_login(prov)
+                st.session_state["auth_phase"] = "sheet"
+                st.session_state["pending_social_provider"] = None
+                if decision.get("action") == "oauth_google":
+                    st.session_state["proceed_google_oauth"] = True
+                    st.rerun()
+                elif decision.get("action") == "stub":
+                    pname = str(decision.get("provider", prov) or "").title()
+                    st.session_state["auth_flash_msg"] = get_text(_lg, "social_provider_stub", provider=pname)
+                elif decision.get("action") == "email_sheet":
+                    pass
                 st.rerun()
-            elif decision.get("action") == "stub":
-                pname = str(decision.get("provider", prov) or "").title()
-                st.session_state["auth_flash_msg"] = get_text(_lg, "social_provider_stub", provider=pname)
-            elif decision.get("action") == "email_sheet":
-                pass
-            st.rerun()
 
 
 def _sync_terms_navigation() -> None:
@@ -4021,7 +4021,15 @@ if not st.session_state['logged_in']:
     }
     /* KR 단일: Facebook 버튼 제거 */
     .auth-terms-panel { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem; background: rgba(255,255,255,0.05); max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
-    /* ── 약관 동의 화면: 전체 스크롤 차단 + 박스 내부 스크롤 (#83: body/.stApp overflow 미조작) */
+    /* #97: MASTERPIECE TERMS UI — COMPACT, ZERO SCROLL, FIXED BOTTOM */
+    #gluc-terms-page-title {
+      font-size: clamp(14px, 4.5vw, 15px) !important;
+      text-align: center; color: #fff; margin-bottom: 8px !important; margin-top: 0 !important;
+    }
+    #gluc-terms-page-sub {
+      font-size: clamp(12px, 3.8vw, 13px) !important;
+      text-align: center; color: #94a3b8; margin-bottom: 12px !important; margin-top: 0 !important;
+    }
     body.auth-login-splash:has(#gluc-terms-page-title) {
       overflow: hidden !important;
       height: 100dvh !important;
@@ -4030,49 +4038,70 @@ if not st.session_state['logged_in']:
       height: 100dvh !important;
       overflow: hidden !important;
       padding-top: 0 !important;
-      padding-bottom: 120px !important;
+      padding-bottom: 160px !important;
       display: flex !important;
       flex-direction: column !important;
-      scrollbar-width: thin !important;
       min-height: 0 !important;
     }
-    /*     #77: 약관 목록 — 체크 6개가 들어 있는 테두리 박스만 스크롤 */
-    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stVerticalBlockBorderWrapper"]:has([data-testid="stCheckbox"]) {
-      max-height: min(30vh, calc(100dvh - 340px)) !important;
-      min-height: 0 !important;
-      overflow-y: auto !important;
-      overflow-x: hidden !important;
-      flex: 1 1 auto !important;
-      border-color: rgba(255,255,255,0.14) !important;
-      margin: 0 0 8px 0 !important;
-      -webkit-overflow-scrolling: touch !important;
+    .ns-sp-tc-list [data-testid="stHorizontalBlock"],
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]) {
+      margin-bottom: 2px !important;
+      row-gap: 0px !important; padding: 0px !important;
+      align-items: center !important;
     }
-    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stVerticalBlockBorderWrapper"]:has([data-testid="stCheckbox"])::-webkit-scrollbar {
-      width: 5px;
+    .ns-sp-tc-list div[data-testid="stHorizontalBlock"] > div[data-testid="element-container"],
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]) > div[data-testid="element-container"] {
+      margin-bottom: 0px !important;
     }
-    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stVerticalBlockBorderWrapper"]:has([data-testid="stCheckbox"])::-webkit-scrollbar-thumb {
-      background: rgba(16,185,129,0.35);
-      border-radius: 3px;
+    .ns-sp-tc-list [data-testid="stHorizontalBlock"] div[data-testid="stMarkdownContainer"] p,
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]) div[data-testid="stMarkdownContainer"] p {
+      font-size: 13.2px !important;
+      color: #cbd5e1 !important;
+      margin: 0 !important; padding: 0 !important;
+      white-space: nowrap !important;
+      overflow: hidden; text-overflow: ellipsis;
     }
-    /* #59: 전체 동의 — 고정 CTA에 가리지 않도록 (#95: BorderWrapper + tc-master-marker) */
-    body.auth-login-splash:has(#gluc-terms-page-title) .block-container div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) {
-      flex: 0 0 auto !important;
-      min-height: 0 !important;
-      max-height: none !important;
-      overflow: visible !important;
-      position: relative !important;
-      z-index: 120 !important;
-      margin-bottom: 96px !important;
-      margin-top: 4px !important;
+    .ns-sp-tc-list div[data-testid="stHorizontalBlock"] button[kind="secondary"],
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]) button[kind="secondary"] {
+      background: transparent !important; border: none !important; box-shadow: none !important;
+      padding: 0 !important; height: auto !important; min-height: 0 !important;
     }
-    /* CTA 버튼 영역: 화면 최하단 고정 */
-    body.auth-login-splash:has(#gluc-terms-page-title) div:has(> [data-testid="stButton"] > button[kind="primary"]) {
+    .ns-sp-tc-list div[data-testid="stHorizontalBlock"] button[kind="secondary"] p,
+    .ns-sp-tc-list div[data-testid="stHorizontalBlock"] button[kind="secondary"] div[data-testid="stMarkdownContainer"],
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]) button[kind="secondary"] p,
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]) button[kind="secondary"] div[data-testid="stMarkdownContainer"] {
+      display: none !important;
+    }
+    .ns-sp-tc-list div[data-testid="stHorizontalBlock"] button[kind="secondary"]::after,
+    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]) button[kind="secondary"]::after {
+      content: '' !important; display: inline-block !important;
+      width: 6.5px !important; height: 6.5px !important;
+      border-top: 1.8px solid #94a3b8 !important; border-right: 1.8px solid #94a3b8 !important;
+      transform: rotate(45deg) !important; margin-right: 6px !important;
+    }
+    body.auth-login-splash div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) {
+      border: 1.5px solid #10b981 !important;
+      background-color: rgba(16, 185, 129, 0.05) !important;
+      border-radius: 12px !important;
+      padding: 2px 16px !important; margin-bottom: 12px !important;
+    }
+    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .ns-sp-tc-bottom-fix-marker) {
       position: fixed !important;
-      bottom: 0 !important;
-      left: 0 !important; right: 0 !important;
-      z-index: 99 !important;
-      background: linear-gradient(to top, #0f172a 70%, transparent) !important;
-      padding: 12px 16px 20px !important;
+      bottom: 0 !important; left: 0 !important; right: 0 !important;
+      background: #1a2332 !important;
+      border-top: 1px solid rgba(255,255,255,0.1) !important;
+      padding: 12px 16px max(12px, env(safe-area-inset-bottom, 0px)) 16px !important;
+      z-index: 99999 !important;
+      box-shadow: 0 -8px 30px rgba(0,0,0,0.5) !important;
+    }
+    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .ns-sp-tc-bottom-fix-marker) > div {
+      margin: 0 !important; padding: 0 !important;
+    }
+    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .ns-sp-tc-bottom-fix-marker) button {
+      height: 48px !important; font-size: 1.05rem !important; border-radius: 10px !important;
+    }
+    .ns-sp-tc-list {
+      padding-bottom: 160px !important;
     }
     /* 스플래시 전용 레이아웃(스크롤 제로·크롬 숨김)은 아래 Plan E 블록의
        body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) 스코프 CSS에서 일원 관리 */
@@ -4098,16 +4127,6 @@ if not st.session_state['logged_in']:
       max-height: 260px !important;
       overflow-y: auto !important;
       padding: 8px 10px !important;
-    }
-    /* #95: 마스터 상자 테두리는 _splash_css 의 stVerticalBlockBorderWrapper 규칙으로만 처리 (중복 제거) */
-    /* ── 마스터 "전체 동의" 체크박스 — 크고 굵게 (#95: BorderWrapper 기준) ── */
-    body.auth-login-splash .stApp [data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] label p,
-    body.auth-login-splash .stApp [data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] label span,
-    body.auth-login-splash .stApp [data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] label {
-      font-size: 1.1rem !important;
-      font-weight: 900 !important;
-      color: #ffffff !important;
-      letter-spacing: -0.01em !important;
     }
     /* ── "동의하고 가입완료" CTA 버튼 — 활성/비활성 모두 명확한 직사각형 ── */
     body.auth-login-splash .stApp [data-testid="stButton"] > button[kind="primary"] {
@@ -4138,19 +4157,7 @@ if not st.session_state['logged_in']:
     body.auth-login-splash:has(#gluc-terms-page-title) .block-container {
       padding-top: 0 !important;
     }
-    /* #77: 약관 제목을 뷰포트 최상단에 밀착 — Streamlit 기본 상단 공백 상쇄 */
-    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stMarkdownContainer"]:has(#gluc-terms-page-title) {
-      margin-top: -72px !important;
-      padding-top: 0 !important;
-    }
-    body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stElementContainer"]:has(#gluc-terms-page-title) {
-      margin-top: -72px !important;
-      padding-top: 0 !important;
-    }
-    body.auth-login-splash:has(#gluc-terms-page-title) div#gluc-terms-page-title {
-      margin-top: 0 !important;
-    }
-    /* #93: 약관 행 chevron — 로컬 블록 제거, _splash_css 글로벌 규칙 사용 */
+    /* #93: 약관 행 chevron — #97 ns-sp-tc-list + 글로벌 규칙 */
     /* #83: 약관 상세 — .tc-detail-view 마커가 있을 때 본문 테두리만 스크롤 (body/.stApp 미조작) */
     body.auth-login-splash:has(#gluc-terms-detail-root) .block-container {
       padding-top: 0 !important;
@@ -4192,20 +4199,6 @@ if not st.session_state['logged_in']:
       padding: 4px 8px !important;
       background: rgba(255,255,255,0.06) !important;
       color: #ffffff !important;
-    }
-    /* ── 전체동의 체크박스: CTA 위에서 크고 굵게 강조 ── */
-    body.auth-login-splash .stApp [data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] > label {
-      gap: 12px !important;
-      align-items: center !important;
-    }
-    body.auth-login-splash .stApp [data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] input[type="checkbox"],
-    body.auth-login-splash .stApp [data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] > label > span:first-child {
-      width: 24px !important;
-      height: 24px !important;
-      min-width: 24px !important;
-      min-height: 24px !important;
-      transform: scale(1.25) !important;
-      transform-origin: left center !important;
     }
     </style>
     """,
@@ -4256,7 +4249,7 @@ if not st.session_state['logged_in']:
             st.markdown(_td_body)
         st.stop()
 
-    # ---------- 약관 동의 화면 (소셜 클릭 후) — #96: render_terms_agreement 단일 블록 ----------
+    # ---------- 약관 동의 화면 (소셜 클릭 후) — #97: render_terms_agreement 단일 블록 ----------
     if st.session_state.get("auth_phase") == "terms" and st.session_state.get("pending_social_provider"):
         prov = st.session_state["pending_social_provider"]
         render_terms_agreement(prov, _lg)
@@ -4453,24 +4446,51 @@ if not st.session_state['logged_in']:
             "[data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker):not(:has(.ns-sp-visual))"
             " > div[data-testid='element-container']:last-child{"
             "margin-top:16px!important;}\n"
-            "/* 1. 전체 동의 진짜 상자에 녹색 테두리 적용 */\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(.tc-master-marker){"
-            "border:1.5px solid #10b981!important;"
-            "background-color:rgba(16, 185, 129, 0.05)!important;"
-            "border-radius:12px!important;"
-            "padding:0px!important;"
-            "margin-bottom:8px!important;}\n"
-            "/* 2. 회색 배경 완전 투명화 및 순수 CSS 꺾쇠 화살표 적용 */\n"
-            "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary']{"
+            "/* #97: MASTERPIECE TERMS UI — COMPACT, ZERO SCROLL, FIXED BOTTOM */\n"
+            "#gluc-terms-page-title{font-size:clamp(14px,4.5vw,15px)!important;text-align:center;color:#fff;"
+            "margin-bottom:8px!important;margin-top:0!important;}\n"
+            "#gluc-terms-page-sub{font-size:clamp(12px,3.8vw,13px)!important;text-align:center;color:#94a3b8;"
+            "margin-bottom:12px!important;margin-top:0!important;}\n"
+            "body.auth-login-splash:has(#gluc-terms-page-title){overflow:hidden!important;height:100dvh!important;}\n"
+            "body.auth-login-splash:has(#gluc-terms-page-title) .block-container{height:100dvh!important;overflow:hidden!important;"
+            "padding-top:0!important;padding-bottom:160px!important;display:flex!important;flex-direction:column!important;min-height:0!important;}\n"
+            ".ns-sp-tc-list [data-testid='stHorizontalBlock'],"
+            "body.auth-login-splash:has(#gluc-terms-page-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']){"
+            "margin-bottom:2px!important;row-gap:0!important;padding:0!important;align-items:center!important;}\n"
+            ".ns-sp-tc-list div[data-testid='stHorizontalBlock']>div[data-testid='element-container'],"
+            "body.auth-login-splash:has(#gluc-terms-page-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox'])>div[data-testid='element-container']{"
+            "margin-bottom:0!important;}\n"
+            ".ns-sp-tc-list [data-testid='stHorizontalBlock'] div[data-testid='stMarkdownContainer'] p,"
+            "body.auth-login-splash:has(#gluc-terms-page-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']) div[data-testid='stMarkdownContainer'] p{"
+            "font-size:13.2px!important;color:#cbd5e1!important;margin:0!important;padding:0!important;"
+            "white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;}\n"
+            ".ns-sp-tc-list div[data-testid='stHorizontalBlock'] button[kind='secondary'],"
+            "body.auth-login-splash:has(#gluc-terms-page-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']) button[kind='secondary']{"
             "background:transparent!important;border:none!important;box-shadow:none!important;padding:0!important;"
-            "display:flex!important;justify-content:flex-end!important;align-items:center!important;}\n"
-            "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary'] p,"
-            "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary'] div[data-testid='stMarkdownContainer']{"
+            "height:auto!important;min-height:0!important;}\n"
+            ".ns-sp-tc-list div[data-testid='stHorizontalBlock'] button[kind='secondary'] p,"
+            ".ns-sp-tc-list div[data-testid='stHorizontalBlock'] button[kind='secondary'] div[data-testid='stMarkdownContainer'],"
+            "body.auth-login-splash:has(#gluc-terms-page-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']) button[kind='secondary'] p,"
+            "body.auth-login-splash:has(#gluc-terms-page-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']) button[kind='secondary'] div[data-testid='stMarkdownContainer']{"
             "display:none!important;}\n"
-            "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary']::after{"
-            "content:''!important;display:inline-block!important;width:8px!important;height:8px!important;"
-            "border-top:2px solid #94a3b8!important;border-right:2px solid #94a3b8!important;"
-            "transform:rotate(45deg)!important;margin-right:8px!important;}\n"
+            ".ns-sp-tc-list div[data-testid='stHorizontalBlock'] button[kind='secondary']::after,"
+            "body.auth-login-splash:has(#gluc-terms-page-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']) button[kind='secondary']::after{"
+            "content:''!important;display:inline-block!important;width:6.5px!important;height:6.5px!important;"
+            "border-top:1.8px solid #94a3b8!important;border-right:1.8px solid #94a3b8!important;"
+            "transform:rotate(45deg)!important;margin-right:6px!important;}\n"
+            "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(.tc-master-marker){"
+            "border:1.5px solid #10b981!important;background-color:rgba(16,185,129,0.05)!important;"
+            "border-radius:12px!important;padding:2px 16px!important;margin-bottom:12px!important;}\n"
+            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .ns-sp-tc-bottom-fix-marker){"
+            "position:fixed!important;bottom:0!important;left:0!important;right:0!important;background:#1a2332!important;"
+            "border-top:1px solid rgba(255,255,255,0.1)!important;"
+            "padding:12px 16px max(12px,env(safe-area-inset-bottom,0px)) 16px!important;z-index:99999!important;"
+            "box-shadow:0 -8px 30px rgba(0,0,0,0.5)!important;}\n"
+            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .ns-sp-tc-bottom-fix-marker)>div{"
+            "margin:0!important;padding:0!important;}\n"
+            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .ns-sp-tc-bottom-fix-marker) button{"
+            "height:48px!important;font-size:1.05rem!important;border-radius:10px!important;}\n"
+            ".ns-sp-tc-list{padding-bottom:160px!important;}\n"
             "</style>\n"
         )
         st.markdown(_splash_css, unsafe_allow_html=True)
