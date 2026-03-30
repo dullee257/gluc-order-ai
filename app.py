@@ -3482,6 +3482,94 @@ _TERMS_DETAIL_PAGES = {
     "bigdata": ("빅데이터 분석 및 신규 서비스 개발", TERMS_BIGDATA),
 }
 
+_TC_KEYS = ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "tc_custom_priv", "tc_bigdata")
+_TC_SLUGS = ("tos", "priv", "health", "mkt", "custom_priv", "bigdata")
+
+
+def render_terms_agreement(prov: str, _lg: str) -> None:
+    st.markdown("<h3 id='gluc-terms-page-title' style='text-align:center; color:#fff; margin-bottom:20px;'>📋 서비스 약관 동의</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#94a3b8; font-size:0.85rem; margin-bottom:30px;'>필수 항목에 모두 동의해야 서비스를 이용하실 수 있습니다.</p>", unsafe_allow_html=True)
+
+    terms_list = [
+        {"title": "서비스 이용약관 동의", "req": True, "key": TERMS_TOS},
+        {"title": "개인정보 수집 및 이용 동의", "req": True, "key": TERMS_PRIVACY},
+        {"title": "민감정보(건강정보) 처리 동의", "req": True, "key": TERMS_HEALTH},
+        {"title": "맞춤형 혜택 및 마케팅 정보 수신 동의", "req": False, "key": TERMS_MARKETING},
+        {"title": "맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", "req": False, "key": TERMS_CUSTOM_PRIV},
+        {"title": "빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", "req": False, "key": TERMS_BIGDATA},
+    ]
+
+    def check_all_status():
+        all_checked = all(st.session_state.get(f"terms_{i}", False) for i in range(len(terms_list)))
+        st.session_state["terms_all"] = all_checked
+        for j, sk in enumerate(_TC_KEYS):
+            st.session_state[sk] = bool(st.session_state.get(f"terms_{j}", False))
+
+    def toggle_all_terms():
+        val = st.session_state.get("terms_all", False)
+        for i in range(len(terms_list)):
+            st.session_state[f"terms_{i}"] = val
+        for sk in _TC_KEYS:
+            st.session_state[sk] = val
+
+    st.session_state["terms_all"] = all(st.session_state.get(f"terms_{i}", False) for i in range(len(terms_list)))
+    for j, sk in enumerate(_TC_KEYS):
+        st.session_state[sk] = bool(st.session_state.get(f"terms_{j}", False))
+
+    for i, term in enumerate(terms_list):
+        cols = st.columns([8, 2])
+        with cols[0]:
+            lbl = f"[{'필수' if term['req'] else '선택'}] {term['title']}"
+            st.checkbox(lbl, value=st.session_state.get(f"terms_{i}", False), key=f"terms_{i}", on_change=check_all_status)
+        with cols[1]:
+            # 화살표(>) 대신 공백(" ") 삽입하여 CSS ::after가 작동하게 함
+            if st.button(" ", key=f"btn_tc_{i}", type="secondary"):
+                st.session_state["auth_phase"] = "terms_detail"
+                st.session_state["target_term"] = _TC_SLUGS[i]
+                st.query_params["tc"] = _TC_SLUGS[i]
+                st.rerun()
+        st.markdown("<div style='margin-bottom:12px;'></div>", unsafe_allow_html=True)
+
+    st.markdown("<hr style='border-color: rgba(255,255,255,0.1); margin: 20px 0;'>", unsafe_allow_html=True)
+
+    # 전체 동의 상자와 체크박스의 완벽한 들여쓰기 교정
+    with st.container(border=True):
+        st.markdown('<div class="tc-master-marker" aria-hidden="true"></div>', unsafe_allow_html=True)
+        master_checked = st.checkbox(
+            "약관 전체 동의",
+            value=st.session_state.get("terms_all", False),
+            key="terms_all",
+            on_change=toggle_all_terms
+        )
+
+    required_keys = [i for i, t in enumerate(terms_list) if t["req"]]
+    missing = [i for i in required_keys if not st.session_state.get(f"terms_{i}", False)]
+
+    if missing:
+        missing_titles = [terms_list[i]['title'].split(' 동의')[0].replace(' 개인정보', '').replace(' 처리', '').replace(' 수집 및 이용', '') for i in missing]
+        st.markdown(f"<p style='color:#f59e0b; font-size:0.8rem; text-align:center; margin-top:10px;'>⚠️ 미동의 필수 항목: {' / '.join(missing_titles)}</p>", unsafe_allow_html=True)
+        st.button("동의하고 가입완료", disabled=True, use_container_width=True, key="btn_tc_submit_dis")
+    else:
+        if st.button("동의하고 가입완료", type="primary", use_container_width=True, key="btn_tc_submit"):
+            for j, sk in enumerate(_TC_KEYS):
+                st.session_state[sk] = bool(st.session_state.get(f"terms_{j}", False))
+            st.session_state["terms_accepted_provider"] = prov
+            st.session_state["terms_marketing_agreed"] = st.session_state.get("tc_mkt", False)
+            st.session_state["terms_custom_priv_agreed"] = st.session_state.get("tc_custom_priv", False)
+            st.session_state["terms_bigdata_agreed"] = st.session_state.get("tc_bigdata", False)
+            decision = handle_social_login(prov)
+            st.session_state["auth_phase"] = "sheet"
+            st.session_state["pending_social_provider"] = None
+            if decision.get("action") == "oauth_google":
+                st.session_state["proceed_google_oauth"] = True
+                st.rerun()
+            elif decision.get("action") == "stub":
+                pname = str(decision.get("provider", prov) or "").title()
+                st.session_state["auth_flash_msg"] = get_text(_lg, "social_provider_stub", provider=pname)
+            elif decision.get("action") == "email_sheet":
+                pass
+            st.rerun()
+
 
 def _sync_terms_navigation() -> None:
     """?tc= 쿼리와 session auth_phase / 약관 상세·목록·드로어 복귀 동기화 (#78)."""
@@ -4168,156 +4256,10 @@ if not st.session_state['logged_in']:
             st.markdown(_td_body)
         st.stop()
 
-    # ---------- 약관 동의 화면 (소셜 클릭 후) — 토스/카카오 수준 상용 폼팩터 ----------
+    # ---------- 약관 동의 화면 (소셜 클릭 후) — #96: render_terms_agreement 단일 블록 ----------
     if st.session_state.get("auth_phase") == "terms" and st.session_state.get("pending_social_provider"):
         prov = st.session_state["pending_social_provider"]
-
-        # ── 헤더 ─────────────────────────────────────────────────────────────
-        st.markdown(
-            """
-            <div id="gluc-terms-page-title" style="text-align:center;margin:0 0 6px;padding:0;">
-              <div style="font-size:1.2rem;font-weight:900;color:#fff;letter-spacing:-0.02em;">
-                📋 서비스 약관 동의
-              </div>
-              <div style="font-size:0.75rem;color:rgba(255,255,255,0.46);margin-top:3px;">
-                필수 항목에 모두 동의해야 서비스를 이용하실 수 있습니다.
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-        # ── 체크박스 상태 초기화 (필수 3 + 선택 3 = 총 6개) ──────────────────
-        _sub_keys = ("tc_tos", "tc_priv", "tc_health", "tc_mkt", "tc_custom_priv", "tc_bigdata")
-        _req_keys = ("tc_tos", "tc_priv", "tc_health")
-
-        for _k in _sub_keys:
-            st.session_state.setdefault(_k, False)
-
-        # 마스터 on_change 콜백 (하위 6개 동기화) — #93: key=terms_all
-        def toggle_all_terms():
-            _v = st.session_state.get("terms_all", False)
-            for _k2 in _sub_keys:
-                st.session_state[_k2] = _v
-
-        _all_currently = all(st.session_state.get(k, False) for k in _sub_keys)
-        st.session_state["terms_all"] = _all_currently
-
-        # ── 약관 항목 6개 — 제목 + 우측 › 로 상세 페이지 이동 (#78) ─
-        def _tc_nav_detail(slug: str) -> None:
-            st.session_state["auth_phase"] = "terms_detail"
-            st.session_state["target_term"] = slug
-            st.query_params["tc"] = slug
-            st.rerun()
-
-        with st.container(border=True):
-            _r1a, _r1b = st.columns([11, 1])
-            with _r1a:
-                st.checkbox("[필수] 서비스 이용약관 동의", key="tc_tos")
-            with _r1b:
-                if st.button(" ", key="tc_chevron_tos", help="약관 전문 보기", type="secondary"):
-                    _tc_nav_detail("tos")
-
-            _r2a, _r2b = st.columns([11, 1])
-            with _r2a:
-                st.checkbox("[필수] 개인정보 수집 및 이용 동의", key="tc_priv")
-            with _r2b:
-                if st.button(" ", key="tc_chevron_priv", help="약관 전문 보기", type="secondary"):
-                    _tc_nav_detail("priv")
-
-            _r3a, _r3b = st.columns([11, 1])
-            with _r3a:
-                st.checkbox("[필수] 민감정보(건강정보) 처리 동의", key="tc_health")
-            with _r3b:
-                if st.button(" ", key="tc_chevron_health", help="약관 전문 보기", type="secondary"):
-                    _tc_nav_detail("health")
-
-            st.markdown(
-                "<div style='height:1px;background:rgba(255,255,255,0.06);margin:8px 0;'></div>",
-                unsafe_allow_html=True,
-            )
-
-            _r4a, _r4b = st.columns([11, 1])
-            with _r4a:
-                st.checkbox("[선택] 맞춤형 혜택 및 마케팅 정보 수신 동의", key="tc_mkt")
-            with _r4b:
-                if st.button(" ", key="tc_chevron_mkt", help="약관 전문 보기", type="secondary"):
-                    _tc_nav_detail("mkt")
-
-            _r5a, _r5b = st.columns([11, 1])
-            with _r5a:
-                st.checkbox("[선택] 맞춤형 서비스 제공을 위한 개인정보 추가 수집·이용 동의", key="tc_custom_priv")
-            with _r5b:
-                if st.button(" ", key="tc_chevron_custom_priv", help="약관 전문 보기", type="secondary"):
-                    _tc_nav_detail("custom_priv")
-
-            _r6a, _r6b = st.columns([11, 1])
-            with _r6a:
-                st.checkbox("[선택] 빅데이터 분석 및 신규 서비스 개발을 위한 건강정보 처리 동의", key="tc_bigdata")
-            with _r6b:
-                if st.button(" ", key="tc_chevron_bigdata", help="약관 전문 보기", type="secondary"):
-                    _tc_nav_detail("bigdata")
-
-        # ── 구분선 ─────────────────────────────────────────────────────────
-        st.markdown(
-            "<div style='height:1px;background:rgba(255,255,255,0.12);margin:12px 0 10px;'></div>",
-            unsafe_allow_html=True,
-        )
-
-        # ── 마스터 "전체 동의" — 맨 아래 배치 (#95: border=True 로 BorderWrapper + 마커·체크박스 동일 블록)
-        with st.container(border=True):
-            st.markdown('<div class="tc-master-marker" aria-hidden="true"></div>', unsafe_allow_html=True)
-            master_checked = st.checkbox(
-                "약관 전체 동의",
-                value=st.session_state.get("terms_all", False),
-                key="terms_all",
-                on_change=toggle_all_terms
-            )
-
-        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
-
-        # ── 진행 조건 체크 (필수 3개만) ──────────────────────────────────────
-        _can_proceed = all(st.session_state.get(k, False) for k in _req_keys)
-
-        if not _can_proceed:
-            _missing = []
-            if not st.session_state.get("tc_tos"):
-                _missing.append("서비스 이용약관")
-            if not st.session_state.get("tc_priv"):
-                _missing.append("개인정보 수집·이용")
-            if not st.session_state.get("tc_health"):
-                _missing.append("민감정보 처리")
-            st.markdown(
-                f"<div style='font-size:0.76rem;color:rgba(255,180,0,0.9);text-align:center;"
-                f"margin-bottom:6px;'>⚠️ 미동의 필수 항목: {' / '.join(_missing)}</div>",
-                unsafe_allow_html=True,
-            )
-
-        if st.button(
-            "동의하고 가입완료",
-            type="primary",
-            use_container_width=True,
-            key="terms_submit",
-            disabled=not _can_proceed,
-        ):
-            st.session_state["terms_accepted_provider"] = prov
-            st.session_state["terms_marketing_agreed"] = st.session_state.get("tc_mkt", False)
-            st.session_state["terms_custom_priv_agreed"] = st.session_state.get("tc_custom_priv", False)
-            st.session_state["terms_bigdata_agreed"] = st.session_state.get("tc_bigdata", False)
-            decision = handle_social_login(prov)
-            st.session_state["auth_phase"] = "sheet"
-            st.session_state["pending_social_provider"] = None
-            if decision.get("action") == "oauth_google":
-                st.session_state["proceed_google_oauth"] = True
-                st.rerun()
-            elif decision.get("action") == "stub":
-                pname = str(decision.get("provider", prov) or "").title()
-                st.session_state["auth_flash_msg"] = get_text(_lg, "social_provider_stub", provider=pname)
-            elif decision.get("action") == "email_sheet":
-                pass
-            st.rerun()
-
+        render_terms_agreement(prov, _lg)
         st.stop()
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -4511,15 +4453,20 @@ if not st.session_state['logged_in']:
             "[data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker):not(:has(.ns-sp-visual))"
             " > div[data-testid='element-container']:last-child{"
             "margin-top:16px!important;}\n"
-            "/* #95: 약관 — BorderWrapper 전체 동의 상자 + chevron (명령문 1:1) */\n"
+            "/* 1. 전체 동의 진짜 상자에 녹색 테두리 적용 */\n"
             "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(.tc-master-marker){"
-            "border:1.5px solid #10b981!important;background-color:rgba(16,185,129,0.05)!important;"
-            "border-radius:12px!important;padding:0px!important;margin-bottom:8px!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(.tc-master-marker) > div{"
-            "padding-bottom:0!important;margin-bottom:0!important;}\n"
+            "border:1.5px solid #10b981!important;"
+            "background-color:rgba(16, 185, 129, 0.05)!important;"
+            "border-radius:12px!important;"
+            "padding:0px!important;"
+            "margin-bottom:8px!important;}\n"
+            "/* 2. 회색 배경 완전 투명화 및 순수 CSS 꺾쇠 화살표 적용 */\n"
             "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary']{"
             "background:transparent!important;border:none!important;box-shadow:none!important;padding:0!important;"
             "display:flex!important;justify-content:flex-end!important;align-items:center!important;}\n"
+            "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary'] p,"
+            "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary'] div[data-testid='stMarkdownContainer']{"
+            "display:none!important;}\n"
             "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary']::after{"
             "content:''!important;display:inline-block!important;width:8px!important;height:8px!important;"
             "border-top:2px solid #94a3b8!important;border-right:2px solid #94a3b8!important;"
