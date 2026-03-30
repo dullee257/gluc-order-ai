@@ -4276,16 +4276,9 @@ if not st.session_state['logged_in']:
             unsafe_allow_html=True,
         )
 
-        # ── 마스터 "전체 동의" — 맨 아래 배치 (#93: 마커·여백·체크박스 모두 container 내부)
+        # ── 마스터 "전체 동의" — 맨 아래 배치 (#94: 마커+체크박스만 container 내부, 들여쓰기 고정)
         with st.container():
-            st.markdown(
-                '<div class="tc-master-marker" aria-hidden="true"></div>',
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                "<div style='margin-bottom:24px;'></div>",
-                unsafe_allow_html=True,
-            )
+            st.markdown('<div class="tc-master-marker" aria-hidden="true"></div>', unsafe_allow_html=True)
             master_checked = st.checkbox(
                 "약관 전체 동의",
                 value=st.session_state.get("terms_all", False),
@@ -4529,17 +4522,17 @@ if not st.session_state['logged_in']:
             "[data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker):not(:has(.ns-sp-visual))"
             " > div[data-testid='element-container']:last-child{"
             "margin-top:16px!important;}\n"
-            "/* #93: 약관 목록 행 + chevron (로컬 style 중복 제거 후 글로벌 주입) */\n"
+            "/* #94: 약관 행 레이아웃 + 상세보기 chevron(투명 버튼·::after 유지) */\n"
             "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stHorizontalBlock']:has(button[kind='secondary']){"
             "display:flex!important;flex-direction:row!important;align-items:center!important;"
             "justify-content:space-between!important;flex-wrap:nowrap!important;width:100%!important;}\n"
-            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stHorizontalBlock'] button[kind='secondary']{"
-            "position:relative!important;min-width:44px!important;min-height:44px!important;padding:0!important;"
-            "border:none!important;background-color:rgba(255,255,255,0.10)!important;box-shadow:none!important;}\n"
-            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stHorizontalBlock'] button[kind='secondary'] p,"
-            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stHorizontalBlock'] button[kind='secondary'] span{"
+            "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary']{"
+            "background:transparent!important;border:none!important;box-shadow:none!important;padding:0!important;"
+            "min-height:0!important;display:flex!important;justify-content:flex-end!important;align-items:center!important;}\n"
+            "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary'] p,"
+            "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary'] div[data-testid='stMarkdownContainer']{"
             "display:none!important;}\n"
-            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stHorizontalBlock'] button[kind='secondary']::after{"
+            "body.auth-login-splash div[data-testid='stHorizontalBlock'] button[kind='secondary']::after{"
             "content:''!important;display:inline-block!important;width:8px!important;height:8px!important;"
             "border-top:2px solid #94a3b8!important;border-right:2px solid #94a3b8!important;"
             "transform:rotate(45deg)!important;background:none!important;margin-right:8px!important;"
