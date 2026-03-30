@@ -3967,7 +3967,7 @@ if not st.session_state['logged_in']:
       border-radius: 3px;
     }
     /* #59: 전체 동의 — 고정 CTA에 가리지 않도록 (#92: 마스터 전용 내부 stVerticalBlock만) */
-    body.auth-login-splash:has(#gluc-terms-page-title) .block-container [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) {
+    body.auth-login-splash:has(#gluc-terms-page-title) .block-container div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-master-marker):not(:has(#gluc-terms-page-title)) {
       flex: 0 0 auto !important;
       min-height: 0 !important;
       max-height: none !important;
@@ -4012,21 +4012,21 @@ if not st.session_state['logged_in']:
       padding: 8px 10px !important;
     }
     /* #92: 유령 박스 대신 컨테이너 자체에 녹색 테두리 (메인 컬럼 루트 제외: :not(:has(#gluc-terms-page-title))) */
-    body.auth-login-splash [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) {
+    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-master-marker):not(:has(#gluc-terms-page-title)) {
       border: 1.5px solid #10b981 !important;
       background-color: rgba(16, 185, 129, 0.05) !important;
       border-radius: 12px !important;
       padding: 8px 16px !important;
       margin-bottom: 16px !important;
     }
-    body.auth-login-splash [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) > div {
+    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-master-marker):not(:has(#gluc-terms-page-title)) > div {
       margin-bottom: 0 !important;
       padding-bottom: 0 !important;
     }
     /* ── 마스터 "전체 동의" 체크박스 — 크고 굵게 (#92: .tc-master-wrap → 마커 기준) ── */
-    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] label p,
-    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] label span,
-    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] label {
+    body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] label p,
+    body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] label span,
+    body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] label {
       font-size: 1.1rem !important;
       font-weight: 900 !important;
       color: #ffffff !important;
@@ -4073,45 +4073,7 @@ if not st.session_state['logged_in']:
     body.auth-login-splash:has(#gluc-terms-page-title) div#gluc-terms-page-title {
       margin-top: 0 !important;
     }
-    /* #83: 약관 목록 한 줄 + chevron (순수 CSS, :has / ::after) */
-    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stHorizontalBlock"]:has(button[kind="secondary"]) {
-      display: flex !important;
-      flex-direction: row !important;
-      align-items: center !important;
-      justify-content: space-between !important;
-      flex-wrap: nowrap !important;
-      width: 100% !important;
-    }
-    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stHorizontalBlock"] button[kind="secondary"] {
-      position: relative !important;
-      min-width: 44px !important;
-      min-height: 44px !important;
-      padding: 0 !important;
-      border: none !important;
-      background-color: rgba(255,255,255,0.10) !important;
-      box-shadow: none !important;
-    }
-    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stHorizontalBlock"] button[kind="secondary"] p {
-      display: none !important;
-    }
-    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stHorizontalBlock"] button[kind="secondary"] span {
-      display: none !important;
-    }
-    /* #92: 순수 CSS 꺾쇠(데이터 SVG 제거) */
-    body.auth-login-splash div[data-testid="stHorizontalBlock"] button[kind="secondary"]::after {
-      content: '' !important;
-      display: inline-block !important;
-      width: 8px !important;
-      height: 8px !important;
-      border-top: 2px solid #94a3b8 !important;
-      border-right: 2px solid #94a3b8 !important;
-      transform: rotate(45deg) !important;
-      background: none !important;
-      margin-right: 8px !important;
-      position: relative !important;
-      top: -2px !important;
-      background-image: none !important;
-    }
+    /* #93: 약관 행 chevron — 로컬 블록 제거, _splash_css 글로벌 규칙 사용 */
     /* #83: 약관 상세 — .tc-detail-view 마커가 있을 때 본문 테두리만 스크롤 (body/.stApp 미조작) */
     body.auth-login-splash:has(#gluc-terms-detail-root) .block-container {
       padding-top: 0 !important;
@@ -4155,12 +4117,12 @@ if not st.session_state['logged_in']:
       color: #ffffff !important;
     }
     /* ── 전체동의 체크박스: CTA 위에서 크고 굵게 강조 ── */
-    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] > label {
+    body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] > label {
       gap: 12px !important;
       align-items: center !important;
     }
-    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] input[type="checkbox"],
-    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] > label > span:first-child {
+    body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] input[type="checkbox"],
+    body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] > label > span:first-child {
       width: 24px !important;
       height: 24px !important;
       min-width: 24px !important;
@@ -4244,14 +4206,14 @@ if not st.session_state['logged_in']:
         for _k in _sub_keys:
             st.session_state.setdefault(_k, False)
 
-        # 마스터 on_change 콜백 (하위 6개 동기화)
-        def _on_all_change():
-            _v = st.session_state.get("tc_all_master", False)
+        # 마스터 on_change 콜백 (하위 6개 동기화) — #93: key=terms_all
+        def toggle_all_terms():
+            _v = st.session_state.get("terms_all", False)
             for _k2 in _sub_keys:
                 st.session_state[_k2] = _v
 
         _all_currently = all(st.session_state.get(k, False) for k in _sub_keys)
-        st.session_state["tc_all_master"] = _all_currently
+        st.session_state["terms_all"] = _all_currently
 
         # ── 약관 항목 6개 — 제목 + 우측 › 로 상세 페이지 이동 (#78) ─
         def _tc_nav_detail(slug: str) -> None:
@@ -4314,16 +4276,21 @@ if not st.session_state['logged_in']:
             unsafe_allow_html=True,
         )
 
-        # ── 마스터 "전체 동의" — 맨 아래 배치, 크고 굵게 (#92: 유령 박스 제거·마커+컨테이너) ──
+        # ── 마스터 "전체 동의" — 맨 아래 배치 (#93: 마커·여백·체크박스 모두 container 내부)
         with st.container():
             st.markdown(
                 '<div class="tc-master-marker" aria-hidden="true"></div>',
                 unsafe_allow_html=True,
             )
-            st.checkbox(
+            st.markdown(
+                "<div style='margin-bottom:24px;'></div>",
+                unsafe_allow_html=True,
+            )
+            master_checked = st.checkbox(
                 "약관 전체 동의",
-                key="tc_all_master",
-                on_change=_on_all_change,
+                value=st.session_state.get("terms_all", False),
+                key="terms_all",
+                on_change=toggle_all_terms,
             )
 
         st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
@@ -4562,6 +4529,21 @@ if not st.session_state['logged_in']:
             "[data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker):not(:has(.ns-sp-visual))"
             " > div[data-testid='element-container']:last-child{"
             "margin-top:16px!important;}\n"
+            "/* #93: 약관 목록 행 + chevron (로컬 style 중복 제거 후 글로벌 주입) */\n"
+            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stHorizontalBlock']:has(button[kind='secondary']){"
+            "display:flex!important;flex-direction:row!important;align-items:center!important;"
+            "justify-content:space-between!important;flex-wrap:nowrap!important;width:100%!important;}\n"
+            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stHorizontalBlock'] button[kind='secondary']{"
+            "position:relative!important;min-width:44px!important;min-height:44px!important;padding:0!important;"
+            "border:none!important;background-color:rgba(255,255,255,0.10)!important;box-shadow:none!important;}\n"
+            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stHorizontalBlock'] button[kind='secondary'] p,"
+            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stHorizontalBlock'] button[kind='secondary'] span{"
+            "display:none!important;}\n"
+            "body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid='stHorizontalBlock'] button[kind='secondary']::after{"
+            "content:''!important;display:inline-block!important;width:8px!important;height:8px!important;"
+            "border-top:2px solid #94a3b8!important;border-right:2px solid #94a3b8!important;"
+            "transform:rotate(45deg)!important;background:none!important;margin-right:8px!important;"
+            "position:relative!important;top:-2px!important;background-image:none!important;}\n"
             "</style>\n"
         )
         st.markdown(_splash_css, unsafe_allow_html=True)
