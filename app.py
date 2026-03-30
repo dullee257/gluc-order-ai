@@ -4546,6 +4546,15 @@ if not st.session_state['logged_in']:
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stVerticalBlock']:has(.gluc-phase-main)"
             " > div:has(button[kind='secondary']){"
             "bottom:max(8px,env(safe-area-inset-bottom,0px))!important;}\n"
+            "/* #90: 드로어 맨 아래 교차 네비게이션 버튼 가독성 확보 (위쪽 여백 확대) */\n"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) "
+            "[data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker):not(:has(.ns-sp-visual))"
+            " > div[data-testid='element-container']:last-child{"
+            "margin-top:16px!important;}\n"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) "
+            "[data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker):not(:has(.ns-sp-visual))"
+            " > div[data-testid='element-container']:last-child button{"
+            "font-size:13.5px!important;}\n"
             "</style>\n"
         )
         st.markdown(_splash_css, unsafe_allow_html=True)
