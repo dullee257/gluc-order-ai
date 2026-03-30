@@ -3514,12 +3514,12 @@ def render_terms_agreement(prov: str, _lg: str) -> None:
         for sk in _TC_KEYS:
             st.session_state[sk] = val
 
+    # #100: st.columns 폐기 — 컨테이너 + Flex CSS(tc-row-marker-mob)로 강제 1줄
     for i, term in enumerate(terms_list):
-        cols = st.columns([8.5, 1.5])
-        with cols[0]:
+        with st.container():
+            st.markdown('<div class="tc-row-marker-mob" aria-hidden="true"></div>', unsafe_allow_html=True)
             lbl = f"[{'필수' if term['req'] else '선택'}] {term['title']}"
             st.checkbox(lbl, value=st.session_state.get(f"terms_{i}", False), key=f"terms_{i}", on_change=check_all_status)
-        with cols[1]:
             if st.button(" ", key=f"btn_tc_mob_{i}", type="secondary"):
                 st.session_state["auth_phase"] = "terms_detail"
                 st.session_state["target_term"] = _TC_SLUGS[i]
@@ -4004,72 +4004,50 @@ if not st.session_state['logged_in']:
       font-size: 12px !important; text-align: center; color: #94a3b8; margin: 0 0 12px 0 !important;
     }
 
-    /*
-     * 약관 목록 행 스코프 (DOM 주의):
-     * `.ns-sp-tc-root-mob ~ div …` 는 무효 — 마커는 markdown 안에 있고 stHorizontalBlock 은
-     * 별도 element-container 에 있어 형제가 아님. :has(#gluc-mob-tc-title) + 행 특성으로만 타겟.
-     */
-    body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]):has(button[kind="secondary"]) {
+    /* #100: st.columns 폐기 — tc-row-marker-mob 행 VerticalBlock Flex 강제 1줄 */
+    body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-row-marker-mob) {
       display: flex !important;
       flex-direction: row !important;
       flex-wrap: nowrap !important;
       align-items: center !important;
-      margin-bottom: 0px !important;
-      gap: 0px !important;
+      justify-content: space-between !important;
+      margin-bottom: 2px !important;
+      padding: 0 !important;
+      gap: 0 !important;
     }
 
-    body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]):has(button[kind="secondary"]) > [data-testid="column"]:nth-child(1) {
+    body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-row-marker-mob) > div:nth-child(2) {
       flex: 1 1 auto !important;
-      width: auto !important;
       min-width: 0 !important;
+      margin: 0 !important; padding: 0 !important;
+    }
+    body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-row-marker-mob) div[data-testid="stMarkdownContainer"] p {
+      font-size: 13.5px !important; color: #cbd5e1 !important; margin: 0 !important; padding: 0 !important;
+      white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; letter-spacing: -0.5px !important;
     }
 
-    body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]):has(button[kind="secondary"]) > [data-testid="column"]:nth-child(2) {
+    body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-row-marker-mob) > div:nth-child(3) {
       flex: 0 0 30px !important;
       width: 30px !important;
-      max-width: 30px !important;
-      display: flex !important;
-      justify-content: flex-end !important;
-      align-items: center !important;
+      margin: 0 !important; padding: 0 !important;
+      display: flex !important; justify-content: flex-end !important; align-items: center !important;
     }
 
-    /* C. 체크박스 라벨 한 줄 */
-    body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]):has(button[kind="secondary"]) div[data-testid="stMarkdownContainer"] p {
-      font-size: 13px !important; color: #cbd5e1 !important; margin: 0 !important; padding: 0 !important;
-      white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.5px !important;
+    body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid="stVerticalBlock"]:has(.tc-row-marker-mob) [data-testid="stButton"] > button[kind="secondary"] {
+      background: transparent !important; background-color: transparent !important;
+      border: none !important; box-shadow: none !important;
+      padding: 0 !important; margin: 0 !important;
+      height: 30px !important; min-height: 0 !important; width: 100% !important;
     }
-
-    /* D. 치환 버튼 — 전역 secondary(min-height:42px) 덮어쓰기 위해 stButton 경로 포함 */
-    body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]):has(button[kind="secondary"]) [data-testid="stButton"] > button[kind="secondary"] {
-      background: transparent !important;
-      background-color: rgba(0,0,0,0) !important;
-      border: none !important;
-      box-shadow: none !important;
-      padding: 0 !important;
-      height: 30px !important;
-      min-height: 0 !important;
-      width: 100% !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: flex-end !important;
-      overflow: visible !important;
+    body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid="stVerticalBlock"]:has(.tc-row-marker-mob) [data-testid="stButton"] > button[kind="secondary"]::after {
+      content: '' !important; display: inline-block !important;
+      width: 6.5px !important; height: 6.5px !important;
+      border-top: 1.5px solid #94a3b8 !important; border-right: 1.5px solid #94a3b8 !important;
+      transform: rotate(45deg) !important; margin-right: 2px !important;
     }
-
-    body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]):has(button[kind="secondary"]) [data-testid="stButton"] > button[kind="secondary"] p,
-    body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]):has(button[kind="secondary"]) [data-testid="stButton"] > button[kind="secondary"] [data-testid="stMarkdownContainer"] {
+    body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid="stVerticalBlock"]:has(.tc-row-marker-mob) [data-testid="stButton"] > button[kind="secondary"] p,
+    body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid="stVerticalBlock"]:has(.tc-row-marker-mob) [data-testid="stButton"] > button[kind="secondary"] div {
       display: none !important;
-    }
-
-    body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid="stHorizontalBlock"]:has([data-testid="stCheckbox"]):has(button[kind="secondary"]) [data-testid="stButton"] > button[kind="secondary"]::after {
-      content: '' !important;
-      display: inline-block !important;
-      width: 7px !important;
-      height: 7px !important;
-      border-top: 1.5px solid #94a3b8 !important;
-      border-right: 1.5px solid #94a3b8 !important;
-      transform: rotate(45deg) !important;
-      margin-right: 2px !important;
-      flex-shrink: 0 !important;
     }
 
     /* E. 전체 동의 상자 (모바일 터치 최적화) */
@@ -4414,32 +4392,30 @@ if not st.session_state['logged_in']:
             "[data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker):not(:has(.ns-sp-visual))"
             " > div[data-testid='element-container']:last-child{"
             "margin-top:16px!important;}\n"
-            "/* #98: MOBILE-ONLY TABULA RASA TERMS UI */\n"
+            "/* #100: ULTIMATE MOBILE FIX — tc-row-marker-mob, st.columns 제거 */\n"
             "#gluc-mob-tc-title{font-size:16px!important;text-align:center;color:#fff;margin:0 0 6px 0!important;}\n"
             "#gluc-mob-tc-sub{font-size:12px!important;text-align:center;color:#94a3b8;margin:0 0 12px 0!important;}\n"
-            "body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']):has(button[kind='secondary']){"
+            "body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .tc-row-marker-mob){"
             "display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;"
-            "margin-bottom:0!important;gap:0!important;}\n"
-            "body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']):has(button[kind='secondary'])>"
-            "[data-testid='column']:nth-child(1){flex:1 1 auto!important;width:auto!important;min-width:0!important;}\n"
-            "body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']):has(button[kind='secondary'])>"
-            "[data-testid='column']:nth-child(2){flex:0 0 30px!important;width:30px!important;max-width:30px!important;"
+            "justify-content:space-between!important;margin-bottom:2px!important;padding:0!important;gap:0!important;}\n"
+            "body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .tc-row-marker-mob)>div:nth-child(2){"
+            "flex:1 1 auto!important;min-width:0!important;margin:0!important;padding:0!important;}\n"
+            "body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .tc-row-marker-mob) "
+            "div[data-testid='stMarkdownContainer'] p{font-size:13.5px!important;color:#cbd5e1!important;margin:0!important;padding:0!important;"
+            "white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;letter-spacing:-0.5px!important;}\n"
+            "body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .tc-row-marker-mob)>div:nth-child(3){"
+            "flex:0 0 30px!important;width:30px!important;margin:0!important;padding:0!important;"
             "display:flex!important;justify-content:flex-end!important;align-items:center!important;}\n"
-            "body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']):has(button[kind='secondary']) "
-            "div[data-testid='stMarkdownContainer'] p{font-size:13px!important;color:#cbd5e1!important;margin:0!important;padding:0!important;"
-            "white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.5px!important;}\n"
-            "body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']):has(button[kind='secondary']) "
-            "[data-testid='stButton']>button[kind='secondary']{background:transparent!important;background-color:rgba(0,0,0,0)!important;"
-            "border:none!important;box-shadow:none!important;padding:0!important;height:30px!important;min-height:0!important;width:100%!important;"
-            "display:flex!important;align-items:center!important;justify-content:flex-end!important;overflow:visible!important;}\n"
-            "body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']):has(button[kind='secondary']) "
-            "[data-testid='stButton']>button[kind='secondary'] p,"
-            "body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']):has(button[kind='secondary']) "
-            "[data-testid='stButton']>button[kind='secondary'] [data-testid='stMarkdownContainer']{display:none!important;}\n"
-            "body.auth-login-splash:has(#gluc-mob-tc-title) [data-testid='stHorizontalBlock']:has([data-testid='stCheckbox']):has(button[kind='secondary']) "
-            "[data-testid='stButton']>button[kind='secondary']::after{content:''!important;display:inline-block!important;"
-            "width:7px!important;height:7px!important;border-top:1.5px solid #94a3b8!important;border-right:1.5px solid #94a3b8!important;"
-            "transform:rotate(45deg)!important;margin-right:2px!important;flex-shrink:0!important;}\n"
+            "body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid='stVerticalBlock']:has(.tc-row-marker-mob) [data-testid='stButton']>button[kind='secondary']{"
+            "background:transparent!important;background-color:transparent!important;border:none!important;box-shadow:none!important;"
+            "padding:0!important;margin:0!important;height:30px!important;min-height:0!important;width:100%!important;}\n"
+            "body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid='stVerticalBlock']:has(.tc-row-marker-mob) [data-testid='stButton']>button[kind='secondary']::after{"
+            "content:''!important;display:inline-block!important;width:6.5px!important;height:6.5px!important;"
+            "border-top:1.5px solid #94a3b8!important;border-right:1.5px solid #94a3b8!important;"
+            "transform:rotate(45deg)!important;margin-right:2px!important;}\n"
+            "body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid='stVerticalBlock']:has(.tc-row-marker-mob) [data-testid='stButton']>button[kind='secondary'] p,"
+            "body.auth-login-splash:has(#gluc-mob-tc-title) div[data-testid='stVerticalBlock']:has(.tc-row-marker-mob) [data-testid='stButton']>button[kind='secondary'] div{"
+            "display:none!important;}\n"
             "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(.tc-master-marker-mob){"
             "border:1px solid #10b981!important;background-color:rgba(16,185,129,0.05)!important;"
             "border-radius:10px!important;padding:4px 12px!important;margin-bottom:8px!important;}\n"
