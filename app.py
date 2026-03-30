@@ -4413,7 +4413,7 @@ if not st.session_state['logged_in']:
             "overflow-x:hidden!important;overflow-y:auto!important;background:#0f172a!important;"
             "max-width:100%!important;padding:0 16px!important;margin-top:0!important;padding-top:0!important;"
             "padding-bottom:max(120px,env(safe-area-inset-bottom,0px))!important;}\n"
-            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .block-container:has(.gluc-phase-drawer){"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) .block-container:has(.gluc-phase-drawer-marker){"
             "overflow-y:hidden!important;padding-bottom:0!important;margin-bottom:0!important;}\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) header[data-testid='stHeader'],"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) #MainMenu,"
@@ -4422,7 +4422,7 @@ if not st.session_state['logged_in']:
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stDecoration'],"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stStatusWidget']"
             "{display:none!important;}\n"
-            ".gluc-phase-main,.gluc-phase-drawer{display:none!important;}\n"
+            ".gluc-phase-main,.gluc-phase-drawer-marker{display:none!important;}\n"
             "/* #84: 중앙 비주얼만 스케일·재배치 — 하단 고정 버튼 CSS는 건드리지 않음 */\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
             " [data-testid='stMarkdownContainer'] p:empty{display:none!important;margin:0!important;padding:0!important;height:0!important;overflow:hidden!important;}\n"
@@ -4454,35 +4454,24 @@ if not st.session_state['logged_in']:
             "/* 오버레이: 시각만 어둡게, 터치는 통과(z-index는 버튼·패널보다 낮게) */\n"
             ".ns-sp-overlay{position:fixed!important;inset:0!important;z-index:25!important;"
             "background:rgba(0,0,0,0.32)!important;pointer-events:none!important;}\n"
-            "/* #86: 소셜 드로어 — 바닥 밀착(bottom-up), 스크롤 없이 높이만큼만 전개 */\n"
+            "/* #88: st.container 바텀시트 — 형제결합자(~)·backdrop 제거, 마커로만 타겟 */\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer){"
-            "display:flex!important;flex-direction:column!important;min-height:100dvh!important;"
-            "padding-bottom:0!important;margin-bottom:0!important;}\n"
-            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer)>"
-            " [data-testid='element-container']:has(.gluc-phase-drawer){margin-top:auto!important;}\n"
-            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer) [data-testid='stVerticalBlock'],"
-            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer) [data-testid='element-container']{"
-            "padding-bottom:0!important;margin-bottom:0!important;}\n"
-            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer) [data-testid='stVerticalBlock'] [data-testid='element-container']{"
-            "padding-bottom:0!important;margin-bottom:0!important;}\n"
-            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='stVerticalBlock']:has(.gluc-phase-drawer) [data-testid='stElementContainer']{"
-            "padding-bottom:0!important;margin-bottom:0!important;}\n"
-            ".ns-sp-drawer-backdrop{position:fixed!important;left:0!important;right:0!important;"
-            "bottom:0!important;top:auto!important;width:100%!important;box-sizing:border-box!important;"
-            "height:fit-content!important;max-height:95dvh!important;"
-            "margin:0!important;padding:10px 16px max(10px,env(safe-area-inset-bottom,0px)) 16px!important;"
-            "z-index:35!important;pointer-events:none!important;"
-            "background:#1a2332!important;"
-            "border-radius:12px 12px 0 0!important;"
+            " [data-testid='stVerticalBlock']> [data-testid='element-container']:has(.gluc-phase-drawer-marker){"
+            "position:fixed!important;bottom:0!important;left:0!important;right:0!important;"
+            "background:#1a2332!important;border-radius:20px 20px 0 0!important;"
             "border-top:1px solid rgba(255,255,255,0.15)!important;"
-            "transform:none!important;opacity:1!important;overflow:hidden!important;}\n"
-            ".ns-sp-drawer-backdrop .ns-sp-drawer-header{pointer-events:auto!important;}\n"
+            "padding:24px 16px calc(20px + env(safe-area-inset-bottom,0px)) 16px!important;"
+            "z-index:9999!important;box-shadow:0 -10px 40px rgba(0,0,0,0.6)!important;"
+            "display:flex!important;flex-direction:column!important;gap:8px!important;"
+            "height:auto!important;max-height:90dvh!important;margin:0!important;"
+            "box-sizing:border-box!important;overflow:hidden!important;}\n"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
+            " [data-testid='stVerticalBlock']> [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
+            " [data-testid='element-container'],"
+            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
+            " [data-testid='stVerticalBlock']> [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
+            " [data-testid='stVerticalBlock']{"
+            "margin-bottom:0!important;padding-bottom:0!important;}\n"
             ".ns-sp-drawer-header{text-align:center;margin:0 0 4px!important;position:relative;z-index:44;"
             "padding-top:0!important;}\n"
             ".ns-sp-drawer-handle{width:32px;height:3px;background:rgba(255,255,255,0.25);"
@@ -4514,22 +4503,9 @@ if not st.session_state['logged_in']:
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stButton'],"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root)) [data-testid='stButton'] > button{"
             "pointer-events:auto!important;}\n"
-            "/* 드로어 소셜: 높이·간격 압축 (4+뒤로 한 화면) */\n"
+            "/* 드로어 소셜: 바텀시트 내부 버튼 (마커 컨테이너 기준, ~ 제거) */\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='element-container']:has(.gluc-phase-drawer) ~ [data-testid='element-container']"
-            ":has([data-testid='stButton'] > button[kind='primary']){"
-            "position:relative!important;z-index:70!important;margin-bottom:0!important;padding-bottom:0!important;}\n"
-            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='element-container']:has(.gluc-phase-drawer) ~ [data-testid='element-container']"
-            ":has([data-testid='stButton'] > button[kind='secondary']){"
-            "position:relative!important;z-index:70!important;margin-bottom:0!important;padding-bottom:0!important;}\n"
-            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='element-container']:has(.gluc-phase-drawer) ~ [data-testid='element-container']"
-            ":has([data-testid='stButton'] > button[kind='tertiary']){"
-            "position:relative!important;z-index:70!important;margin-top:0!important;"
-            "margin-bottom:0!important;padding-bottom:max(0px,env(safe-area-inset-bottom,0px))!important;}\n"
-            "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='element-container']:has(.gluc-phase-drawer) ~ [data-testid='element-container']"
+            " [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
             " [data-testid='stButton'] > button[kind='primary']{"
             "width:100%!important;height:34px!important;min-height:34px!important;"
             "border-radius:8px!important;padding:2px 8px!important;"
@@ -4537,7 +4513,7 @@ if not st.session_state['logged_in']:
             "font-weight:700!important;font-family:'Noto Sans KR',sans-serif!important;"
             "font-size:0.72rem!important;line-height:1.2!important;box-shadow:none!important;}\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='element-container']:has(.gluc-phase-drawer) ~ [data-testid='element-container']"
+            " [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
             " [data-testid='stButton'] > button[kind='secondary']{"
             "width:100%!important;height:34px!important;min-height:34px!important;"
             "border-radius:8px!important;padding:2px 8px!important;"
@@ -4545,7 +4521,7 @@ if not st.session_state['logged_in']:
             "font-size:0.72rem!important;line-height:1.2!important;"
             "background:#334155!important;border:1px solid #475569!important;color:#f1f5f9!important;}\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='element-container']:has(.gluc-phase-drawer) ~ [data-testid='element-container']"
+            " [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
             " [data-testid='stButton'] > button[kind='tertiary']{"
             "width:100%!important;height:auto!important;min-height:28px!important;"
             "background:transparent!important;border:none!important;outline:none!important;"
@@ -4554,7 +4530,7 @@ if not st.session_state['logged_in']:
             "font-weight:500!important;padding:4px 2px!important;line-height:1.25!important;"
             "white-space:normal!important;}\n"
             "body.auth-login-splash:not(:has(#gluc-terms-page-title)):not(:has(#gluc-terms-detail-root))"
-            " [data-testid='element-container']:has(.gluc-phase-drawer) ~ [data-testid='element-container']"
+            " [data-testid='element-container']:has(.gluc-phase-drawer-marker)"
             " [data-testid='stButton'] [data-testid='stMarkdownContainer'] p{"
             "color:inherit!important;margin:0!important;}\n"
             "/* ── #74 맨 아래: 메인 로그인/가입 줄을 뷰포트 하단에 고정 (stVerticalBlock 직계 자식) ── */\n"
@@ -4636,116 +4612,116 @@ if not st.session_state['logged_in']:
                 st.session_state["auth_intent"] = "signup"
                 st.rerun()
         else:
+            # 1. 화면 전체를 덮는 어두운 오버레이 (컨테이너 밖)
             st.markdown(
-                '<div class="gluc-phase-drawer" aria-hidden="true"></div>',
+                '<div class="ns-sp-overlay"></div>',
                 unsafe_allow_html=True,
             )
-            st.markdown(
-                f"""
-<div class="ns-sp-overlay"></div>
-<div class="ns-sp-drawer-backdrop" aria-hidden="true">
-  <div class="ns-sp-drawer-header">
-    <div class="ns-sp-drawer-handle"></div>
-    <div class="ns-sp-drawer-title">{html_module.escape(_ph_d_title)}</div>
-    <div class="ns-sp-drawer-sub">{html_module.escape(_ph_d_sub)}</div>
-  </div>
+            # 2. 바텀시트: 마커·헤더·모든 버튼을 st.container() 안에 묶음 (#88)
+            with st.container():
+                st.markdown(
+                    '<div class="gluc-phase-drawer-marker" aria-hidden="true"></div>',
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    f"""
+<div class="ns-sp-drawer-header">
+  <div class="ns-sp-drawer-handle"></div>
+  <div class="ns-sp-drawer-title">{html_module.escape(_ph_d_title)}</div>
+  <div class="ns-sp-drawer-sub">{html_module.escape(_ph_d_sub)}</div>
 </div>
 """,
-                unsafe_allow_html=True,
-            )
+                    unsafe_allow_html=True,
+                )
 
-            # Google
-            if st.button(
-                _ph_bg_lbl,
-                key="gluc_sp_google",
-                use_container_width=True,
-                type="primary",
-            ):
-                _intent = st.session_state.get("splash_auth_intent", "login")
-                st.session_state["auth_intent"] = _intent
-                st.session_state["auth_mode"] = _intent
-                st.session_state["auth_splash_done"] = True
-                st.session_state["auth_sheet_open"] = True
-                st.session_state["pending_social_provider"] = "google"
-                st.session_state["auth_phase"] = "terms"
-                st.session_state["splash_drawer_open"] = False
-                st.rerun()
-            
-
-            # Naver
-            if st.button(
-                _ph_bn_lbl,
-                key="gluc_sp_naver",
-                use_container_width=True,
-                type="secondary",
-            ):
-                _intent = st.session_state.get("splash_auth_intent", "login")
-                st.session_state["auth_intent"] = _intent
-                st.session_state["auth_mode"] = _intent
-                st.session_state["auth_splash_done"] = True
-                st.session_state["auth_sheet_open"] = True
-                st.session_state["pending_social_provider"] = "naver"
-                st.session_state["auth_phase"] = "terms"
-                st.session_state["splash_drawer_open"] = False
-                st.rerun()
-            
-
-            # Kakao
-            if st.button(
-                _ph_bk_lbl,
-                key="gluc_sp_kakao",
-                use_container_width=True,
-                type="secondary",
-            ):
-                _intent = st.session_state.get("splash_auth_intent", "login")
-                st.session_state["auth_intent"] = _intent
-                st.session_state["auth_mode"] = _intent
-                st.session_state["auth_splash_done"] = True
-                st.session_state["auth_sheet_open"] = True
-                st.session_state["pending_social_provider"] = "kakao"
-                st.session_state["auth_phase"] = "terms"
-                st.session_state["splash_drawer_open"] = False
-                st.rerun()
-            
-
-            # Email
-            if st.button(
-                _ph_be_lbl,
-                key="gluc_sp_email",
-                use_container_width=True,
-                type="secondary",
-            ):
-                _intent = st.session_state.get("splash_auth_intent", "login")
-                st.session_state["auth_intent"] = _intent
-                st.session_state["auth_mode"] = _intent
-                st.session_state["auth_splash_done"] = True
-                st.session_state["auth_sheet_open"] = True
-                st.session_state["pending_social_provider"] = "email"
-                st.session_state["auth_phase"] = "terms"
-                st.session_state["splash_drawer_open"] = False
-                st.rerun()
-            
-
-            if _splash_intent == "login":
+                # Google
                 if st.button(
-                    "처음이신가요? 회원가입 바로가기",
-                    key="gluc_sp_nav_signup",
+                    _ph_bg_lbl,
+                    key="gluc_sp_google",
                     use_container_width=True,
-                    type="tertiary",
+                    type="primary",
                 ):
-                    st.session_state["splash_auth_intent"] = "signup"
-                    st.session_state["auth_intent"] = "signup"
+                    _intent = st.session_state.get("splash_auth_intent", "login")
+                    st.session_state["auth_intent"] = _intent
+                    st.session_state["auth_mode"] = _intent
+                    st.session_state["auth_splash_done"] = True
+                    st.session_state["auth_sheet_open"] = True
+                    st.session_state["pending_social_provider"] = "google"
+                    st.session_state["auth_phase"] = "terms"
+                    st.session_state["splash_drawer_open"] = False
                     st.rerun()
-            else:
+
+                # Naver
                 if st.button(
-                    "이미 회원이신가요? 로그인 바로가기",
-                    key="gluc_sp_nav_login",
+                    _ph_bn_lbl,
+                    key="gluc_sp_naver",
                     use_container_width=True,
-                    type="tertiary",
+                    type="secondary",
                 ):
-                    st.session_state["splash_auth_intent"] = "login"
-                    st.session_state["auth_intent"] = "login"
+                    _intent = st.session_state.get("splash_auth_intent", "login")
+                    st.session_state["auth_intent"] = _intent
+                    st.session_state["auth_mode"] = _intent
+                    st.session_state["auth_splash_done"] = True
+                    st.session_state["auth_sheet_open"] = True
+                    st.session_state["pending_social_provider"] = "naver"
+                    st.session_state["auth_phase"] = "terms"
+                    st.session_state["splash_drawer_open"] = False
                     st.rerun()
+
+                # Kakao
+                if st.button(
+                    _ph_bk_lbl,
+                    key="gluc_sp_kakao",
+                    use_container_width=True,
+                    type="secondary",
+                ):
+                    _intent = st.session_state.get("splash_auth_intent", "login")
+                    st.session_state["auth_intent"] = _intent
+                    st.session_state["auth_mode"] = _intent
+                    st.session_state["auth_splash_done"] = True
+                    st.session_state["auth_sheet_open"] = True
+                    st.session_state["pending_social_provider"] = "kakao"
+                    st.session_state["auth_phase"] = "terms"
+                    st.session_state["splash_drawer_open"] = False
+                    st.rerun()
+
+                # Email
+                if st.button(
+                    _ph_be_lbl,
+                    key="gluc_sp_email",
+                    use_container_width=True,
+                    type="secondary",
+                ):
+                    _intent = st.session_state.get("splash_auth_intent", "login")
+                    st.session_state["auth_intent"] = _intent
+                    st.session_state["auth_mode"] = _intent
+                    st.session_state["auth_splash_done"] = True
+                    st.session_state["auth_sheet_open"] = True
+                    st.session_state["pending_social_provider"] = "email"
+                    st.session_state["auth_phase"] = "terms"
+                    st.session_state["splash_drawer_open"] = False
+                    st.rerun()
+
+                if _splash_intent == "login":
+                    if st.button(
+                        "처음이신가요? 회원가입 바로가기",
+                        key="gluc_sp_nav_signup",
+                        use_container_width=True,
+                        type="tertiary",
+                    ):
+                        st.session_state["splash_auth_intent"] = "signup"
+                        st.session_state["auth_intent"] = "signup"
+                        st.rerun()
+                else:
+                    if st.button(
+                        "이미 회원이신가요? 로그인 바로가기",
+                        key="gluc_sp_nav_login",
+                        use_container_width=True,
+                        type="tertiary",
+                    ):
+                        st.session_state["splash_auth_intent"] = "login"
+                        st.session_state["auth_intent"] = "login"
+                        st.rerun()
 
         st.stop()
 
