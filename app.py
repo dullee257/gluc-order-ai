@@ -3966,8 +3966,8 @@ if not st.session_state['logged_in']:
       background: rgba(16,185,129,0.35);
       border-radius: 3px;
     }
-    /* #59: 전체 동의 — 고정 CTA에 가리지 않도록 + flex에서 잘리지 않게 */
-    body.auth-login-splash:has(#gluc-terms-page-title) .block-container .tc-master-wrap {
+    /* #59: 전체 동의 — 고정 CTA에 가리지 않도록 (#92: 마스터 전용 내부 stVerticalBlock만) */
+    body.auth-login-splash:has(#gluc-terms-page-title) .block-container [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) {
       flex: 0 0 auto !important;
       min-height: 0 !important;
       max-height: none !important;
@@ -4011,21 +4011,22 @@ if not st.session_state['logged_in']:
       overflow-y: auto !important;
       padding: 8px 10px !important;
     }
-    /* ── 마스터 "전체 동의" 체크박스 — 크고 굵게 + Glow 배경 ── */
-    body.auth-login-splash .stApp .tc-master-wrap {
-      background: linear-gradient(135deg,
-        rgba(16,185,129,0.12) 0%,
-        rgba(251,191,36,0.08) 100%) !important;
-      border: 1px solid rgba(16,185,129,0.30) !important;
-      border-radius: 14px !important;
-      padding: 12px 14px !important;
-      margin: 4px 0 8px !important;
-      box-shadow: 0 0 18px rgba(16,185,129,0.18),
-                  0 0 40px rgba(16,185,129,0.06) !important;
+    /* #92: 유령 박스 대신 컨테이너 자체에 녹색 테두리 (메인 컬럼 루트 제외: :not(:has(#gluc-terms-page-title))) */
+    body.auth-login-splash [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) {
+      border: 1.5px solid #10b981 !important;
+      background-color: rgba(16, 185, 129, 0.05) !important;
+      border-radius: 12px !important;
+      padding: 8px 16px !important;
+      margin-bottom: 16px !important;
     }
-    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] label p,
-    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] label span,
-    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] label {
+    body.auth-login-splash [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) > div {
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+    }
+    /* ── 마스터 "전체 동의" 체크박스 — 크고 굵게 (#92: .tc-master-wrap → 마커 기준) ── */
+    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] label p,
+    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] label span,
+    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] label {
       font-size: 1.1rem !important;
       font-weight: 900 !important;
       color: #ffffff !important;
@@ -4096,15 +4097,20 @@ if not st.session_state['logged_in']:
     body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stHorizontalBlock"] button[kind="secondary"] span {
       display: none !important;
     }
-    body.auth-login-splash:has(#gluc-terms-page-title) div[data-testid="stHorizontalBlock"] button[kind="secondary"]::after {
+    /* #92: 순수 CSS 꺾쇠(데이터 SVG 제거) */
+    body.auth-login-splash div[data-testid="stHorizontalBlock"] button[kind="secondary"]::after {
       content: '' !important;
       display: inline-block !important;
-      width: 20px !important;
-      height: 20px !important;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M9 5l7 7-7 7'/%3E%3C/svg%3E") !important;
-      background-size: contain !important;
-      background-repeat: no-repeat !important;
-      background-position: center !important;
+      width: 8px !important;
+      height: 8px !important;
+      border-top: 2px solid #94a3b8 !important;
+      border-right: 2px solid #94a3b8 !important;
+      transform: rotate(45deg) !important;
+      background: none !important;
+      margin-right: 8px !important;
+      position: relative !important;
+      top: -2px !important;
+      background-image: none !important;
     }
     /* #83: 약관 상세 — .tc-detail-view 마커가 있을 때 본문 테두리만 스크롤 (body/.stApp 미조작) */
     body.auth-login-splash:has(#gluc-terms-detail-root) .block-container {
@@ -4149,12 +4155,12 @@ if not st.session_state['logged_in']:
       color: #ffffff !important;
     }
     /* ── 전체동의 체크박스: CTA 위에서 크고 굵게 강조 ── */
-    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] > label {
+    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] > label {
       gap: 12px !important;
       align-items: center !important;
     }
-    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] input[type="checkbox"],
-    body.auth-login-splash .stApp .tc-master-wrap [data-testid="stCheckbox"] > label > span:first-child {
+    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] input[type="checkbox"],
+    body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.tc-master-marker):not(:has(#gluc-terms-page-title)) [data-testid="stCheckbox"] > label > span:first-child {
       width: 24px !important;
       height: 24px !important;
       min-width: 24px !important;
@@ -4308,14 +4314,17 @@ if not st.session_state['logged_in']:
             unsafe_allow_html=True,
         )
 
-        # ── 마스터 "전체 동의" — 맨 아래 배치, 크고 굵게 ──────────────────────
-        st.markdown("<div class='tc-master-wrap'>", unsafe_allow_html=True)
-        st.checkbox(
-            "약관 전체 동의",
-            key="tc_all_master",
-            on_change=_on_all_change,
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
+        # ── 마스터 "전체 동의" — 맨 아래 배치, 크고 굵게 (#92: 유령 박스 제거·마커+컨테이너) ──
+        with st.container():
+            st.markdown(
+                '<div class="tc-master-marker" aria-hidden="true"></div>',
+                unsafe_allow_html=True,
+            )
+            st.checkbox(
+                "약관 전체 동의",
+                key="tc_all_master",
+                on_change=_on_all_change,
+            )
 
         st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
