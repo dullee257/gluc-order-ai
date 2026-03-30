@@ -3512,28 +3512,27 @@ def render_terms_agreement(prov: str, _lg: str) -> None:
         for sk in _TC_KEYS:
             st.session_state[sk] = val
 
-    # #102: 모바일 전용 단순화 — border 컨테이너 + tc-mob-v3-row-marker + Flex CSS
+    # #103: border 래퍼 제거 — 단일 컨테이너 + stVerticalBlock 직접 Flex(tc-row-marker)
     for i, term in enumerate(terms_list):
         with st.container():
-            with st.container(border=True):
-                st.markdown(
-                    '<div class="tc-mob-v3-row-marker" aria-hidden="true"></div>',
-                    unsafe_allow_html=True,
-                )
-                st.checkbox(
-                    " ",
-                    value=st.session_state.get(f"terms_{i}", False),
-                    key=f"terms_{i}",
-                    on_change=check_all_status,
-                    label_visibility="collapsed",
-                )
-                lbl = f"[{'필수' if term['req'] else '선택'}] {term['title']} >"
-                if st.button(lbl, key=f"btn_tc_mob_v3_{i}", use_container_width=True):
-                    st.session_state["show_term_detail"] = i
-                    st.session_state["auth_phase"] = "terms_detail"
-                    st.session_state["target_term"] = _TC_SLUGS[i]
-                    st.query_params["tc"] = _TC_SLUGS[i]
-                    st.rerun()
+            st.markdown(
+                '<span class="tc-row-marker" style="display:none"></span>',
+                unsafe_allow_html=True,
+            )
+            st.checkbox(
+                " ",
+                value=st.session_state.get(f"terms_{i}", False),
+                key=f"terms_{i}",
+                on_change=check_all_status,
+                label_visibility="collapsed",
+            )
+            lbl = f"[{'필수' if term['req'] else '선택'}] {term['title']} >"
+            if st.button(lbl, key=f"btn_tc_mob_v4_{i}", use_container_width=True):
+                st.session_state["show_term_detail"] = i
+                st.session_state["auth_phase"] = "terms_detail"
+                st.session_state["target_term"] = _TC_SLUGS[i]
+                st.query_params["tc"] = _TC_SLUGS[i]
+                st.rerun()
 
     required_keys = [i for i, t in enumerate(terms_list) if t["req"]]
     missing = [i for i in required_keys if not st.session_state.get(f"terms_{i}", False)]
@@ -4006,72 +4005,85 @@ if not st.session_state['logged_in']:
     }
     /* KR 단일: Facebook 버튼 제거 */
     .auth-terms-panel { border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem; background: rgba(255,255,255,0.05); max-height: 220px; overflow-y: auto; margin-top: 0.35rem; }
-    /* #102: MOBILE-ONLY FINAL ULTIMATE FIX - Masterpiece terms ui */
+    /* #103: REAL MOBILE-ONLY FINAL FIX - Perfect Inline Row */
 
-    /* A. 약관 제목 및 콤팩트 여백 압축 */
+    /* A. 약관 제목 */
     #gluc-terms-page-title {
-      font-size: clamp(14px, 4.5vw, 15px) !important;
-      text-align: center; color: #fff; margin-bottom: 8px !important; margin-top: 0 !important;
+      font-size: 15px !important; text-align: center; color: #fff; margin: 0 0 6px 0 !important;
     }
     #gluc-terms-page-sub {
-      font-size: clamp(12px, 3.8vw, 13px) !important;
-      text-align: center; color: #94a3b8; margin-bottom: 12px !important; margin-top: 0 !important;
+      font-size: 13px !important; text-align: center; color: #94a3b8; margin: 0 0 12px 0 !important;
     }
 
-    /* B. [핵심] 컨테이너 기반 강제 1줄 배치 (줄바꿈 절대 불가) */
-    body.auth-login-splash div[data-testid="stVerticalBlockBorderWrapper"]:has(> div[data-testid="element-container"] .tc-mob-v3-row-marker) {
+    /* B. [핵심] 진짜 컨테이너(stVerticalBlock) 강제 1줄 가로 정렬 */
+    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-row-marker) {
       display: flex !important;
       flex-direction: row !important;
       flex-wrap: nowrap !important;
       align-items: center !important;
-      justify-content: space-between !important;
-      margin-bottom: 1px !important;
-      border: none !important;
-      background: transparent !important;
-      box-shadow: none !important;
-      padding: 0px !important; gap: 0px !important;
+      margin-bottom: 6px !important;
+      padding: 4px 10px !important;
+      background: rgba(255,255,255,0.05) !important;
+      border: 1px solid rgba(255,255,255,0.12) !important;
+      border-radius: 12px !important;
+      gap: 0 !important;
     }
 
-    /* 1열: 체크박스 영역 (크기 최소화) */
-    body.auth-login-splash div[data-testid="stVerticalBlockBorderWrapper"]:has(> div[data-testid="element-container"] .tc-mob-v3-row-marker) > div:nth-child(2) {
-      flex: 0 0 auto !important; width: auto !important; min-width: 0 !important;
-      margin: 0 0 0 10px !important; padding: 0 !important;
+    /* 1열: 체크박스 영역 (크기 32px로 최소화 및 고정) */
+    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-row-marker) > div:nth-child(2) {
+      flex: 0 0 32px !important;
+      width: 32px !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      margin: 0 6px 0 0 !important;
+      padding: 0 !important;
     }
 
     /* 2열: 텍스트 버튼 영역 (남는 공간 전체 사용) */
-    body.auth-login-splash div[data-testid="stVerticalBlockBorderWrapper"]:has(> div[data-testid="element-container"] .tc-mob-v3-row-marker) > div:nth-child(3) {
-      flex: 1 1 auto !important; min-width: 0 !important; padding: 0 !important; margin: 0 !important;
+    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .tc-row-marker) > div:nth-child(3) {
+      flex: 1 1 auto !important;
+      min-width: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
     }
 
-    /* C. 버튼을 텍스트 목록처럼 완벽 위장 (투명화) */
-    body.auth-login-splash div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-mob-v3-row-marker) > div:nth-child(3) button {
-      background: transparent !important; background-color: transparent !important;
-      border: none !important; box-shadow: none !important;
-      padding: 0 12px 0 8px !important; margin: 0 !important;
-      height: 36px !important; width: 100% !important;
+    /* C. 버튼 투명화 및 텍스트 좌측 정렬 */
+    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(.tc-row-marker) button {
+      background: transparent !important;
+      background-color: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      height: 38px !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      display: flex !important;
+      justify-content: flex-start !important;
     }
 
-    /* D. [핵심] 버튼 내부 텍스트 1줄 정렬 및 글자 크기 축소 */
-    body.auth-login-splash div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-mob-v3-row-marker) > div:nth-child(3) button div[data-testid="stMarkdownContainer"] p {
-      font-size: 12.5px !important;
-      color: #cbd5e1 !important;
-      margin: 0 !important; padding: 0 !important;
-      text-align: left !important; width: 100% !important;
-      line-height: 1.2 !important;
+    /* D. 버튼 텍스트 글자 크기 및 잘림 처리 */
+    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(.tc-row-marker) button div[data-testid="stMarkdownContainer"] p {
+      font-size: 13.5px !important;
+      color: #e2e8f0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      text-align: left !important;
       white-space: nowrap !important;
-      overflow: hidden !important; text-overflow: ellipsis !important;
-      letter-spacing: -0.5px !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      width: 100% !important;
     }
 
-    /* E. 전체 동의 진짜 상자에 녹색 테두리 적용 (콤팩트) */
+    /* E. 전체 동의 상자 */
     body.auth-login-splash div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) {
       border: 1.5px solid #10b981 !important;
       background-color: rgba(16, 185, 129, 0.05) !important;
       border-radius: 12px !important;
-      padding: 2px 16px !important; margin-bottom: 12px !important;
+      padding: 2px 16px !important;
+      margin-bottom: 12px !important;
     }
 
-    /* F. [중요] 제출 버튼 및 전체 동의 구역 하단 맨 밑바닥 고정 */
+    /* F. 하단 제출 버튼 고정 */
     body.auth-login-splash div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .ns-sp-tc-bottom-fix-marker) {
       position: fixed !important;
       bottom: 0 !important; left: 0 !important; right: 0 !important;
@@ -4081,15 +4093,12 @@ if not st.session_state['logged_in']:
       z-index: 99999 !important;
       box-shadow: 0 -8px 30px rgba(0,0,0,0.5) !important;
     }
-    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .ns-sp-tc-bottom-fix-marker) > div {
-      margin: 0 !important; padding: 0 !important;
-    }
     body.auth-login-splash div[data-testid="stVerticalBlock"]:has(> div[data-testid="element-container"] .ns-sp-tc-bottom-fix-marker) button {
       height: 48px !important; font-size: 1.05rem !important; border-radius: 10px !important;
     }
 
-    /* G. 목록 영역 하단에 고정 버튼만큼 여백 확보 (콘텐츠 안 잘리게) */
-    .tc-mob-v3-row-marker ~ div {
+    /* G. 하단 잘림 방지용 여백 */
+    .tc-row-marker ~ div {
       padding-bottom: 150px !important;
     }
     body.auth-login-splash:has(#gluc-terms-page-title) .block-container {
@@ -4124,7 +4133,7 @@ if not st.session_state['logged_in']:
       color: inherit !important;
       font-weight: 800 !important;
     }
-    /* #93: 약관 목록 — #102 :has(#gluc-terms-page-title) 스코프 */
+    /* #93: 약관 목록 — #103 :has(#gluc-terms-page-title) 스코프 */
     /* #83: 약관 상세 — .tc-detail-view 마커가 있을 때 본문 테두리만 스크롤 (body/.stApp 미조작) */
     body.auth-login-splash:has(#gluc-terms-detail-root) .block-container {
       padding-top: 0 !important;
@@ -4413,26 +4422,24 @@ if not st.session_state['logged_in']:
             "[data-testid='stVerticalBlock']:has(.gluc-phase-drawer-marker):not(:has(.ns-sp-visual))"
             " > div[data-testid='element-container']:last-child{"
             "margin-top:16px!important;}\n"
-            "/* #102: MOBILE-ONLY FINAL ULTIMATE FIX - Masterpiece terms ui (minified) */\n"
-            "#gluc-terms-page-title{font-size:clamp(14px,4.5vw,15px)!important;text-align:center;color:#fff;"
-            "margin-bottom:8px!important;margin-top:0!important;}\n"
-            "#gluc-terms-page-sub{font-size:clamp(12px,3.8vw,13px)!important;text-align:center;color:#94a3b8;"
-            "margin-bottom:12px!important;margin-top:0!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(>div[data-testid='element-container'] .tc-mob-v3-row-marker){"
+            "/* #103: REAL MOBILE-ONLY FINAL FIX - Perfect Inline Row (minified) */\n"
+            "#gluc-terms-page-title{font-size:15px!important;text-align:center;color:#fff;margin:0 0 6px 0!important;}\n"
+            "#gluc-terms-page-sub{font-size:13px!important;text-align:center;color:#94a3b8;margin:0 0 12px 0!important;}\n"
+            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .tc-row-marker){"
             "display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;"
-            "justify-content:space-between!important;margin-bottom:1px!important;border:none!important;background:transparent!important;"
-            "box-shadow:none!important;padding:0!important;gap:0!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(>div[data-testid='element-container'] .tc-mob-v3-row-marker)>div:nth-child(2){"
-            "flex:0 0 auto!important;width:auto!important;min-width:0!important;margin:0 0 0 10px!important;padding:0!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(>div[data-testid='element-container'] .tc-mob-v3-row-marker)>div:nth-child(3){"
-            "flex:1 1 auto!important;min-width:0!important;padding:0!important;margin:0!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(.tc-mob-v3-row-marker)>div:nth-child(3) button{"
+            "margin-bottom:6px!important;padding:4px 10px!important;background:rgba(255,255,255,0.05)!important;"
+            "border:1px solid rgba(255,255,255,0.12)!important;border-radius:12px!important;gap:0!important;}\n"
+            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .tc-row-marker)>div:nth-child(2){"
+            "flex:0 0 32px!important;width:32px!important;display:flex!important;justify-content:center!important;"
+            "align-items:center!important;margin:0 6px 0 0!important;padding:0!important;}\n"
+            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .tc-row-marker)>div:nth-child(3){"
+            "flex:1 1 auto!important;min-width:0!important;margin:0!important;padding:0!important;}\n"
+            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(.tc-row-marker) button{"
             "background:transparent!important;background-color:transparent!important;border:none!important;box-shadow:none!important;"
-            "padding:0 12px 0 8px!important;margin:0!important;height:36px!important;width:100%!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(.tc-mob-v3-row-marker)>div:nth-child(3) button "
-            "div[data-testid='stMarkdownContainer'] p{font-size:12.5px!important;color:#cbd5e1!important;margin:0!important;padding:0!important;"
-            "text-align:left!important;width:100%!important;line-height:1.2!important;white-space:nowrap!important;"
-            "overflow:hidden!important;text-overflow:ellipsis!important;letter-spacing:-0.5px!important;}\n"
+            "height:38px!important;padding:0!important;margin:0!important;display:flex!important;justify-content:flex-start!important;}\n"
+            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(.tc-row-marker) button div[data-testid='stMarkdownContainer'] p{"
+            "font-size:13.5px!important;color:#e2e8f0!important;margin:0!important;padding:0!important;text-align:left!important;"
+            "white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;width:100%!important;}\n"
             "body.auth-login-splash div[data-testid='stVerticalBlockBorderWrapper']:has(.tc-master-marker){"
             "border:1.5px solid #10b981!important;background-color:rgba(16,185,129,0.05)!important;"
             "border-radius:12px!important;padding:2px 16px!important;margin-bottom:12px!important;}\n"
@@ -4441,11 +4448,9 @@ if not st.session_state['logged_in']:
             "border-top:1px solid rgba(255,255,255,0.1)!important;"
             "padding:12px 16px max(12px,env(safe-area-inset-bottom,0px)) 16px!important;z-index:99999!important;"
             "box-shadow:0 -8px 30px rgba(0,0,0,0.5)!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .ns-sp-tc-bottom-fix-marker)>div{"
-            "margin:0!important;padding:0!important;}\n"
             "body.auth-login-splash div[data-testid='stVerticalBlock']:has(>div[data-testid='element-container'] .ns-sp-tc-bottom-fix-marker) button{"
             "height:48px!important;font-size:1.05rem!important;border-radius:10px!important;}\n"
-            ".tc-mob-v3-row-marker ~ div{padding-bottom:150px!important;}\n"
+            ".tc-row-marker ~ div{padding-bottom:150px!important;}\n"
             "body.auth-login-splash:has(#gluc-terms-page-title) .block-container{padding-top:0!important;padding-bottom:150px!important;overflow-y:hidden!important;}\n"
             "</style>\n"
         )
