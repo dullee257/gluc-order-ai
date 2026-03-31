@@ -3487,18 +3487,16 @@ _TC_SLUGS = ("tos", "priv", "health", "mkt", "custom_priv", "bigdata")
 
 
 def render_terms_agreement(prov: str, _lg: str) -> None:
-    # ── 약관 페이지 전용 CSS 완전 재설계 ──────────────────────────────
+    # ── 약관 페이지 전용 CSS v3 ─────────────────────────────────────
     st.markdown("""
 <style>
-/* ════ TERMS PAGE REDESIGN v2 ════ */
+/* ════ TERMS PAGE v3 - RESPONSIVE NO-SCROLL ════ */
 /* 0. 상단 여백 완전 제거 */
 body.auth-login-splash:has(#gluc-terms-page-title) header[data-testid="stHeader"],
 body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stToolbar"],
 body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stDecoration"],
-body.auth-login-splash:has(#gluc-terms-page-title) footer,
-body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stStatusWidget"] {
-  display: none !important; height: 0 !important; min-height: 0 !important;
-  overflow: hidden !important;
+body.auth-login-splash:has(#gluc-terms-page-title) footer {
+  display: none !important; height: 0 !important; overflow: hidden !important;
 }
 body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stAppViewContainer"],
 body.auth-login-splash:has(#gluc-terms-page-title) section[tabindex="0"],
@@ -3506,58 +3504,60 @@ body.auth-login-splash:has(#gluc-terms-page-title) .main {
   padding-top: 0 !important; margin-top: 0 !important;
 }
 body.auth-login-splash:has(#gluc-terms-page-title) .block-container {
-  padding: 14px 14px 175px 14px !important;
+  padding: 10px 14px 160px 14px !important;
   margin-top: 0 !important; max-width: 100% !important;
 }
-/* ── element-container 간격 최소화로 스크롤 제거 ── */
-body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="element-container"] {
+/* 1. 리스트 영역 간격 제거 (필수 로우 컨테이너 전용) */
+body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.ns-sp-tc-root-mobile) {
+  gap: 0 !important;
+}
+body.auth-login-splash .stApp [data-testid="stVerticalBlock"]:has(.ns-sp-tc-root-mobile) > [data-testid="element-container"] {
   margin-bottom: 0 !important; padding-bottom: 0 !important;
 }
-body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stVerticalBlock"] > div[data-testid="element-container"] {
-  margin-bottom: 0 !important;
-}
-/* 1. 타이틀/서브 컴팩트 */
-#gluc-terms-page-title {
-  font-size: 1.1rem !important; font-weight: 800 !important;
-  color: #ffffff !important; text-align: left !important;
-  margin: 0 0 2px 0 !important; padding: 0 !important; line-height: 1.3 !important;
-}
-#gluc-terms-page-sub {
-  font-size: 0.72rem !important; color: #64748b !important;
-  text-align: left !important; margin: 0 0 8px 0 !important; padding: 0 !important;
-}
-/* 2. 카드 ROW: 필수 항목 (초록 강조) */
+/* 2. 커드 ROW: 필수 (종석 좌측 강조) */
 body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5-req) {
   background: rgba(16,185,129,0.07) !important;
-  border-radius: 8px !important;
-  border: 1px solid rgba(16,185,129,0.22) !important;
+  border-radius: 7px !important;
+  border: 1px solid rgba(16,185,129,0.20) !important;
   border-left: 3px solid #10b981 !important;
-  margin-bottom: 5px !important; padding: 1px 8px 1px 6px !important;
+  margin-bottom: clamp(3px, 0.6dvh, 6px) !important;
+  padding: 0 10px 0 6px !important;
 }
-/* 3. 카드 ROW: 선택 항목 (회색 강조) */
+/* 3. 커드 ROW: 선택 (회색 좌측 강조) */
 body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5-opt) {
   background: rgba(255,255,255,0.03) !important;
-  border-radius: 8px !important;
+  border-radius: 7px !important;
   border: 1px solid rgba(255,255,255,0.09) !important;
-  border-left: 3px solid rgba(100,116,139,0.55) !important;
-  margin-bottom: 5px !important; padding: 1px 8px 1px 6px !important;
+  border-left: 3px solid rgba(100,116,139,0.50) !important;
+  margin-bottom: clamp(3px, 0.6dvh, 6px) !important;
+  padding: 0 10px 0 6px !important;
 }
-/* 4. Row 내부 HorizontalBlock 패딩 */
+/* 4. Row HorizontalBlock padding - 반응형 */
 body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) div[data-testid="stHorizontalBlock"] {
-  padding: 5px 0 !important; margin-bottom: 0 !important;
+  padding: clamp(2px, 0.5dvh, 5px) 0 !important;
+  margin-bottom: 0 !important; min-height: 0 !important;
 }
-/* 5. 체크박스 열 좌측 인덴트 */
-body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) div[data-testid="stHorizontalBlock"] > div:nth-child(1) {
-  padding-left: 4px !important;
+/* 5. 버튼 높이 컴팩트 - 반응형 */
+body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) [data-testid="stButton"] > button {
+  height: clamp(26px, 3.5dvh, 34px) !important;
+  min-height: 0 !important; padding: 0 !important;
 }
-/* 6. 약관 전체 동의 강조 */
-body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] label {
-  font-size: 1.05rem !important; font-weight: 900 !important;
-  color: #ffffff !important; letter-spacing: -0.3px !important;
+/* 6. 타이틀 컴팩트 */
+#gluc-terms-page-title {
+  font-size: clamp(0.95rem, 2.5dvh, 1.15rem) !important; font-weight: 800 !important;
+  color: #ffffff !important; text-align: left !important;
+  margin: 0 0 2px 0 !important; padding: 0 !important; line-height: 1.2 !important;
 }
+#gluc-terms-page-sub {
+  font-size: clamp(0.65rem, 1.5dvh, 0.72rem) !important; color: #64748b !important;
+  text-align: left !important; margin: 0 0 clamp(4px, 1dvh, 10px) 0 !important;
+}
+/* 7. 약관 전체 동의 강조 */
+body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] label,
 body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] label p,
 body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] span {
-  font-size: 1.05rem !important; font-weight: 900 !important; color: #ffffff !important;
+  font-size: clamp(0.95rem, 2dvh, 1.05rem) !important; font-weight: 900 !important;
+  color: #ffffff !important; letter-spacing: -0.3px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -3619,6 +3619,7 @@ body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:ha
 
     required_keys = [i for i, t in enumerate(terms_list) if t["req"]]
     missing = [i for i in required_keys if not st.session_state.get(f"terms_{i}", False)]
+    is_ready = not missing
 
     with st.container():
         st.markdown(
@@ -3634,28 +3635,33 @@ body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:ha
                 on_change=toggle_all_terms
             )
 
-        if missing:
-            st.button("동의하고 가입완료", disabled=True, use_container_width=True, key="btn_tc_sub_dis_mob")
-        else:
-            if st.button("동의하고 가입완료", type="primary", use_container_width=True, key="btn_tc_sub_mob"):
-                for j, sk in enumerate(_TC_KEYS):
-                    st.session_state[sk] = bool(st.session_state.get(f"terms_{j}", False))
-                st.session_state["terms_accepted_provider"] = prov
-                st.session_state["terms_marketing_agreed"] = st.session_state.get("tc_mkt", False)
-                st.session_state["terms_custom_priv_agreed"] = st.session_state.get("tc_custom_priv", False)
-                st.session_state["terms_bigdata_agreed"] = st.session_state.get("tc_bigdata", False)
-                decision = handle_social_login(prov)
-                st.session_state["auth_phase"] = "sheet"
-                st.session_state["pending_social_provider"] = None
-                if decision.get("action") == "oauth_google":
-                    st.session_state["proceed_google_oauth"] = True
-                    st.rerun()
-                elif decision.get("action") == "stub":
-                    pname = str(decision.get("provider", prov) or "").title()
-                    st.session_state["auth_flash_msg"] = get_text(_lg, "social_provider_stub", provider=pname)
-                elif decision.get("action") == "email_sheet":
-                    pass
+        # 하나의 일관된 key로 disabled 상태만 변경 → 약관전체동의 클릭 시 화면 깨짐 방지
+        clicked = st.button(
+            "동의하고 가입완료",
+            disabled=not is_ready,
+            type="primary",
+            use_container_width=True,
+            key="btn_tc_submit"
+        )
+        if clicked and is_ready:
+            for j, sk in enumerate(_TC_KEYS):
+                st.session_state[sk] = bool(st.session_state.get(f"terms_{j}", False))
+            st.session_state["terms_accepted_provider"] = prov
+            st.session_state["terms_marketing_agreed"] = st.session_state.get("tc_mkt", False)
+            st.session_state["terms_custom_priv_agreed"] = st.session_state.get("tc_custom_priv", False)
+            st.session_state["terms_bigdata_agreed"] = st.session_state.get("tc_bigdata", False)
+            decision = handle_social_login(prov)
+            st.session_state["auth_phase"] = "sheet"
+            st.session_state["pending_social_provider"] = None
+            if decision.get("action") == "oauth_google":
+                st.session_state["proceed_google_oauth"] = True
                 st.rerun()
+            elif decision.get("action") == "stub":
+                pname = str(decision.get("provider", prov) or "").title()
+                st.session_state["auth_flash_msg"] = get_text(_lg, "social_provider_stub", provider=pname)
+            elif decision.get("action") == "email_sheet":
+                pass
+            st.rerun()
 
 
 def _sync_terms_navigation() -> None:
