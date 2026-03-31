@@ -3582,13 +3582,16 @@ body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:ha
         st.session_state["terms_all"] = False
 
     def check_all_status():
-        all_checked = all(st.session_state.get(f"terms_{i}", False) for i in range(len(terms_list)))
-        st.session_state["terms_all"] = all_checked
+        # _TC_KEYS 업데이트만 수행 (terms_all 직접 안 씁 → toggle_all_terms 재호출 방지)
         for j, sk in enumerate(_TC_KEYS):
             st.session_state[sk] = bool(st.session_state.get(f"terms_{j}", False))
+        # 전체 체크 여부는 별도 플래그로 관리
+        all_req = all(st.session_state.get(f"terms_{i}", False) for i in range(len(terms_list)))
+        if all_req != st.session_state.get("terms_all", False):
+            st.session_state["terms_all"] = all_req
 
     def toggle_all_terms():
-        val = st.session_state.get("terms_all", False)
+        val = bool(st.session_state.get("terms_all", False))
         for i in range(len(terms_list)):
             st.session_state[f"terms_{i}"] = val
         for sk in _TC_KEYS:
