@@ -3628,16 +3628,18 @@ body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:ha
     missing = [i for i in required_keys if not st.session_state.get(f"terms_{i}", False)]
     is_ready = not missing
 
-    # JS로 하단 패널 viewport fixed 고정 (가장 신뢰성 높은 방식)
+    # JS로 하단 패널 fixed 고정 + 버튼 색상 직접 주입 (CSS 특이성 충돌 우회)
     st.components.v1.html("""
 <script>
 (function(){
-  function fixPanel(){
+  function fixAll(){
     var doc = window.parent.document;
     var marker = doc.querySelector('.ns-sp-tc-bottom-fix-marker');
-    if(!marker){ setTimeout(fixPanel,200); return; }
+    if(!marker){ setTimeout(fixAll,200); return; }
     var panel = marker.closest('[data-testid="stVerticalBlock"]');
-    if(!panel){ setTimeout(fixPanel,200); return; }
+    if(!panel){ setTimeout(fixAll,200); return; }
+
+    // 패널 position:fixed 고정
     panel.style.setProperty('position','fixed','important');
     panel.style.setProperty('bottom','0','important');
     panel.style.setProperty('left','0','important');
@@ -3649,9 +3651,36 @@ body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:ha
     panel.style.setProperty('box-shadow','0 -8px 30px rgba(0,0,0,0.55)','important');
     panel.style.setProperty('width','100%','important');
     panel.style.setProperty('box-sizing','border-box','important');
+
+    // 버튼 스타일 직접 제어 (CSS !important 특이성 충돌 완전 우회)
+    var btn = panel.querySelector('button[kind="primary"]');
+    if(btn){
+      btn.style.setProperty('height','50px','important');
+      btn.style.setProperty('min-height','50px','important');
+      btn.style.setProperty('font-size','1.0rem','important');
+      btn.style.setProperty('font-weight','800','important');
+      btn.style.setProperty('border-radius','12px','important');
+      btn.style.setProperty('border','none','important');
+      btn.style.setProperty('width','100%','important');
+      btn.style.setProperty('letter-spacing','-0.02em','important');
+      btn.style.setProperty('transition','background 0.2s ease, box-shadow 0.2s ease','important');
+      if(btn.disabled || btn.hasAttribute('disabled')){
+        btn.style.setProperty('background','#374151','important');
+        btn.style.setProperty('color','rgba(255,255,255,0.35)','important');
+        btn.style.setProperty('box-shadow','none','important');
+        btn.style.setProperty('cursor','not-allowed','important');
+      } else {
+        btn.style.setProperty('background','linear-gradient(135deg,#059669,#10b981)','important');
+        btn.style.setProperty('color','#ffffff','important');
+        btn.style.setProperty('box-shadow','0 4px 22px rgba(16,185,129,0.45)','important');
+        btn.style.setProperty('cursor','pointer','important');
+      }
+      var p = btn.querySelector('p');
+      if(p) p.style.setProperty('color','inherit','important');
+    }
   }
-  fixPanel();
-  var ob = new MutationObserver(fixPanel);
+  fixAll();
+  var ob = new MutationObserver(fixAll);
   ob.observe(window.parent.document.body,{childList:true,subtree:true});
 })();
 </script>
