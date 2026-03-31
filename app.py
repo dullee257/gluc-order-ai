@@ -3487,6 +3487,81 @@ _TC_SLUGS = ("tos", "priv", "health", "mkt", "custom_priv", "bigdata")
 
 
 def render_terms_agreement(prov: str, _lg: str) -> None:
+    # ── 약관 페이지 전용 CSS 완전 재설계 ──────────────────────────────
+    st.markdown("""
+<style>
+/* ════ TERMS PAGE REDESIGN v2 ════ */
+/* 0. 상단 여백 완전 제거 */
+body.auth-login-splash:has(#gluc-terms-page-title) header[data-testid="stHeader"],
+body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stToolbar"],
+body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stDecoration"],
+body.auth-login-splash:has(#gluc-terms-page-title) footer,
+body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stStatusWidget"] {
+  display: none !important; height: 0 !important; min-height: 0 !important;
+  overflow: hidden !important;
+}
+body.auth-login-splash:has(#gluc-terms-page-title) [data-testid="stAppViewContainer"],
+body.auth-login-splash:has(#gluc-terms-page-title) section[tabindex="0"],
+body.auth-login-splash:has(#gluc-terms-page-title) .main {
+  padding-top: 0 !important; margin-top: 0 !important;
+}
+body.auth-login-splash:has(#gluc-terms-page-title) .block-container {
+  padding: 14px 14px 175px 14px !important;
+  margin-top: 0 !important; max-width: 100% !important;
+}
+/* ── element-container 간격 최소화로 스크롤 제거 ── */
+body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="element-container"] {
+  margin-bottom: 0 !important; padding-bottom: 0 !important;
+}
+body.auth-login-splash:has(#gluc-terms-page-title) .stApp [data-testid="stVerticalBlock"] > div[data-testid="element-container"] {
+  margin-bottom: 0 !important;
+}
+/* 1. 타이틀/서브 컴팩트 */
+#gluc-terms-page-title {
+  font-size: 1.1rem !important; font-weight: 800 !important;
+  color: #ffffff !important; text-align: left !important;
+  margin: 0 0 2px 0 !important; padding: 0 !important; line-height: 1.3 !important;
+}
+#gluc-terms-page-sub {
+  font-size: 0.72rem !important; color: #64748b !important;
+  text-align: left !important; margin: 0 0 8px 0 !important; padding: 0 !important;
+}
+/* 2. 카드 ROW: 필수 항목 (초록 강조) */
+body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5-req) {
+  background: rgba(16,185,129,0.07) !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(16,185,129,0.22) !important;
+  border-left: 3px solid #10b981 !important;
+  margin-bottom: 5px !important; padding: 1px 8px 1px 6px !important;
+}
+/* 3. 카드 ROW: 선택 항목 (회색 강조) */
+body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5-opt) {
+  background: rgba(255,255,255,0.03) !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255,255,255,0.09) !important;
+  border-left: 3px solid rgba(100,116,139,0.55) !important;
+  margin-bottom: 5px !important; padding: 1px 8px 1px 6px !important;
+}
+/* 4. Row 내부 HorizontalBlock 패딩 */
+body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) div[data-testid="stHorizontalBlock"] {
+  padding: 5px 0 !important; margin-bottom: 0 !important;
+}
+/* 5. 체크박스 열 좌측 인덴트 */
+body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) div[data-testid="stHorizontalBlock"] > div:nth-child(1) {
+  padding-left: 4px !important;
+}
+/* 6. 약관 전체 동의 강조 */
+body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] label {
+  font-size: 1.05rem !important; font-weight: 900 !important;
+  color: #ffffff !important; letter-spacing: -0.3px !important;
+}
+body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] label p,
+body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:has(.tc-master-marker) [data-testid="stCheckbox"] span {
+  font-size: 1.05rem !important; font-weight: 900 !important; color: #ffffff !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
     st.markdown("<h3 id='gluc-terms-page-title'>📋 서비스 약관 동의</h3>", unsafe_allow_html=True)
     st.markdown("<p id='gluc-terms-page-sub'>필수 항목에 동의해야 가입완료 됩니다.</p>", unsafe_allow_html=True)
 
@@ -3518,9 +3593,10 @@ def render_terms_agreement(prov: str, _lg: str) -> None:
         unsafe_allow_html=True,
     )
     for i, term in enumerate(terms_list):
+        _row_cls = "tc-wrap-v5-req" if term["req"] else "tc-wrap-v5-opt"
         with st.container():
             st.markdown(
-                '<span class="tc-wrap-v5" style="display:none"></span>',
+                f'<span class="tc-wrap-v5 {_row_cls}" style="display:none"></span>',
                 unsafe_allow_html=True,
             )
             cols = st.columns([1, 9])  # 비율 1:9
@@ -3779,7 +3855,7 @@ if not st.session_state['logged_in']:
     <style>
     body.auth-login-splash header[data-testid="stHeader"],
     body.auth-login-splash [data-testid="stToolbar"],
-    body.auth-login-splash footer { visibility: hidden !important; height: 0 !important; min-height: 0 !important;
+    body.auth-login-splash footer { display: none !important; height: 0 !important; min-height: 0 !important;
       overflow: hidden !important; margin: 0 !important; padding: 0 !important; border: none !important; }
     body.auth-login-splash [data-testid="stDecoration"] { display: none !important; }
     /* #76: 상단 죽은 공간 제거 — 스플래시/약관 공통 */
