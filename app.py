@@ -1939,6 +1939,181 @@ if 'user_goal' not in st.session_state:
 t = LANG_DICT["KO"]
 
 
+def _get_firestore_db_safe():
+    """스크립트 상단에서도 호출 가능한 Firestore 클라이언트 헬퍼."""
+    from firebase_admin import firestore, credentials
+    import firebase_admin
+    if not firebase_admin._apps:
+        _FIREBASE_ADMIN_KEYS = [
+            "type", "project_id", "private_key_id", "private_key",
+            "client_email", "client_id", "auth_uri", "token_uri",
+            "auth_provider_x509_cert_url", "client_x509_cert_url",
+            "universe_domain"
+        ]
+        key_dict = {k: v for k, v in _get_firebase_config().items() if k in _FIREBASE_ADMIN_KEYS}
+        cred = credentials.Certificate(key_dict)
+        _opts = {}
+        _bucket = os.environ.get("FIREBASE_STORAGE_BUCKET") or os.environ.get("STORAGE_BUCKET")
+        if _bucket:
+            _opts["storageBucket"] = _bucket
+        elif key_dict.get("project_id"):
+            _opts["storageBucket"] = f"{key_dict['project_id']}.appspot.com"
+        firebase_admin.initialize_app(cred, _opts)
+    return firestore.client()
+
+
+def _render_onboarding_ui():
+    st.markdown("""
+    <style>
+    body { background-color: #0f172a !important; }
+    .stApp, .block-container { background-color: #0f172a !important; padding-top: 0 !important; }
+    header[data-testid="stHeader"], [data-testid="stToolbar"], footer { display: none !important; }
+    .ob-wrap { display:flex; flex-direction:column; min-height:85vh; padding: 20px 16px 100px; }
+    .ob-header { margin-bottom: 30px; }
+    .ob-progress-track { width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:10px; overflow:hidden; }
+    .ob-progress-fill { height:100%; background:#10b981; transition:width 0.4s ease; }
+    .ob-title { font-size:1.6rem; font-weight:900; color:#fff; margin-top:24px; line-height:1.35; letter-spacing:-0.5px; }
+    .ob-sub { font-size:0.9rem; color:#94a3b8; margin-top:8px; line-height:1.5; }
+    .ob-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:20px; padding:24px; animation: slideIn 0.4s ease; }
+    @keyframes slideIn { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:translateX(0); } }
+    .ob-bottom-fix { position:fixed; bottom:0; left:0; right:0; padding:16px; background:#0f172a; border-top:1px solid rgba(255,255,255,0.1); z-index:999; }
+    /* 슬라이더 다크스킨 오버라이드 */
+    [data-testid="stSlider"] div { color: #fff !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    if "ob_step" not in st.session_state:
+        st.session_state.update({
+            "ob_step": 1,
+            "ob_gender": "여성",
+            "ob_age": 30,
+            "ob_diabetes": "정상",
+            "ob_fbs": 100,
+            "ob_hba1c": 5.8,
+        })
+    step = st.session_state["ob_step"]
+    pct = int((step / 5) * 100)
+
+    st.markdown('<div class="ob-wrap">', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="ob-header"><div class="ob-progress-track"><div class="ob-progress-fill" style="width:{pct}%"></div></div></div>',
+        unsafe_allow_html=True,
+    )
+
+    if step == 1:
+        st.markdown(
+            '<div class="ob-title">환영합니다! 🎉<br>나만의 AI 코치를<br>세팅해 볼까요?</div><div class="ob-sub">정확한 혈당 관리와 식단 코칭을 위해<br>몇 가지 정보만 알려주세요. (약 1분 소요)</div>',
+            unsafe_allow_html=True,
+        )
+
+    elif step == 2:
+        st.markdown('<div class="ob-title">기본 정보를<br>알려주세요 👤</div>', unsafe_allow_html=True)
+        st.markdown('<div class="ob-card">', unsafe_allow_html=True)
+        st.session_state["ob_gender"] = st.radio("성별", ["여성", "남성"], horizontal=True, key="in_gender")
+        st.session_state["ob_age"] = st.slider("나이", 10, 90, st.session_state["ob_age"], key="in_age")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    elif step == 3:
+        st.markdown('<div class="ob-title">현재 건강 상태는<br>어떠신가요? 🩺</div>', unsafe_allow_html=True)
+        st.markdown('<div class="ob-card">', unsafe_allow_html=True)
+        st.session_state["ob_diabetes"] = st.radio("건강 상태", ["정상", "당뇨 전단계", "2형 당뇨", "1형 당뇨"], key="in_diab")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    elif step == 4:
+        st.markdown(
+            '<div class="ob-title">최근 건강검진 기록을<br>알려주세요 📝</div><div class="ob-sub">건강검진 기록이 있다면 AI가 평소의<br><b style="color:#fbbf24">숨은 혈당 스파이크</b>를 찾아냅니다.</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown('<div class="ob-card">', unsafe_allow_html=True)
+
+        fbs = st.slider("🌅 공복 혈당 (mg/dL)", 70, 200, st.session_state.get("ob_fbs", 100), key="in_fbs")
+        hba1c = st.slider("🩸 당화혈색소 (%)", 4.0, 10.0, st.session_state.get("ob_hba1c", 5.8), step=0.1, key="in_hba1c")
+
+        # eAG 및 스파이크 계산
+        eag = int(round((28.7 * hba1c) - 46.7))
+        gap = eag - fbs
+
+        st.markdown(
+            '<div style="margin-top:20px; padding:16px; background:rgba(0,0,0,0.3); border-radius:12px; text-align:center;">',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f'<div style="font-size:0.8rem; color:#94a3b8;">당화혈색소 기반 3개월 평균 혈당</div><div style="font-size:2rem; font-weight:900; color:#fff; line-height:1;">{eag} <span style="font-size:1rem; font-weight:500;">mg/dL</span></div>',
+            unsafe_allow_html=True,
+        )
+
+        if gap < 15:
+            st.markdown('<div style="margin-top:12px; color:#10b981; font-weight:700;">🌿 식후 혈당이 안정적입니다.</div>', unsafe_allow_html=True)
+        elif gap < 30:
+            st.markdown('<div style="margin-top:12px; color:#fbbf24; font-weight:700;">⚠️ 식후 혈당 스파이크가 의심됩니다.</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(
+                f'<div style="margin-top:12px; color:#ef4444; font-weight:700;">🚨 공복 대비 평균 혈당이 너무 높습니다!<br>심각한 숨은 스파이크(+{gap})가 발생 중입니다.</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown('</div></div>', unsafe_allow_html=True)
+        st.session_state["ob_fbs"] = fbs
+        st.session_state["ob_hba1c"] = hba1c
+
+    elif step == 5:
+        st.markdown(
+            '<div class="ob-title" style="text-align:center; margin-top:80px;">✨<br>나만의 AI 코치를<br>생성하고 있습니다</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            '<div style="display:flex; justify-content:center; margin-top:30px;"><div class="ns-loading-dots"><span></span><span></span><span></span></div></div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 하단 버튼 구역
+    st.markdown('<div class="ob-bottom-fix">', unsafe_allow_html=True)
+    col1, col2 = st.columns([1, 3] if step > 1 else [0.1, 1])
+
+    with col1:
+        if step > 1 and step < 5:
+            if st.button("이전", use_container_width=True):
+                st.session_state["ob_step"] -= 1
+                st.rerun()
+    with col2:
+        if step < 4:
+            btn_lbl = "시작하기" if step == 1 else "다음"
+            if st.button(btn_lbl, type="primary", use_container_width=True):
+                st.session_state["ob_step"] += 1
+                st.rerun()
+        elif step == 4:
+            if st.button("완료하고 결과 보기", type="primary", use_container_width=True):
+                st.session_state["ob_step"] = 5
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 5단계: DB 저장 및 메인 앱 진입
+    if step == 5:
+        uid = st.session_state.get("user_id")
+        if uid and uid != "guest_user_demo":
+            try:
+                db = _get_firestore_db_safe()
+                from firebase_admin import firestore
+                db.collection("users").document(str(uid)).set({
+                    "gender": st.session_state["ob_gender"],
+                    "age": st.session_state["ob_age"],
+                    "diabetes_type": st.session_state["ob_diabetes"],
+                    "fbs": st.session_state["ob_fbs"],
+                    "hba1c": st.session_state["ob_hba1c"],
+                    "onboarding_done": True,
+                    "updated_at": firestore.SERVER_TIMESTAMP
+                }, merge=True)
+            except Exception:
+                pass
+
+        import time
+        time.sleep(2)
+        st.session_state["onboarding_complete"] = True
+        st.rerun()
+
+
 def render_login_badge():
     """현재 로그인 타입(google/guest)에 따라 상단에 뱃지 표시."""
     _lt = st.session_state.get("login_type")
@@ -1960,6 +2135,20 @@ def render_login_badge():
             unsafe_allow_html=True,
         )
 
+# ── [온보딩 인터셉터] 로그인 완료 후 온보딩 미완료 시 강제 진입 ──
+if st.session_state.get("logged_in") and st.session_state.get("user_id") and st.session_state.get("user_id") != "guest_user_demo":
+    if "onboarding_complete" not in st.session_state:
+        with st.spinner("사용자 정보를 확인 중입니다..."):
+            try:
+                _db = _get_firestore_db_safe()
+                _doc = _db.collection("users").document(str(st.session_state["user_id"])).get()
+                st.session_state["onboarding_complete"] = _doc.exists and _doc.to_dict().get("onboarding_done", False)
+            except Exception:
+                st.session_state["onboarding_complete"] = False
+
+    if not st.session_state["onboarding_complete"]:
+        _render_onboarding_ui()
+        st.stop()  # 온보딩 중에는 메인 화면(사이드바 포함) 렌더링을 완전히 차단
 
 # 3. 사이드바 (로그인·목표 등 — 스캐너/기록 전환은 하단 바 session_state.nav_menu만 사용)
 with st.sidebar:
