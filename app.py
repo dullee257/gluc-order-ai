@@ -4019,7 +4019,7 @@ if not st.session_state['logged_in']:
     #gluc-terms-page-sub { font-size: 13px !important; text-align: center; color: #94a3b8; margin: 0 0 16px 0 !important; }
 
     /* B. [핵심] st.columns 모바일 스태킹(세로 쌓임) 강제 차단 -> 무조건 1줄 */
-    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) div[data-testid="stHorizontalBlock"] {
+    body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) div[data-testid="stHorizontalBlock"] {
       display: flex !important;
       flex-direction: row !important;
       flex-wrap: nowrap !important; /* 모바일 줄바꿈 절대 불가 */
@@ -4029,26 +4029,26 @@ if not st.session_state['logged_in']:
     }
 
     /* 1열: 체크박스 영역 크기 강제 고정 */
-    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) div[data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(1) {
-      width: 36px !important; flex: 0 0 36px !important; min-width: 36px !important;
+    body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) div[data-testid="stHorizontalBlock"] > div:nth-child(1) {
+      width: 36px !important; flex: 0 0 36px !important; min-width: 36px !important; max-width: 36px !important;
       display: flex !important; justify-content: center !important; align-items: center !important; padding: 0 !important;
     }
 
     /* 2열: 버튼 영역 나머지 공간 모두 차지 */
-    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) div[data-testid="stHorizontalBlock"] > [data-testid="column"]:nth-child(2) {
-      flex: 1 1 auto !important; width: auto !important; min-width: 0 !important; padding: 0 !important;
+    body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) div[data-testid="stHorizontalBlock"] > div:last-child {
+      flex: 1 1 auto !important; width: auto !important; min-width: 0 !important; max-width: 100% !important; padding: 0 !important;
     }
 
     /* C. 다크 박스 파괴 및 텍스트 버튼화 */
-    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) button {
+    body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) [data-testid="stButton"] > button {
       background: transparent !important; background-color: transparent !important;
       border: none !important; box-shadow: none !important;
-      padding: 0 !important; height: 36px !important; width: 100% !important;
+      padding: 0 !important; height: 36px !important; min-height: 36px !important; width: 100% !important;
       display: flex !important; justify-content: flex-start !important; align-items: center !important;
     }
 
     /* D. 버튼 텍스트 디자인 및 길면 자르기(...) */
-    body.auth-login-splash div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) button div[data-testid="stMarkdownContainer"] p {
+    body.auth-login-splash .stApp div[data-testid="stVerticalBlock"]:has(.tc-wrap-v5) [data-testid="stButton"] > button div[data-testid="stMarkdownContainer"] p {
       font-size: 13.5px !important; color: #cbd5e1 !important;
       text-align: left !important; width: 100% !important;
       white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;
@@ -4392,19 +4392,19 @@ if not st.session_state['logged_in']:
             "/* #104: UNBREAKABLE MOBILE COLUMNS (Masterpiece Terms UI) */\n"
             "#gluc-terms-page-title{font-size:15px!important;text-align:center;color:#fff;margin:0 0 6px 0!important;}\n"
             "#gluc-terms-page-sub{font-size:13px!important;text-align:center;color:#94a3b8;margin:0 0 16px 0!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(.tc-wrap-v5) div[data-testid='stHorizontalBlock']{"
+            "body.auth-login-splash .stApp div[data-testid='stVerticalBlock']:has(.tc-wrap-v5) div[data-testid='stHorizontalBlock']{"
             "display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;"
             "gap:4px!important;margin-bottom:2px!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(.tc-wrap-v5) div[data-testid='stHorizontalBlock']>"
-            "[data-testid='column']:nth-child(1){width:36px!important;flex:0 0 36px!important;min-width:36px!important;"
+            "body.auth-login-splash .stApp div[data-testid='stVerticalBlock']:has(.tc-wrap-v5) div[data-testid='stHorizontalBlock']>"
+            "div:nth-child(1){width:36px!important;flex:0 0 36px!important;min-width:36px!important;max-width:36px!important;"
             "display:flex!important;justify-content:center!important;align-items:center!important;padding:0!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(.tc-wrap-v5) div[data-testid='stHorizontalBlock']>"
-            "[data-testid='column']:nth-child(2){flex:1 1 auto!important;width:auto!important;min-width:0!important;padding:0!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(.tc-wrap-v5) button{"
+            "body.auth-login-splash .stApp div[data-testid='stVerticalBlock']:has(.tc-wrap-v5) div[data-testid='stHorizontalBlock']>"
+            "div:last-child{flex:1 1 auto!important;width:auto!important;min-width:0!important;max-width:100%!important;padding:0!important;}\n"
+            "body.auth-login-splash .stApp div[data-testid='stVerticalBlock']:has(.tc-wrap-v5) [data-testid='stButton'] > button{"
             "background:transparent!important;background-color:transparent!important;border:none!important;box-shadow:none!important;"
-            "padding:0!important;height:36px!important;width:100%!important;display:flex!important;justify-content:flex-start!important;"
-            "align-items:center!important;}\n"
-            "body.auth-login-splash div[data-testid='stVerticalBlock']:has(.tc-wrap-v5) button div[data-testid='stMarkdownContainer'] p{"
+            "padding:0!important;height:36px!important;min-height:36px!important;width:100%!important;display:flex!important;"
+            "justify-content:flex-start!important;align-items:center!important;}\n"
+            "body.auth-login-splash .stApp div[data-testid='stVerticalBlock']:has(.tc-wrap-v5) [data-testid='stButton'] > button div[data-testid='stMarkdownContainer'] p{"
             "font-size:13.5px!important;color:#cbd5e1!important;text-align:left!important;width:100%!important;"
             "white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;"
             "margin:0!important;padding:0!important;letter-spacing:-0.5px!important;}\n"
