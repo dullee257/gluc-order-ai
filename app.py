@@ -3504,7 +3504,7 @@ body.auth-login-splash:has(#gluc-terms-page-title) .main {
   padding-top: 0 !important; margin-top: 0 !important;
 }
 body.auth-login-splash:has(#gluc-terms-page-title) .block-container {
-  padding: 10px 14px 160px 14px !important;
+  padding: 24px 14px 160px 14px !important;
   margin-top: 0 !important; max-width: 100% !important;
 }
 /* 1. 리스트 영역 간격 제거 (필수 로우 컨테이너 전용) */
@@ -3574,6 +3574,13 @@ body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:ha
         {"title": "빅데이터 분석 건강정보 처리", "req": False, "key": TERMS_BIGDATA},
     ]
 
+    # 체크박스 세션스테이트 사전 초기화 (value= 충돌 방지)
+    for _ii in range(len(terms_list)):
+        if f"terms_{_ii}" not in st.session_state:
+            st.session_state[f"terms_{_ii}"] = False
+    if "terms_all" not in st.session_state:
+        st.session_state["terms_all"] = False
+
     def check_all_status():
         all_checked = all(st.session_state.get(f"terms_{i}", False) for i in range(len(terms_list)))
         st.session_state["terms_all"] = all_checked
@@ -3601,9 +3608,9 @@ body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:ha
             )
             cols = st.columns([1, 9])  # 비율 1:9
             with cols[0]:
+                # value= 제거 → session_state만으로 관리 (위젯 키 충돌 방지)
                 st.checkbox(
                     " ",
-                    value=st.session_state.get(f"terms_{i}", False),
                     key=f"terms_{i}",
                     on_change=check_all_status,
                     label_visibility="collapsed",
@@ -3621,6 +3628,35 @@ body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:ha
     missing = [i for i in required_keys if not st.session_state.get(f"terms_{i}", False)]
     is_ready = not missing
 
+    # JS로 하단 패널 viewport fixed 고정 (가장 신뢰성 높은 방식)
+    st.components.v1.html("""
+<script>
+(function(){
+  function fixPanel(){
+    var doc = window.parent.document;
+    var marker = doc.querySelector('.ns-sp-tc-bottom-fix-marker');
+    if(!marker){ setTimeout(fixPanel,200); return; }
+    var panel = marker.closest('[data-testid="stVerticalBlock"]');
+    if(!panel){ setTimeout(fixPanel,200); return; }
+    panel.style.setProperty('position','fixed','important');
+    panel.style.setProperty('bottom','0','important');
+    panel.style.setProperty('left','0','important');
+    panel.style.setProperty('right','0','important');
+    panel.style.setProperty('background','#1a2332','important');
+    panel.style.setProperty('border-top','1px solid rgba(255,255,255,0.12)','important');
+    panel.style.setProperty('padding','12px 16px max(12px,env(safe-area-inset-bottom,0px)) 16px','important');
+    panel.style.setProperty('z-index','99999','important');
+    panel.style.setProperty('box-shadow','0 -8px 30px rgba(0,0,0,0.55)','important');
+    panel.style.setProperty('width','100%','important');
+    panel.style.setProperty('box-sizing','border-box','important');
+  }
+  fixPanel();
+  var ob = new MutationObserver(fixPanel);
+  ob.observe(window.parent.document.body,{childList:true,subtree:true});
+})();
+</script>
+""", height=0)
+
     with st.container():
         st.markdown(
             '<div class="ns-sp-tc-bottom-fix-marker" aria-hidden="true"></div>',
@@ -3628,14 +3664,13 @@ body.auth-login-splash .stApp div[data-testid="stVerticalBlockBorderWrapper"]:ha
         )
         with st.container(border=True):
             st.markdown('<div class="tc-master-marker" aria-hidden="true"></div>', unsafe_allow_html=True)
+            # value= 제거 → session_state만으로 체크 상태 관리 (충돌 방지)
             st.checkbox(
                 "약관 전체 동의",
-                value=st.session_state.get("terms_all", False),
                 key="terms_all",
                 on_change=toggle_all_terms
             )
 
-        # 하나의 일관된 key로 disabled 상태만 변경 → 약관전체동의 클릭 시 화면 깨짐 방지
         clicked = st.button(
             "동의하고 가입완료",
             disabled=not is_ready,
